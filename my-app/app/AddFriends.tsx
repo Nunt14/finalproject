@@ -113,6 +113,12 @@ export default function AddFriendsScreen() {
         </Text>
       </TouchableOpacity>
 
+        <Image
+              source={require('../assets/images/bg.png')}
+              style={styles.bgImage}
+              resizeMode="contain"
+            />
+
     </View>
   );
 }
@@ -206,6 +212,13 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#fff',
     fontWeight: 'bold',
+  },
+  bgImage: {
+    // ปรับแก้ไขส่วนนี้
+    width: 500,
+    height: 235,
+    bottom: -4,
+    alignSelf: 'center',
   },
 
 });

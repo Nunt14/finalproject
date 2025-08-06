@@ -61,7 +61,9 @@ export default function WelcomeScreen() {
           <Ionicons name="add" size={55} color="#fff" />
         </TouchableOpacity>
 
+        <TouchableOpacity onPress={() => navigation.navigate('AddFriends')}></TouchableOpacity>
         <Ionicons name="wallet" size={30} color="#fff" />
+        
         <Ionicons name="person" size={30} color="#fff" />
       </View>
     </View>
