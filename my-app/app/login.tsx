@@ -13,10 +13,52 @@ export default function LoginScreen() {
       return;
     }
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-    if (error) {
+    if (error && error.message !== 'Email not confirmed') {
       Alert.alert('Login Failed', error.message);
+      return;
+    }
+    // ดำเนินการ login ต่อแม้ error เป็น Email not confirmed
+    // ตรวจสอบว่ามีข้อมูลในตาราง user หรือยัง
+    const { data: userData, error: userError } = await supabase
+      .from('user')
+      .select('user_id')
+      .eq('email', email)
+      .single();
+
+    if (!userData && !userError) {
+      // ถ้ายังไม่มี ให้บันทึกข้อมูลลงตาราง user พร้อม field ตาม schema
+      await supabase.from('user').insert([
+        {
+          email: email,
+          password: password, // ควรเข้ารหัสก่อนบันทึกจริง
+          full_name: null,
+          phone_number: null,
+          profile_image: null,
+          gender: null,
+          language_preference: null,
+          currency_preference: null,
+          is_verified: false,
+          created_at: null
+        }
+      ]);
+    }
+    // เรียกดูข้อมูลผู้ใช้จากตาราง user
+    const { data: userInfo, error: userInfoError } = await supabase
+      .from('user')
+      .select('*')
+      .eq('email', email)
+      .single();
+
+    if (userInfo) {
+      Alert.alert(
+        'Login Success',
+        `Email: ${userInfo.email}\nFull Name: ${userInfo.full_name || '-'}\nPhone: ${userInfo.phone_number || '-'}`,
+        [
+          { text: 'OK', onPress: () => router.replace('/welcome') }
+        ]
+      );
     } else {
       router.replace('/welcome');
     }

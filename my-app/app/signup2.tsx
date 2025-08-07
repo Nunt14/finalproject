@@ -28,6 +28,21 @@ export default function SignUpStep2() {
     if (error) {
       Alert.alert('Sign Up Failed', error.message);
     } else {
+      // บันทึกข้อมูลลงตาราง user ตาม schema
+      await supabase.from('user').insert([
+        {
+          email: String(email),
+          password: String(password), // ควรเข้ารหัสก่อนบันทึกจริง
+          full_name: fullName,
+          phone_number: phone,
+          profile_image: null,
+          gender: null,
+          language_preference: null,
+          currency_preference: 'THB',
+          is_verified: false,
+          created_at: null
+        }
+      ]);
       Alert.alert('Success', 'Check your email to confirm!');
       router.replace('/login');
     }
