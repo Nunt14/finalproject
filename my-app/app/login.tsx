@@ -54,11 +54,12 @@ export default function LoginScreen() {
     if (userInfo) {
       Alert.alert(
         'Login Success',
-        `Email: ${userInfo.email}\nFull Name: ${userInfo.full_name || '-'}\nPhone: ${userInfo.phone_number || '-'}`,
+        'Welcome to Harnty Trip',
         [
           { text: 'OK', onPress: () => router.replace('/welcome') }
         ]
       );
+      
     } else {
       router.replace('/welcome');
     }
