@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { View, Text, StyleSheet, TextInput, Image, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -5,6 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../constants/types';
 import { supabase } from '../constants/supabase';
+import { router } from 'expo-router';
 
 
 
@@ -49,10 +51,10 @@ export default function WelcomeScreen() {
       {/* Navigation Bar */}
       <View style={styles.navbar}>
         <Ionicons name="home" size={30} color="#fff" />
-        
+
         <TouchableOpacity onPress={() => navigation.navigate('AddFriends')}>
           <Ionicons name="people" size={40} color="#fff" />
-          </TouchableOpacity>
+        </TouchableOpacity>
 
         {/* Floating Add Button */}
         <TouchableOpacity
@@ -63,8 +65,11 @@ export default function WelcomeScreen() {
 
         <TouchableOpacity onPress={() => navigation.navigate('AddFriends')}></TouchableOpacity>
         <Ionicons name="wallet" size={30} color="#fff" />
-        
-        <Ionicons name="person" size={30} color="#fff" />
+
+        {/* ปุ่มโปรไฟล์เดียวเท่านั้น */}
+        <TouchableOpacity onPress={() => router.push('/profile')}>
+          <Ionicons name="person" size={30} color="#fff" />
+        </TouchableOpacity>
       </View>
     </View>
   );
