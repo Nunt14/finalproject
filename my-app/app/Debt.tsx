@@ -14,10 +14,10 @@ type RootStackParamList = {
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Debt'>;
 
 type Debt = {
-  id: number;
-  person_name: string;
-  amount: number;
-  list_count: number;
+  id: string; // maps to debt_id (uuid)
+  person_name?: string; // optional, not in current schema
+  amount: number; // derived: amount_owed - amount_paid
+  list_count: number; // placeholder for UI
   avatar_color: string;
   icon?: string;
 };
@@ -32,12 +32,37 @@ export default function DebtScreen() {
   }, []);
 
   const fetchDebts = async () => {
-    const { data, error } = await supabase.from('debts').select('*');
-    if (!error && data) {
-      setDebts(data);
-    } else {
+    // Get current user id from Supabase session
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData?.session?.user?.id;
+
+    const query = supabase
+      .from('debt_summary')
+      .select('debt_id, trip_id, debtor_user, creditor_user, amount_owed, amount_paid, status, last_update')
+      .order('last_update', { ascending: false });
+
+    const { data, error } = userId
+      ? await query.or(`debtor_user.eq.${userId},creditor_user.eq.${userId}`)
+      : await query;
+
+    if (error) {
       console.error('Error fetching debts:', error);
+      return;
     }
+
+    const mapped: Debt[] = (data || []).map((row: any) => {
+      const owed = Number(row.amount_owed || 0);
+      const paid = Number(row.amount_paid || 0);
+      return {
+        id: String(row.debt_id),
+        amount: Math.max(owed - paid, 0),
+        list_count: 1,
+        avatar_color: '#888',
+        icon: 'wallet',
+      } as Debt;
+    });
+
+    setDebts(mapped);
   };
 
   return (
