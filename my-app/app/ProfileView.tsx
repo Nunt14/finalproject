@@ -4,23 +4,26 @@ import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { supabase } from '../constants/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function ProfileViewScreen() {
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
     const fetchUser = async () => {
-      const { data: authUser } = await supabase.auth.getUser();
-      if (authUser?.user) {
-        const email = authUser.user.email;
-        const { data } = await supabase
-          .from('user')
-          .select('*')
-          .eq('email', email)
-          .single();
-        if (data) {
-          setUser(data);
-        }
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData?.session?.user?.id;
+      if (!userId) {
+        router.replace('/login');
+        return;
+      }
+      const { data } = await supabase
+        .from('user')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+      if (data) {
+        setUser(data);
       }
     };
     fetchUser();

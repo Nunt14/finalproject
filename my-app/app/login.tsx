@@ -14,57 +14,46 @@ export default function LoginScreen() {
       return;
     }
 
+    // ล็อกอินด้วย Supabase Auth แบบปกติ (จะไม่ต้องยืนยันอีเมล หากปิดที่ Dashboard)
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-    if (error && error.message !== 'Email not confirmed') {
+    if (error) {
       Alert.alert('Login Failed', error.message);
       return;
     }
-    
-    // ตรวจสอบ session ว่าล็อกอินสำเร็จหรือไม่
+
     if (data.session) {
-      // ดึง user_id จาก session
       const userId = data.session.user.id;
-      // บันทึก user_id ลงใน AsyncStorage
       await AsyncStorage.setItem('user_id', userId);
 
-      // ตรวจสอบว่ามีข้อมูลในตาราง user หรือยัง
-      const { data: userData, error: userError } = await supabase
+      // อัปเซิร์ตแถวผู้ใช้ของเราให้สอดคล้องกับ schema
+      const { error: upsertError } = await supabase
         .from('user')
-        .select('user_id')
-        .eq('email', email)
-        .single();
-    
-      if (!userData && !userError) {
-        // ถ้ายังไม่มี ให้บันทึกข้อมูลลงตาราง user พร้อม field ตาม schema
-        await supabase.from('user').insert([
-          {
-            user_id: userId, // เพิ่ม user_id ที่ได้จาก session
-            email: email,
-            password: password, // ควรเข้ารหัสก่อนบันทึกจริง
-            full_name: null,
-            phone_number: null,
-            profile_image: null,
-            gender: null,
-            language_preference: null,
-            currency_preference: null,
-            is_verified: false,
-            created_at: null
-          }
-        ]);
+        .upsert(
+          [
+            {
+              user_id: userId,
+              email,
+              full_name: null,
+              phone_number: null,
+              profile_image_url: null,
+              gender: null,
+              language_preference: null,
+              currency_preference: null,
+              qr_code_img: null,
+              is_verified: true,
+            },
+          ],
+          { onConflict: 'user_id', ignoreDuplicates: true }
+        );
+      if (upsertError) {
+        Alert.alert('Database Insert Failed', upsertError.message);
+        return;
       }
 
-      // นำทางไปยังหน้า welcome
-      Alert.alert(
-        'Login Success',
-        'Welcome to Harnty Trip',
-        [
-          { text: 'OK', onPress: () => router.replace('/welcome') }
-        ]
-      );
-    } else {
-      // หากไม่มี session ก็ยังคงให้ไปหน้า welcome ได้ (เช่นกรณี Email not confirmed)
       router.replace('/welcome');
+    } else {
+      Alert.alert('Login Failed', 'No active session. Please try again.');
     }
   };
 

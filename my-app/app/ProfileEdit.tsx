@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Image, TextInput, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { supabase } from '../constants/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,23 +18,25 @@ export default function ProfileEditScreen() {
 
   useEffect(() => {
     const fetchUser = async () => {
-      const { data: authUser } = await supabase.auth.getUser();
-      if (authUser?.user) {
-        const email = authUser.user.email;
-        const { data } = await supabase
-          .from('user')
-          .select('*')
-          .eq('email', email)
-          .single();
-        if (data) {
-          setUser(data);
-          setFullName(data.full_name || '');
-          setPhone(data.phone_number || '');
-          setCurrency(data.currency_preference || 'THB');
-          setLanguage(data.language_preference || 'TH');
-          setProfileImage(data.profile_image || null);
-          setQRImage(data.qr_image || null);
-        }
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData?.session?.user?.id;
+      if (!userId) {
+        router.replace('/login');
+        return;
+      }
+      const { data } = await supabase
+        .from('user')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+      if (data) {
+        setUser(data);
+        setFullName(data.full_name || '');
+        setPhone(data.phone_number || '');
+        setCurrency(data.currency_preference || 'THB');
+        setLanguage(data.language_preference || 'TH');
+        setProfileImage(data.profile_image_url || null);
+        setQRImage(data.qr_code_img || null);
       }
     };
     fetchUser();
@@ -52,10 +55,10 @@ export default function ProfileEditScreen() {
 
       if (type === 'profile') {
         setProfileImage(imageUri);
-        await supabase.from('user').update({ profile_image: imageUri }).eq('user_id', user.user_id);
+        await supabase.from('user').update({ profile_image_url: imageUri }).eq('user_id', user.user_id);
       } else {
         setQRImage(imageUri);
-        await supabase.from('user').update({ qr_image: imageUri }).eq('user_id', user.user_id);
+        await supabase.from('user').update({ qr_code_img: imageUri }).eq('user_id', user.user_id);
       }
     }
   };

@@ -5,6 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../constants/types';
 import { supabase } from '../constants/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 
 export default function WelcomeScreen() {
@@ -18,25 +19,20 @@ export default function WelcomeScreen() {
     const fetchTrips = async () => {
       setLoading(true);
 
-      // ดึงข้อมูล user ที่ล็อกอิน
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError) {
-        console.log('Error getting user:', userError);
-        setLoading(false);
-        return;
-      }
-
-      if (!user) {
-        setTrips([]);
+      // ตรวจสอบ session จาก Supabase Auth
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData?.session?.user?.id;
+      if (!userId) {
+        router.replace('/login');
         setLoading(false);
         return;
       }
 
       // ดึงเฉพาะทริปของ user นี้
       const { data, error } = await supabase
-        .from('TRIP')
+        .from('trip')
         .select('*')
-        .eq('created_by', user.id) // ถ้าเก็บเป็น int ต้องแก้เป็น id mapping
+        .eq('created_by', userId)
         .order('created_at', { ascending: false });
 
       if (error) {

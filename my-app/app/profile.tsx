@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { supabase } from '../constants/supabase';
 import { router, useFocusEffect } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -25,14 +26,17 @@ export default function ProfileScreen() {
   const [qrImage, setQRImage] = useState<string | null>(null);
 
   const fetchUser = async () => {
-    const { data: authData } = await supabase.auth.getUser();
-    if (authData?.user) {
-      const userId = authData.user.id;
-      const { data, error } = await supabase
-        .from('user')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData?.session?.user?.id;
+    if (!userId) {
+      router.replace('/login');
+      return;
+    }
+    const { data, error } = await supabase
+      .from('user')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
 
       if (error) {
         Alert.alert('Error', error.message);
@@ -44,10 +48,9 @@ export default function ProfileScreen() {
         setPhone(data.phone_number || '');
         setCurrency(data.currency_preference || 'THB');
         setLanguage(data.language_preference || 'TH');
-        setProfileImage(data.profile_image || null);
-        setQRImage(data.qr_image || null);
+        setProfileImage(data.profile_image_url || null);
+        setQRImage(data.qr_code_img || null);
       }
-    }
   };
 
   useEffect(() => {
@@ -63,7 +66,7 @@ export default function ProfileScreen() {
 
   const handleImagePick = async (type: 'profile' | 'qr') => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions. Images,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
       quality: 1,
@@ -90,8 +93,8 @@ export default function ProfileScreen() {
         phone_number: phone,
         currency_preference: currency,
         language_preference: language,
-        profile_image: profileImage,
-        qr_image: qrImage,
+        profile_image_url: profileImage,
+        qr_code_img: qrImage,
       })
       .eq('user_id', user.user_id);
 
@@ -100,11 +103,14 @@ export default function ProfileScreen() {
       return;
     }
 
-    // อัปเดตรหัสผ่าน (ถ้ากรอก)
+    // อัปเดตรหัสผ่าน (ถ้ากรอก) ลงในตาราง user โดยตรง
     if (password.trim() !== '') {
-      const { error: passError } = await supabase.auth.updateUser({ password });
-      if (passError) {
-        Alert.alert('Password Update Failed', passError.message);
+      const { error: passUpdateError } = await supabase
+        .from('user')
+        .update({ password })
+        .eq('user_id', user.user_id);
+      if (passUpdateError) {
+        Alert.alert('Password Update Failed', passUpdateError.message);
         return;
       }
     }
@@ -130,7 +136,7 @@ export default function ProfileScreen() {
   <View style={styles.profileImageWrapper}>
     <Image
       source={
-        profileImage ? { uri: profileImage } : require('../assets/images/pf.png')
+                profileImage ? { uri: profileImage } : require('../assets/images/icon.png')
       }
       style={styles.profileImage}
     />
@@ -167,7 +173,7 @@ export default function ProfileScreen() {
             <Text style={[styles.value, { color: '#3366cc' }]}>{phone || '089-xxx-xxxx'}</Text>
           )}
           <TouchableOpacity onPress={() => setEditMode(!editMode)}>
-            <Image source={require('../assets/images/edit.png')} style={styles.iconEdit} />
+            <Ionicons name="create-outline" size={18} color="#3f5b78" />
           </TouchableOpacity>
         </View>
 
@@ -193,7 +199,7 @@ export default function ProfileScreen() {
           <Ionicons name="qr-code-outline" size={18} color="#3f5b78" style={styles.iconLeft} />
           <Text style={styles.label}>Your Payment</Text>
           <TouchableOpacity onPress={() => handleImagePick('qr')}>
-            <Image source={require('../assets/images/edit.png')} style={styles.iconEdit} />
+            <Ionicons name="create-outline" size={18} color="#3f5b78" />
           </TouchableOpacity>
         </View>
 

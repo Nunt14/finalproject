@@ -14,8 +14,7 @@ export default function SignUpStep2() {
       return;
     }
 
-    // 1. ลงทะเบียนผู้ใช้กับ Supabase Auth
-    // ข้อมูล fullName และ phone_number จะถูกบันทึกลงใน auth.users.user_metadata
+    // 1) สมัครสมาชิกกับ Supabase Auth (จะ reject ถ้าอีเมลนี้ถูกใช้ไปแล้ว)
     const { data, error } = await supabase.auth.signUp({
       email: String(email),
       password: String(password),
@@ -23,41 +22,49 @@ export default function SignUpStep2() {
         data: {
           full_name: fullName,
           phone_number: phone,
-        }
-      }
+        },
+      },
     });
 
     if (error) {
-      Alert.alert('Sign Up Failed', error.message);
-    } else {
-      // 2. หากการลงทะเบียนสำเร็จ และมีการยืนยันอีเมลแล้ว
-      // บันทึกข้อมูลลงในตาราง 'user' ของคุณ
-      // ใช้ user.id ที่ได้จาก auth.users มาเป็น user_id ในตารางของคุณ
-      if (data && data.user) {
-        const { error: insertError } = await supabase.from('user').insert([
-          {
-            user_id: data.user.id,
-            email: data.user.email,
-            full_name: fullName,
-            phone_number: phone,
-            is_verified: false,
-            created_at: data.user.created_at,
-            updated_at: data.user.created_at,
-          }
-        ]);
-
-        if (insertError) {
-          Alert.alert('Database Insert Failed', insertError.message);
-        } else {
-          Alert.alert('Success', 'Check your email to confirm!');
-          router.replace('/login');
-        }
-      } else {
-        // กรณีที่การลงทะเบียนสำเร็จ แต่ไม่มีข้อมูลผู้ใช้
-        Alert.alert('Success', 'Check your email to confirm!');
+      const msg = String(error.message || '').toLowerCase();
+      if (msg.includes('already registered') || msg.includes('user already registered')) {
+        Alert.alert('Email already registered', 'Please log in instead.');
         router.replace('/login');
+        return;
+      }
+      Alert.alert('Sign Up Failed', error.message);
+      return;
+    }
+
+    // 2) บันทึกลงตาราง user ของเราแบบ upsert โดยกันซ้ำด้วยคอลัมน์ email
+    if (data && data.user) {
+      const { error: upsertError } = await supabase
+        .from('user')
+        .upsert(
+          [
+            {
+              user_id: data.user.id,
+              email: data.user.email,
+              full_name: fullName,
+              phone_number: phone,
+              is_verified: true,
+              created_at: data.user.created_at,
+              updated_at: data.user.created_at,
+            },
+          ],
+          { onConflict: 'email', ignoreDuplicates: true }
+        );
+
+      if (upsertError) {
+        // ถ้า DB มี unique constraint บน email จะกันซ้ำอีกชั้นหนึ่ง
+        Alert.alert('Database Insert Failed', upsertError.message);
+        return;
       }
     }
+
+    Alert.alert('Success', 'Account created. You can log in now.');
+    router.replace('/login');
   };
 
   return (
