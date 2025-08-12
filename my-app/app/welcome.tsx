@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Image, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Image, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -13,6 +13,18 @@ export default function WelcomeScreen() {
 
   const [trips, setTrips] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // ฟังก์ชันสำหรับกระดิ่งแจ้งเตือน
+  const handleNotificationPress = () => {
+    navigation.navigate('Notification');
+  };
+
+  // ฟังก์ชันสำหรับเมนูสามเส้น
+  const handleMenuPress = () => {
+    Alert.alert('เมนู', 'เลือกตัวเลือกที่ต้องการ');
+    // สามารถเพิ่มการนำทางไปยังหน้าต่างๆ ได้ที่นี่
+    // navigation.navigate('Settings');
+  };
 
   // โหลดข้อมูลจาก Supabase เฉพาะของ user ที่ล็อกอิน
   useEffect(() => {
@@ -65,8 +77,12 @@ export default function WelcomeScreen() {
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>All You Trip !</Text>
         <View style={styles.iconsRight}>
-          <Ionicons name="notifications" size={20} color="red" style={{ marginRight: 10 }} />
-          <Ionicons name="menu" size={20} />
+          <TouchableOpacity onPress={handleNotificationPress}>
+            <Ionicons name="notifications" size={20} color="red" style={{ marginRight: 10 }} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleMenuPress}>
+            <Ionicons name="menu" size={20} />
+          </TouchableOpacity>
         </View>
       </View>
 
