@@ -14,6 +14,8 @@ export default function SignUpStep2() {
       return;
     }
 
+    // 1. ลงทะเบียนผู้ใช้กับ Supabase Auth
+    // ข้อมูล fullName และ phone_number จะถูกบันทึกลงใน auth.users.user_metadata
     const { data, error } = await supabase.auth.signUp({
       email: String(email),
       password: String(password),
@@ -28,37 +30,45 @@ export default function SignUpStep2() {
     if (error) {
       Alert.alert('Sign Up Failed', error.message);
     } else {
-      // บันทึกข้อมูลลงตาราง user ตาม schema
-      await supabase.from('user').insert([
-        {
-          email: String(email),
-          password: String(password), // ควรเข้ารหัสก่อนบันทึกจริง
-          full_name: fullName,
-          phone_number: phone,
-          profile_image: null,
-          gender: null,
-          language_preference: null,
-          currency_preference: 'THB',
-          is_verified: false,
-          created_at: null
+      // 2. หากการลงทะเบียนสำเร็จ และมีการยืนยันอีเมลแล้ว
+      // บันทึกข้อมูลลงในตาราง 'user' ของคุณ
+      // ใช้ user.id ที่ได้จาก auth.users มาเป็น user_id ในตารางของคุณ
+      if (data && data.user) {
+        const { error: insertError } = await supabase.from('user').insert([
+          {
+            user_id: data.user.id,
+            email: data.user.email,
+            full_name: fullName,
+            phone_number: phone,
+            is_verified: false,
+            created_at: data.user.created_at,
+            updated_at: data.user.created_at,
+          }
+        ]);
+
+        if (insertError) {
+          Alert.alert('Database Insert Failed', insertError.message);
+        } else {
+          Alert.alert('Success', 'Check your email to confirm!');
+          router.replace('/login');
         }
-      ]);
-      Alert.alert('Success', 'Check your email to confirm!');
-      router.replace('/login');
+      } else {
+        // กรณีที่การลงทะเบียนสำเร็จ แต่ไม่มีข้อมูลผู้ใช้
+        Alert.alert('Success', 'Check your email to confirm!');
+        router.replace('/login');
+      }
     }
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Sign up</Text>
-
       <TextInput
         placeholder="Full name"
         style={styles.input}
         onChangeText={setFullName}
         value={fullName}
       />
-
       <TextInput
         placeholder="Phone number"
         keyboardType="phone-pad"
@@ -66,11 +76,9 @@ export default function SignUpStep2() {
         onChangeText={setPhone}
         value={phone}
       />
-
       <Text style={styles.hint}>
         I use <Text style={{ fontWeight: 'bold' }}>THB (฿)</Text> as my currency. <Text style={styles.link}>Change</Text>
       </Text>
-
       <TouchableOpacity style={styles.button} onPress={handleSignUp}>
         <Text style={styles.buttonText}>Next</Text>
       </TouchableOpacity>

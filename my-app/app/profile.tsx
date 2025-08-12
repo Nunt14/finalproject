@@ -1,47 +1,69 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, TextInput, Alert, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  TextInput,
+  Alert,
+  ScrollView,
+} from 'react-native';
 import { supabase } from '../constants/supabase';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function ProfileScreen() {
   const [user, setUser] = useState<any>(null);
   const [editMode, setEditMode] = useState(false);
-  const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
   const [currency, setCurrency] = useState('THB');
   const [language, setLanguage] = useState('TH');
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [qrImage, setQRImage] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      const { data: authUser } = await supabase.auth.getUser();
-      if (authUser?.user) {
-        const email = authUser.user.email;
-        const { data } = await supabase
-          .from('user')
-          .select('*')
-          .eq('email', email)
-          .single();
-        if (data) {
-          setUser(data);
-          setFullName(data.full_name || '');
-          setPhone(data.phone_number || '');
-          setCurrency(data.currency_preference || 'THB');
-          setLanguage(data.language_preference || 'TH');
-          setProfileImage(data.profile_image || null);
-          setQRImage(data.qr_image || null);
-        }
+  const fetchUser = async () => {
+    const { data: authData } = await supabase.auth.getUser();
+    if (authData?.user) {
+      const userId = authData.user.id;
+      const { data, error } = await supabase
+        .from('user')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      if (error) {
+        Alert.alert('Error', error.message);
+        return;
       }
-    };
+
+      if (data) {
+        setUser(data);
+        setPhone(data.phone_number || '');
+        setCurrency(data.currency_preference || 'THB');
+        setLanguage(data.language_preference || 'TH');
+        setProfileImage(data.profile_image || null);
+        setQRImage(data.qr_image || null);
+      }
+    }
+  };
+
+  useEffect(() => {
     fetchUser();
   }, []);
 
+  // เรียก fetchUser ทุกครั้งที่หน้า Profile ถูก focus
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchUser();
+    }, [])
+  );
+
   const handleImagePick = async (type: 'profile' | 'qr') => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ImagePicker.MediaTypeOptions. Images,
       allowsEditing: true,
       aspect: [1, 1],
       quality: 1,
@@ -52,32 +74,43 @@ export default function ProfileScreen() {
 
       if (type === 'profile') {
         setProfileImage(imageUri);
-        await supabase.from('user').update({ profile_image: imageUri }).eq('user_id', user.user_id);
       } else if (type === 'qr') {
         setQRImage(imageUri);
-        await supabase.from('user').update({ qr_image: imageUri }).eq('user_id', user.user_id);
       }
     }
   };
 
   const handleSave = async () => {
     if (!user || !user.user_id) return;
+
+    // อัปเดตข้อมูลในตาราง user
     const { error } = await supabase
       .from('user')
       .update({
-        full_name: fullName,
         phone_number: phone,
         currency_preference: currency,
         language_preference: language,
+        profile_image: profileImage,
+        qr_image: qrImage,
       })
       .eq('user_id', user.user_id);
 
     if (error) {
       Alert.alert('Update Failed', error.message);
-    } else {
-      Alert.alert('Profile Updated');
-      setEditMode(false);
+      return;
     }
+
+    // อัปเดตรหัสผ่าน (ถ้ากรอก)
+    if (password.trim() !== '') {
+      const { error: passError } = await supabase.auth.updateUser({ password });
+      if (passError) {
+        Alert.alert('Password Update Failed', passError.message);
+        return;
+      }
+    }
+
+    Alert.alert('Profile Updated');
+    setEditMode(false);
   };
 
   const handleLogout = async () => {
@@ -94,18 +127,29 @@ export default function ProfileScreen() {
       <Text style={styles.header}>Account</Text>
 
       <View style={styles.profileSection}>
-        <View style={styles.profileImageWrapper}>
-          <Image
-            source={profileImage ? { uri: profileImage } : require('../assets/images/logo.png')}
-            style={styles.profileImage}
-          />
-          <TouchableOpacity style={styles.cameraIcon} onPress={() => handleImagePick('profile')}>
-            <Ionicons name="camera" size={18} color="#000" />
-          </TouchableOpacity>
-        </View>
-        <Text style={styles.name}>{fullName || 'User'}</Text>
-        <Text style={styles.email}>{user?.email || 'user@email.com'}</Text>
-      </View>
+  <View style={styles.profileImageWrapper}>
+    <Image
+      source={
+        profileImage ? { uri: profileImage } : require('../assets/images/pf.png')
+      }
+      style={styles.profileImage}
+    />
+    <TouchableOpacity style={styles.cameraIcon} onPress={() => handleImagePick('profile')}>
+      <Ionicons name="camera" size={18} color="#000" />
+    </TouchableOpacity>
+  </View>
+
+  {/* แสดงชื่อ ถ้ามี full_name */}
+  {user?.full_name ? (
+    <Text style={styles.name}>{user.full_name}</Text>
+  ) : null}
+
+  {/* แสดงอีเมล ถ้ามี */}
+  {user?.email ? (
+    <Text style={styles.email}>{user.email}</Text>
+  ) : null}
+</View>
+
 
       <View style={styles.infoSection}>
         {/* PHONE */}
@@ -131,7 +175,17 @@ export default function ProfileScreen() {
         <View style={styles.infoRow}>
           <Ionicons name="lock-closed-outline" size={18} color="#3f5b78" style={styles.iconLeft} />
           <Text style={styles.label}>Password</Text>
-          <Text style={styles.value}>**********</Text>
+          {editMode ? (
+            <TextInput
+              style={styles.inlineInput}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              placeholder="Enter new password"
+            />
+          ) : (
+            <Text style={styles.value}>**********</Text>
+          )}
         </View>
 
         {/* PAYMENT */}
@@ -145,11 +199,9 @@ export default function ProfileScreen() {
 
         <View style={styles.qrBox}>
           {qrImage && <Image source={{ uri: qrImage }} style={styles.qrImage} />}
-          <Text style={styles.qrText}>QR ของคุณได้ถูกสร้างขึ้นแล้ว{'\n'}ผู้ใช้งานสามารถสแกนเพื่อชำระเงินได้</Text>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%' }}>
-            <Text style={styles.qrSubText}>ชื่อบัญชี{'\n'}เลขบัญชี</Text>
-            <Text style={[styles.qrSubText, { color: '#3366cc', textAlign: 'right' }]}>นับถือศา บลอคเจีย{'\n'}080-987-4366</Text>
-          </View>
+          <Text style={styles.qrText}>
+            QR ของคุณได้ถูกสร้างขึ้นแล้ว{'\n'}ผู้ใช้งานสามารถสแกนเพื่อชำระเงินได้
+          </Text>
         </View>
 
         {/* CURRENCY */}
@@ -166,12 +218,6 @@ export default function ProfileScreen() {
           ) : (
             <Text style={styles.value}>{currency}</Text>
           )}
-        </View>
-
-        {/* TRIP HISTORY */}
-        <View style={styles.infoRow}>
-          <Ionicons name="time-outline" size={18} color="#3f5b78" style={styles.iconLeft} />
-          <Text style={styles.label}>Trip History</Text>
         </View>
 
         {/* LANGUAGE */}
@@ -204,9 +250,8 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff', padding: 20 },
-  backButton: { 
-    marginBottom: 10 ,
-    
+  backButton: {
+    marginBottom: 10,
   },
   header: { fontSize: 22, fontWeight: 'bold', marginBottom: 10, alignSelf: 'center' },
   profileSection: { alignItems: 'center', marginBottom: 20 },
@@ -242,7 +287,6 @@ const styles = StyleSheet.create({
   },
   qrImage: { width: 180, borderRadius: 25, height: 115, marginBottom: 10 },
   qrText: { fontSize: 12, color: '#666', textAlign: 'center', marginBottom: 16 },
-  qrSubText: { fontSize: 12, color: '#333' },
   saveButton: {
     backgroundColor: '#3f5b78',
     padding: 12,

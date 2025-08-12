@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { supabase } from '../constants/supabase';
 import { router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -19,39 +20,41 @@ export default function LoginScreen() {
       Alert.alert('Login Failed', error.message);
       return;
     }
-    // ดำเนินการ login ต่อแม้ error เป็น Email not confirmed
-    // ตรวจสอบว่ามีข้อมูลในตาราง user หรือยัง
-    const { data: userData, error: userError } = await supabase
-      .from('user')
-      .select('user_id')
-      .eq('email', email)
-      .single();
+    
+    // ตรวจสอบ session ว่าล็อกอินสำเร็จหรือไม่
+    if (data.session) {
+      // ดึง user_id จาก session
+      const userId = data.session.user.id;
+      // บันทึก user_id ลงใน AsyncStorage
+      await AsyncStorage.setItem('user_id', userId);
 
-    if (!userData && !userError) {
-      // ถ้ายังไม่มี ให้บันทึกข้อมูลลงตาราง user พร้อม field ตาม schema
-      await supabase.from('user').insert([
-        {
-          email: email,
-          password: password, // ควรเข้ารหัสก่อนบันทึกจริง
-          full_name: null,
-          phone_number: null,
-          profile_image: null,
-          gender: null,
-          language_preference: null,
-          currency_preference: null,
-          is_verified: false,
-          created_at: null
-        }
-      ]);
-    }
-    // เรียกดูข้อมูลผู้ใช้จากตาราง user
-    const { data: userInfo, error: userInfoError } = await supabase
-      .from('user')
-      .select('*')
-      .eq('email', email)
-      .single();
+      // ตรวจสอบว่ามีข้อมูลในตาราง user หรือยัง
+      const { data: userData, error: userError } = await supabase
+        .from('user')
+        .select('user_id')
+        .eq('email', email)
+        .single();
+    
+      if (!userData && !userError) {
+        // ถ้ายังไม่มี ให้บันทึกข้อมูลลงตาราง user พร้อม field ตาม schema
+        await supabase.from('user').insert([
+          {
+            user_id: userId, // เพิ่ม user_id ที่ได้จาก session
+            email: email,
+            password: password, // ควรเข้ารหัสก่อนบันทึกจริง
+            full_name: null,
+            phone_number: null,
+            profile_image: null,
+            gender: null,
+            language_preference: null,
+            currency_preference: null,
+            is_verified: false,
+            created_at: null
+          }
+        ]);
+      }
 
-    if (userInfo) {
+      // นำทางไปยังหน้า welcome
       Alert.alert(
         'Login Success',
         'Welcome to Harnty Trip',
@@ -59,8 +62,8 @@ export default function LoginScreen() {
           { text: 'OK', onPress: () => router.replace('/welcome') }
         ]
       );
-      
     } else {
+      // หากไม่มี session ก็ยังคงให้ไปหน้า welcome ได้ (เช่นกรณี Email not confirmed)
       router.replace('/welcome');
     }
   };
@@ -86,7 +89,7 @@ export default function LoginScreen() {
         value={password}
       />
 
-      <Text style={styles.hint}>Minimum 8 characters   <Text style={styles.link}>Forgot password</Text></Text>
+      <Text style={styles.hint}>Minimum 8 characters   <Text style={styles.link}>Forgot password</Text></Text>
 
       <TouchableOpacity style={styles.button} onPress={handleLogin}>
         <Text style={styles.buttonText}>Next</Text>

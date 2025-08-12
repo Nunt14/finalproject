@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     width: '111%',
     height: 235,
     position: 'absolute',
-    bottom: 0,
+    bottom: -4,
     left: 0,
   },
 });
