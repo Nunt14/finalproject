@@ -1,6 +1,6 @@
 // นำเข้า React และ components ที่จำเป็น
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -96,6 +96,15 @@ export default function NotificationScreen() {
 
         
       </ScrollView>
+
+      {/* ภาพประกอบภูเขาด้านล่าง */}
+      <View style={styles.mountainContainer}>
+        <Image
+          source={require('../assets/images/bg.png')}
+          style={styles.mountainImage}
+          resizeMode="cover"
+        />
+      </View>
     </View>
   );
 }
@@ -202,6 +211,13 @@ const styles = StyleSheet.create({
     height: 200,
     marginTop: 40,
     position: 'relative',
+    overflow: 'hidden',
+    borderRadius: 20,
+  },
+  // รูปภูเขาพื้นหลัง
+  mountainImage: {
+    width: '100%',
+    height: '100%',
   },
   
 });
