@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../constants/types';
-import { supabase } from '../constants/supabase';
+import { supabase, hardResetAuth } from '../constants/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 
@@ -32,9 +32,10 @@ export default function WelcomeScreen() {
       setLoading(true);
 
       // ตรวจสอบ session จาก Supabase Auth
-      const { data: sessionData } = await supabase.auth.getSession();
+      const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
       const userId = sessionData?.session?.user?.id;
       if (!userId) {
+        await hardResetAuth();
         router.replace('/login');
         setLoading(false);
         return;

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, FlatList, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../constants/types';
 import { supabase } from '../constants/supabase';
@@ -34,6 +34,21 @@ export default function NotificationScreen() {
 
   useEffect(() => {
     fetchNotifications();
+  }, []);
+
+  // รีเฟรชทุกครั้งเมื่อหน้าได้รับโฟกัส
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchNotifications();
+    }, [])
+  );
+
+  // Polling แบบง่ายทุก 10 วินาที
+  useEffect(() => {
+    const id = setInterval(() => {
+      fetchNotifications();
+    }, 10000);
+    return () => clearInterval(id);
   }, []);
 
   const fetchNotifications = async () => {
@@ -69,6 +84,49 @@ export default function NotificationScreen() {
     }
   };
 
+  // สมัครรับเหตุการณ์ realtime เมื่อมีการเพิ่ม/อัปเดตการแจ้งเตือนของผู้ใช้คนนี้
+  useEffect(() => {
+    if (!userId) return;
+    const channel = supabase
+      .channel(`notifications-${userId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notification', filter: `user_id=eq.${userId}` },
+        (payload: any) => {
+          const row = payload.new as any;
+          setNotifications(prev => [{
+            notification_id: row.notification_id,
+            user_id: row.user_id,
+            title: row.title,
+            message: row.message,
+            is_read: row.is_read,
+            trip_id: row.trip_id ?? undefined,
+            created_at: row.created_at,
+          } as Notification, ...prev]);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'notification', filter: `user_id=eq.${userId}` },
+        (payload: any) => {
+          const row = payload.new as any;
+          setNotifications(prev => prev.map(n => n.notification_id === row.notification_id ? {
+            ...n,
+            title: row.title,
+            message: row.message,
+            is_read: row.is_read,
+            trip_id: row.trip_id ?? undefined,
+            created_at: row.created_at,
+          } : n));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      try { supabase.removeChannel(channel); } catch {}
+    };
+  }, [userId]);
+
   const markAsRead = async (notificationId: string) => {
     try {
       const { error } = await supabase
@@ -88,6 +146,18 @@ export default function NotificationScreen() {
       );
     } catch (err) {
       console.error('Mark as read error:', err);
+    }
+  };
+
+  const handleOpenNotification = async (item: Notification) => {
+    await markAsRead(item.notification_id);
+    const title = (item.title || '').toLowerCase();
+    const message = (item.message || '').toLowerCase();
+    // หากเป็นเรื่องเพื่อน ให้พาไปหน้า AddFriends
+    if (title.includes('เพื่อน') || message.includes('เพื่อน')) {
+      // @ts-ignore: our navigator supports this route
+      navigation.navigate('AddFriends');
+      return;
     }
   };
 
@@ -132,7 +202,7 @@ export default function NotificationScreen() {
     return (
       <TouchableOpacity 
         style={[styles.notificationItem, isUnread && styles.unreadNotification]}
-        onPress={() => markAsRead(item.notification_id)}
+        onPress={() => handleOpenNotification(item)}
       >
         <View style={[styles.profileIcon, { backgroundColor: icon.color }]}>
           <Ionicons name={icon.name} size={20} color="white" />

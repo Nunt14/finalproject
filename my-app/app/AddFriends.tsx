@@ -272,19 +272,43 @@ export default function AddFriendsScreen() {
   const handleAddFriend = async (receiverId: string) => {
     setLoading(true);
     try {
-      const { data, error: checkError } = await supabase
-        .from('friend_requests')
-        .select('*') 
-        .or(`and(sender_id.eq.${userId},receiver_id.eq.${receiverId}),and(sender_id.eq.${receiverId},receiver_id.eq.${userId})`);
-
-      if (data && data.length > 0) {
-        Alert.alert('แจ้งเตือน', 'คำขอนี้ถูกส่งไปแล้วหรือมีอยู่แล้ว');
+      // 1) เช็คว่าเป็นเพื่อนกันอยู่แล้วหรือไม่
+      const { data: friendRows, error: friendCheckErr } = await supabase
+        .from('friends')
+        .select('id')
+        .or(`and(user_one_id.eq.${userId},user_two_id.eq.${receiverId}),and(user_one_id.eq.${receiverId},user_two_id.eq.${userId})`);
+      if (friendCheckErr) throw friendCheckErr;
+      if (friendRows && friendRows.length > 0) {
+        Alert.alert('แจ้งเตือน', 'คุณเป็นเพื่อนกันอยู่แล้ว');
         setLoading(false);
         return;
       }
 
+      // 2) เช็คเฉพาะคำขอที่ยังค้างอยู่ (status = pending) เท่านั้น
+      const { data: pendingRows, error: checkError } = await supabase
+        .from('friend_requests')
+        .select('sender_id, receiver_id, status') 
+        .or(`and(sender_id.eq.${userId},receiver_id.eq.${receiverId}),and(sender_id.eq.${receiverId},receiver_id.eq.${userId})`)
+        .eq('status', 'pending');
+
       if (checkError && checkError.code !== 'PGRST116') throw checkError;
 
+      if (pendingRows && pendingRows.length > 0) {
+        const hasSent = pendingRows.some(r => r.sender_id === userId && r.receiver_id === receiverId);
+        const hasReceived = pendingRows.some(r => r.sender_id === receiverId && r.receiver_id === userId);
+        if (hasSent) {
+          Alert.alert('แจ้งเตือน', 'คุณส่งคำขอนี้ไปแล้ว');
+          setLoading(false);
+          return;
+        }
+        if (hasReceived) {
+          Alert.alert('แจ้งเตือน', 'มีคำขอจากผู้ใช้นี้อยู่แล้ว กรุณาไปที่คำขอที่ได้รับเพื่อยอมรับ');
+          setLoading(false);
+          return;
+        }
+      }
+
+      // 3) พยายามสร้างคำขอใหม่ ถ้ามี record เดิม (unique) ให้สลับเป็นอัปเดตสถานะกลับไปเป็น pending
       const { error } = await supabase
         .from('friend_requests')
         .insert({
@@ -292,23 +316,29 @@ export default function AddFriendsScreen() {
           receiver_id: receiverId,
           status: 'pending',
         });
-      
-      if (error) throw error;
-      
-      // สร้างการแจ้งเตือนสำหรับผู้รับ
-      const { error: notificationError } = await supabase
-        .from('notification')
-        .insert({
-          user_id: receiverId,
-          title: 'คำขอเป็นเพื่อนใหม่',
-          message: 'คุณได้รับคำขอเป็นเพื่อนใหม่',
-          is_read: false,
-          created_at: new Date().toISOString(),
-        });
 
-      if (notificationError) {
-        console.error('Create notification error:', notificationError);
+      if (error) {
+        // duplicate key จาก unique (sender_id, receiver_id)
+        if ((error as any)?.code === '23505') {
+          const { error: updateErr } = await supabase
+            .from('friend_requests')
+            .update({ status: 'pending', created_at: new Date().toISOString() })
+            .eq('sender_id', userId)
+            .eq('receiver_id', receiverId);
+          if (updateErr) throw updateErr;
+        } else {
+          throw error as any;
+        }
       }
+      
+      // แจ้งเตือนผู้รับผ่าน RPC (ใช้ SECURITY DEFINER บนฐานข้อมูล)
+      const { error: notificationError } = await supabase.rpc('notify_user', {
+        p_user_id: receiverId,
+        p_title: 'คำขอเป็นเพื่อนใหม่',
+        p_message: 'คุณได้รับคำขอเป็นเพื่อนใหม่',
+        p_trip_id: null,
+      });
+      if (notificationError) console.error('Create notification error:', notificationError);
       
       const { data: newPendingUser, error: newPendingError } = await supabase
           .from('user')
@@ -348,20 +378,14 @@ export default function AddFriendsScreen() {
         
       if (insertError1 || insertError2) throw new Error(insertError1?.message || insertError2?.message);
 
-      // สร้างการแจ้งเตือนสำหรับผู้ส่งว่าคำขอถูกตอบรับ
-      const { error: notificationError } = await supabase
-        .from('notification')
-        .insert({
-          user_id: senderId,
-          title: 'คำขอเป็นเพื่อนถูกตอบรับ',
-          message: 'คำขอเป็นเพื่อนของคุณถูกตอบรับแล้ว',
-          is_read: false,
-          created_at: new Date().toISOString(),
-        });
-
-      if (notificationError) {
-        console.error('Create notification error:', notificationError);
-      }
+      // แจ้งเตือนผู้ส่งผ่าน RPC
+      const { error: notificationError } = await supabase.rpc('notify_user', {
+        p_user_id: senderId,
+        p_title: 'คำขอเป็นเพื่อนถูกตอบรับ',
+        p_message: 'คำขอเป็นเพื่อนของคุณถูกตอบรับแล้ว',
+        p_trip_id: null,
+      });
+      if (notificationError) console.error('Create notification error:', notificationError);
 
       const acceptedUser = receivedRequests.find(user => user.user_id === senderId);
       
@@ -389,6 +413,15 @@ export default function AddFriendsScreen() {
 
       setReceivedRequests(receivedRequests.filter(user => user.user_id !== senderId));
       Alert.alert('สำเร็จ', 'คุณปฏิเสธคำขอเป็นเพื่อนแล้ว');
+
+      // แจ้งเตือนผู้ส่งว่าโดนปฏิเสธ (ผ่าน RPC)
+      const { error: notificationError } = await supabase.rpc('notify_user', {
+        p_user_id: senderId,
+        p_title: 'ปฏิเสธคำขอเป็นเพื่อน',
+        p_message: 'คำขอเป็นเพื่อนของคุณถูกปฏิเสธ',
+        p_trip_id: null,
+      });
+      if (notificationError) console.error('Create notification error:', notificationError);
     } catch (err: any) {
       console.error('Decline request error:', err);
       Alert.alert('ข้อผิดพลาด', 'ไม่สามารถปฏิเสธคำขอเป็นเพื่อนได้: ' + (err.message || 'Unknown error'));
