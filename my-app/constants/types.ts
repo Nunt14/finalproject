@@ -6,4 +6,5 @@ export type RootStackParamList = {
   Debt: undefined;
   Notification: undefined;
   Trip: { tripId: string } | undefined;
+  FriendProfile: { userId: string } | undefined;
 };

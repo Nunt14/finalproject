@@ -17,7 +17,25 @@ import { useRouter } from 'expo-router';
 import { supabase } from '../constants/supabase';
 
 // Component for rendering a single user item with actions
-const UserItem = React.memo(({ user, type, handleAddFriend, handleAcceptRequest, handleDeclineRequest, loading, friendsList, pendingRequests, receivedRequests }) => {
+interface UserItemProps {
+  user: {
+    user_id: string;
+    full_name: string;
+    profile_image_url?: string;
+  };
+  type: string;
+  handleAddFriend: (userId: string) => void;
+  handleAcceptRequest: (userId: string) => void;
+  handleDeclineRequest: (userId: string) => void;
+  handleDeleteFriend: (userId: string) => void;
+  handleViewProfile: (user: any) => void;
+  loading: boolean;
+  friendsList: any[];
+  pendingRequests: any[];
+  receivedRequests: any[];
+}
+
+const UserItem = React.memo(({ user, type, handleAddFriend, handleAcceptRequest, handleDeclineRequest, handleDeleteFriend, handleViewProfile, loading, friendsList, pendingRequests, receivedRequests }: UserItemProps) => {
   const renderAction = () => {
     // Determine the action button/text based on the user's status
     // แก้ไขโดยใช้ optional chaining (?.) เพื่อป้องกัน TypeError หาก props เป็น undefined
@@ -26,7 +44,26 @@ const UserItem = React.memo(({ user, type, handleAddFriend, handleAcceptRequest,
     const isReceived = receivedRequests?.some(r => r.user_id === user.user_id);
 
     if (type === 'search') {
-      if (isFriend) return <Text style={styles.addedText}>Added</Text>;
+      if (isFriend) {
+        return (
+          <View style={styles.actionButtons}>
+            <TouchableOpacity 
+              style={[styles.viewProfileButton, { marginRight: 5 }]} 
+              onPress={() => handleViewProfile(user)}
+              disabled={loading}
+            >
+              <Text style={styles.buttonText}>View Profile</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.deleteButton} 
+              onPress={() => handleDeleteFriend(user.user_id)}
+              disabled={loading}
+            >
+              <Text style={styles.buttonText}>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      }
       if (isPending) return <Text style={styles.pendingText}>Pending</Text>;
       if (isReceived) {
         return (
@@ -60,7 +97,26 @@ const UserItem = React.memo(({ user, type, handleAddFriend, handleAcceptRequest,
     }
     
     // Actions for pre-sorted lists
-    if (type === 'friend') return <Text style={styles.addedText}>Added</Text>;
+    if (type === 'friend') {
+      return (
+        <View style={styles.actionButtons}>
+          <TouchableOpacity 
+            style={[styles.viewProfileButton, { marginRight: 5 }]} 
+            onPress={() => handleViewProfile(user)}
+            disabled={loading}
+          >
+            <Text style={styles.buttonText}>View Profile</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.deleteButton} 
+            onPress={() => handleDeleteFriend(user.user_id)}
+            disabled={loading}
+          >
+            <Text style={styles.buttonText}>Delete</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
     if (type === 'pending') return <Text style={styles.pendingText}>Pending</Text>;
     if (type === 'received') {
       return (
@@ -103,14 +159,14 @@ const UserItem = React.memo(({ user, type, handleAddFriend, handleAcceptRequest,
 export default function AddFriendsScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [userId, setUserId] = useState(null);
-  const [friendsList, setFriendsList] = useState([]);
-  const [pendingRequests, setPendingRequests] = useState([]);
-  const [receivedRequests, setReceivedRequests] = useState([]);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [friendsList, setFriendsList] = useState<any[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+  const [receivedRequests, setReceivedRequests] = useState<any[]>([]);
   const [selectedTab, setSelectedTab] = useState('friends');
-  const debounceTimeoutRef = useRef(null);
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -198,18 +254,22 @@ export default function AddFriendsScreen() {
           .neq('user_id', userId); 
         if (error) throw error;
         setSearchResults(data || []); 
-      } catch (err) {
+      } catch (err: any) {
         console.error('Search user error:', err);
         Alert.alert('ข้อผิดพลาด', 'เกิดข้อผิดพลาดในการค้นหา');
       } finally {
         setLoading(false);
       }
-    }, 500);
+    }, 500) as unknown as NodeJS.Timeout;
 
-    return () => clearTimeout(debounceTimeoutRef.current);
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
   }, [searchQuery, userId]);
 
-  const handleAddFriend = async (receiverId) => {
+  const handleAddFriend = async (receiverId: string) => {
     setLoading(true);
     try {
       const { data, error: checkError } = await supabase
@@ -235,6 +295,21 @@ export default function AddFriendsScreen() {
       
       if (error) throw error;
       
+      // สร้างการแจ้งเตือนสำหรับผู้รับ
+      const { error: notificationError } = await supabase
+        .from('notification')
+        .insert({
+          user_id: receiverId,
+          title: 'คำขอเป็นเพื่อนใหม่',
+          message: 'คุณได้รับคำขอเป็นเพื่อนใหม่',
+          is_read: false,
+          created_at: new Date().toISOString(),
+        });
+
+      if (notificationError) {
+        console.error('Create notification error:', notificationError);
+      }
+      
       const { data: newPendingUser, error: newPendingError } = await supabase
           .from('user')
           .select('user_id, full_name, profile_image_url')
@@ -245,15 +320,15 @@ export default function AddFriendsScreen() {
       
       setPendingRequests([...pendingRequests, newPendingUser]);
       Alert.alert('สำเร็จ', 'ส่งคำขอเป็นเพื่อนเรียบร้อยแล้ว');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Add friend error:', err);
-      Alert.alert('ข้อผิดพลาด', 'ไม่สามารถส่งคำขอเป็นเพื่อนได้: ' + err.message);
+      Alert.alert('ข้อผิดพลาด', 'ไม่สามารถส่งคำขอเป็นเพื่อนได้: ' + (err.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAcceptRequest = async (senderId) => {
+  const handleAcceptRequest = async (senderId: string) => {
     setLoading(true);
     try {
       const { error: updateError } = await supabase
@@ -273,20 +348,35 @@ export default function AddFriendsScreen() {
         
       if (insertError1 || insertError2) throw new Error(insertError1?.message || insertError2?.message);
 
+      // สร้างการแจ้งเตือนสำหรับผู้ส่งว่าคำขอถูกตอบรับ
+      const { error: notificationError } = await supabase
+        .from('notification')
+        .insert({
+          user_id: senderId,
+          title: 'คำขอเป็นเพื่อนถูกตอบรับ',
+          message: 'คำขอเป็นเพื่อนของคุณถูกตอบรับแล้ว',
+          is_read: false,
+          created_at: new Date().toISOString(),
+        });
+
+      if (notificationError) {
+        console.error('Create notification error:', notificationError);
+      }
+
       const acceptedUser = receivedRequests.find(user => user.user_id === senderId);
       
       setFriendsList([...friendsList, acceptedUser]);
       setReceivedRequests(receivedRequests.filter(user => user.user_id !== senderId));
       Alert.alert('สำเร็จ', 'คุณตอบรับคำขอเป็นเพื่อนแล้ว');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Accept request error:', err);
-      Alert.alert('ข้อผิดพลาด', 'ไม่สามารถยอมรับคำขอเป็นเพื่อนได้: ' + err.message);
+      Alert.alert('ข้อผิดพลาด', 'ไม่สามารถยอมรับคำขอเป็นเพื่อนได้: ' + (err.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDeclineRequest = async (senderId) => {
+  const handleDeclineRequest = async (senderId: string) => {
     setLoading(true);
     try {
       const { error } = await supabase
@@ -299,13 +389,50 @@ export default function AddFriendsScreen() {
 
       setReceivedRequests(receivedRequests.filter(user => user.user_id !== senderId));
       Alert.alert('สำเร็จ', 'คุณปฏิเสธคำขอเป็นเพื่อนแล้ว');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Decline request error:', err);
-      Alert.alert('ข้อผิดพลาด', 'ไม่สามารถปฏิเสธคำขอเป็นเพื่อนได้: ' + err.message);
+      Alert.alert('ข้อผิดพลาด', 'ไม่สามารถปฏิเสธคำขอเป็นเพื่อนได้: ' + (err.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
   };
+
+  const handleDeleteFriend = async (friendId: string) => {
+    setLoading(true);
+    try {
+      const { error: deleteError1 } = await supabase
+        .from('friends')
+        .delete()
+        .eq('user_one_id', userId)
+        .eq('user_two_id', friendId);
+      const { error: deleteError2 } = await supabase
+        .from('friends')
+        .delete()
+        .eq('user_one_id', friendId)
+        .eq('user_two_id', userId);
+
+      if (deleteError1 || deleteError2) throw new Error(deleteError1?.message || deleteError2?.message);
+
+      // ลบจากรายการเพื่อนทั้งหมด
+      setFriendsList(friendsList.filter(user => user.user_id !== friendId));
+      Alert.alert('สำเร็จ', 'ลบเพื่อนแล้ว');
+
+    } catch (err: any) {
+      console.error('Delete friend error:', err);
+      Alert.alert('ข้อผิดพลาด', 'ไม่สามารถลบเพื่อนได้: ' + (err.message || 'Unknown error'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleViewProfile = (user: any) => {
+    router.push({
+      pathname: '/FriendProfile',
+      params: { userId: user.user_id }
+    });
+  };
+
+
   
   // Memoized data for the main friends list to avoid redundant calculations
   const friendListItems = useMemo(() => {
@@ -383,6 +510,8 @@ export default function AddFriendsScreen() {
                   handleAddFriend={handleAddFriend}
                   handleAcceptRequest={handleAcceptRequest}
                   handleDeclineRequest={handleDeclineRequest}
+                  handleDeleteFriend={handleDeleteFriend}
+                  handleViewProfile={handleViewProfile}
                   loading={loading}
                 />
               )}
@@ -407,6 +536,8 @@ export default function AddFriendsScreen() {
                     handleAddFriend={handleAddFriend}
                     handleAcceptRequest={handleAcceptRequest}
                     handleDeclineRequest={handleDeclineRequest}
+                    handleDeleteFriend={handleDeleteFriend}
+                    handleViewProfile={handleViewProfile}
                     loading={loading}
                     // เพิ่ม props ที่จำเป็นเข้าไป
                     friendsList={friendsList}
@@ -581,6 +712,18 @@ const styles = StyleSheet.create({
   },
   declineButton: {
     backgroundColor: '#F44336',
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+  },
+  viewProfileButton: {
+    backgroundColor: '#007bff',
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+  },
+  deleteButton: {
+    backgroundColor: '#dc3545',
     paddingVertical: 8,
     paddingHorizontal: 15,
     borderRadius: 8,
