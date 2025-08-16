@@ -115,9 +115,11 @@ export default function TripScreen() {
             <Text style={styles.bagText}>DEBT</Text>
           </View>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.circleBtn}>
+
+        <TouchableOpacity style={styles.circleBtn} onPress={() => router.push(`/AddBill?tripId=${tripId}`)}>
           <Ionicons name="add" size={30} color="#fff" />
         </TouchableOpacity>
+
         <TouchableOpacity style={styles.circleBtn}>
           <FontAwesome5 name="dollar-sign" size={26} color="#fff" />
         </TouchableOpacity>
