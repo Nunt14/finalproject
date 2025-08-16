@@ -5,4 +5,5 @@ export type RootStackParamList = {
   AddFriends: undefined;
   Debt: undefined;
   Notification: undefined;
+  Trip: { tripId: string } | undefined;
 };

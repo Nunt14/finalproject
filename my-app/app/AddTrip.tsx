@@ -4,18 +4,26 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../constants/supabase';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
+import { decode as decodeBase64 } from 'base64-arraybuffer';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 
+type Member = {
+  user_id: string;
+  full_name: string | null;
+  profile_image_url: string | null;
+};
+
 export default function AddTripScreen() {
   const router = useRouter();
-  const [tripName, setTripName] = useState('');
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [members, setMembers] = useState([]);
-  const [selectedMembers, setSelectedMembers] = useState([]);
-  const [selectAll, setSelectAll] = useState(false);
-  const [userId, setUserId] = useState(null);
+  const [tripName, setTripName] = useState<string>('');
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [selectAll, setSelectAll] = useState<boolean>(false);
+  const [userId, setUserId] = useState<string | null>(null);
 
   // ดึงข้อมูลผู้ใช้ปัจจุบันและเพื่อนเมื่อหน้าจอโหลด
   useEffect(() => {
@@ -33,30 +41,39 @@ export default function AddTripScreen() {
         const currentUserId = session.user.id;
         setUserId(currentUserId);
 
-        // ดึงรายชื่อเพื่อนของผู้ใช้ปัจจุบัน (ใช้ชื่อตาราง 'friend' ตัวเล็ก)
-        // ** แก้ไข: ใช้ 'user_id' และเลือก 'friend_email' ตามโครงสร้างฐานข้อมูลใหม่
-        const { data: friendsData, error: friendsError } = await supabase
-          .from('friend')
-          .select('friend_email')
-          .eq('user_id', currentUserId);
-        
+        // ดึงรายชื่อเพื่อนที่ยืนยันแล้วจากตาราง 'friends'
+        const { data: friendsRows, error: friendsError } = await supabase
+          .from('friends')
+          .select('user_two_id, user_one_id')
+          .or(`user_one_id.eq.${currentUserId},user_two_id.eq.${currentUserId}`);
+
         if (friendsError) throw friendsError;
 
-        if (friendsData.length > 0) {
-          // ดึงข้อมูลเต็มของเพื่อนจากตาราง user โดยใช้ email ที่ได้
-          const friendEmails = friendsData.map(friend => friend.friend_email);
+        const friendIds = (friendsRows || []).map((f: any) => (
+          f.user_two_id === currentUserId ? f.user_one_id : f.user_two_id
+        ));
+        const uniqueFriendIds = Array.from(new Set(friendIds)).filter(Boolean);
+
+        if (uniqueFriendIds.length > 0) {
           const { data: friendUsers, error: usersError } = await supabase
             .from('user')
             .select('user_id, full_name, profile_image_url')
-            .in('email', friendEmails);
-          
+            .in('user_id', uniqueFriendIds);
+
           if (usersError) throw usersError;
-          setMembers(friendUsers);
+          setMembers((friendUsers || []).map((u: any) => ({
+            user_id: String(u.user_id),
+            full_name: u.full_name ?? null,
+            profile_image_url: u.profile_image_url ?? null,
+          })) as Member[]);
+        } else {
+          setMembers([]);
         }
 
-      } catch (err) {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
         console.error('Fetch data error:', err);
-        Alert.alert('ข้อผิดพลาด', 'ไม่สามารถโหลดข้อมูลเพื่อนได้: ' + err.message);
+        Alert.alert('ข้อผิดพลาด', 'ไม่สามารถโหลดข้อมูลเพื่อนได้: ' + message);
       } finally {
         setLoading(false);
       }
@@ -73,54 +90,62 @@ export default function AddTripScreen() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      // ** แก้ไข: ใช้ ImagePicker.MediaType แทน ImagePicker.MediaTypeOptions
-      mediaTypes: ImagePicker.MediaType.Images,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [4, 3],
       quality: 1,
     });
 
     if (!result.canceled) {
-      setSelectedImage(result.assets[0].uri);
+      setSelectedImage(result.assets[0]?.uri ?? null);
     }
   };
 
-  const uploadImage = async (imageUri) => {
+  const uploadImage = async (imageUri: string, pathPrefix: string): Promise<string | null> => {
     if (!imageUri) return null;
 
     try {
-      const response = await fetch(imageUri);
-      const blob = await response.blob();
-      const filename = `${uuidv4()}.png`;
-      const filePath = `${userId}/${filename}`;
+      // อ่านไฟล์เป็น base64 แล้วแปลงเป็น ArrayBuffer (สำหรับ React Native)
+      const base64 = await FileSystem.readAsStringAsync(imageUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      const arrayBuffer = decodeBase64(base64);
+
+      const extensionMatch = imageUri.match(/\.([a-zA-Z0-9]+)$/);
+      const extension = (extensionMatch ? extensionMatch[1] : 'jpg').toLowerCase();
+      const contentType = extension === 'png' ? 'image/png' : 'image/jpeg';
+      const filename = `${uuidv4()}.${extension}`;
+      const filePath = `${pathPrefix}/${filename}`;
 
       const { data, error } = await supabase
         .storage
-        .from('trip-images')
-        .upload(filePath, blob, {
+        .from('Trip-image')
+        .upload(filePath, arrayBuffer, {
           cacheControl: '3600',
           upsert: false,
+          contentType,
         });
 
       if (error) throw error;
       
       const { data: publicUrl } = supabase
         .storage
-        .from('trip-images')
+        .from('Trip-image')
         .getPublicUrl(filePath);
 
       return publicUrl.publicUrl;
 
-    } catch (err) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
       console.error('Image upload error:', err);
-      Alert.alert('ข้อผิดพลาด', 'ไม่สามารถอัปโหลดรูปภาพได้: ' + err.message);
+      Alert.alert('ข้อผิดพลาด', 'ไม่สามารถอัปโหลดรูปภาพได้: ' + message);
       return null;
     }
   };
 
-  const handleMemberSelect = (memberId) => {
+  const handleMemberSelect = (memberId: string) => {
     if (selectedMembers.includes(memberId)) {
-      setSelectedMembers(selectedMembers.filter(id => id !== memberId));
+      setSelectedMembers(selectedMembers.filter((id: string) => id !== memberId));
     } else {
       setSelectedMembers([...selectedMembers, memberId]);
     }
@@ -136,7 +161,7 @@ export default function AddTripScreen() {
     if (selectAll) {
       setSelectedMembers([]);
     } else {
-      setSelectedMembers(members.map(member => member.user_id));
+      setSelectedMembers(members.map((member: Member) => member.user_id));
     }
     setSelectAll(!selectAll);
   };
@@ -153,34 +178,39 @@ export default function AddTripScreen() {
 
     setLoading(true);
     try {
-      // 1. อัปโหลดรูปภาพ
-      const imageUrl = await uploadImage(selectedImage);
-      if (!imageUrl) {
-        setLoading(false);
-        return;
-      }
-
-      // 2. เพิ่มข้อมูลทริปลงในตาราง trip (ใช้ชื่อตาราง 'trip' ตัวเล็ก)
+      // 1) สร้างทริปก่อน (ยังไม่ใส่รูปภาพ)
       const { data: tripData, error: tripError } = await supabase
         .from('trip')
         .insert({
           trip_name: tripName,
-          trip_image_url: imageUrl,
           created_by: userId,
           trip_status: 'active',
-          location: 'default location', // ใส่ค่าเริ่มต้นหรือค่าจริงตามต้องการ
-          budget: 0, // ใส่ค่าเริ่มต้นหรือค่าจริงตามต้องการ
         })
         .select();
 
       if (tripError) throw tripError;
 
-      const newTripId = tripData[0].trip_id;
+      const newTripId = tripData && tripData[0]?.trip_id;
+      if (!newTripId) {
+        throw new Error('ไม่พบรหัสทริปที่สร้าง');
+      }
 
-      // 3. เพิ่มข้อมูลสมาชิกในทริปลงในตาราง trip_member (ใช้ชื่อตาราง 'trip_member' ตัวเล็ก)
+      // 2) อัปโหลดรูปภาพไปยังโฟลเดอร์ของทริป แล้วอัปเดต URL ลงทริป
+      const imageUrl = await uploadImage(selectedImage as string, `trips/${newTripId}`);
+      if (!imageUrl) {
+        throw new Error('อัปโหลดรูปภาพไม่สำเร็จ');
+      }
+
+      const { error: updateTripError } = await supabase
+        .from('trip')
+        .update({ trip_image_url: imageUrl })
+        .eq('trip_id', newTripId);
+      if (updateTripError) throw updateTripError;
+
+      // 3) เพิ่มข้อมูลสมาชิกในทริปลงในตาราง trip_member (ใช้ชื่อตาราง 'trip_member' ตัวเล็ก)
       const membersToInsert = [
-        { trip_id: newTripId, user_id: userId, is_admin: true, is_active: true }, // ผู้สร้างทริปเป็น admin
-        ...selectedMembers.map(memberId => ({
+        { trip_id: newTripId, user_id: userId, is_admin: true, is_active: true },
+        ...selectedMembers.map((memberId: string) => ({
           trip_id: newTripId,
           user_id: memberId,
           is_admin: false,
@@ -197,9 +227,10 @@ export default function AddTripScreen() {
       Alert.alert('สำเร็จ', 'เพิ่มทริปเรียบร้อยแล้ว!');
       router.replace('/welcome');
 
-    } catch (err) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
       console.error('Confirm error:', err);
-      Alert.alert('ข้อผิดพลาด', 'ไม่สามารถสร้างทริปได้: ' + err.message);
+      Alert.alert('ข้อผิดพลาด', 'ไม่สามารถสร้างทริปได้: ' + message);
     } finally {
       setLoading(false);
     }
@@ -241,37 +272,7 @@ export default function AddTripScreen() {
         <ActivityIndicator style={{ marginTop: 20 }} size="large" color="#1A3C6B" />
       ) : (
         <View>
-          <View style={styles.memberRow}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {members.map((member) => (
-                <TouchableOpacity
-                  key={member.user_id}
-                  style={[
-                    styles.memberCircle,
-                    selectedMembers.includes(member.user_id) && styles.selectedMember
-                  ]}
-                  onPress={() => handleMemberSelect(member.user_id)}
-                >
-                  {member.profile_image_url ? (
-                    <Image source={{ uri: member.profile_image_url }} style={styles.profileImage} />
-                  ) : (
-                    <Text style={styles.memberText}>
-                      {member.full_name ? member.full_name.charAt(0) : '?'}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              ))}
-              <TouchableOpacity
-                style={[
-                  styles.memberCircle,
-                  { backgroundColor: '#ccc' },
-                  selectedMembers.length === 0 && !selectAll && styles.selectedMember
-                ]}
-              >
-                <Ionicons name="person-add-sharp" size={20} color="#666" />
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
+          {/* removed small horizontal avatar list per request */}
           <TouchableOpacity 
             style={styles.everyoneBox}
             onPress={handleSelectAll}
@@ -283,6 +284,34 @@ export default function AddTripScreen() {
             />
             <Text style={styles.everyoneLabel}>Everyone</Text>
           </TouchableOpacity>
+          {/* รายชื่อเพื่อนแบบมีชื่อและรูปโปรไฟล์ให้เลือก */}
+          <View style={styles.memberList}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+            {members.map((member) => {
+              const isSelected = selectedMembers.includes(member.user_id);
+              return (
+                <TouchableOpacity
+                  key={member.user_id}
+                  style={[styles.memberListItem, isSelected && styles.memberListItemSelected]}
+                  onPress={() => handleMemberSelect(member.user_id)}
+                >
+                  {member.profile_image_url ? (
+                    <Image source={{ uri: member.profile_image_url }} style={[styles.memberListAvatar, isSelected && styles.memberListAvatarSelected]} />
+                  ) : (
+                    <View style={[styles.memberListAvatarPlaceholder, isSelected && styles.memberListAvatarSelected]}>
+                      <Text style={styles.memberListAvatarInitial}>
+                        {member.full_name ? member.full_name.charAt(0) : '?'}
+                      </Text>
+                    </View>
+                  )}
+                  <Text style={styles.memberName} numberOfLines={1}>
+                    {member.full_name || 'Unnamed'}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+            </View>
+          </View>
         </View>
       )}
 
@@ -366,4 +395,44 @@ const styles = StyleSheet.create({
   backBtn: { backgroundColor: '#333', padding: 15, borderRadius: 10 },
   backText: { color: '#fff', textAlign: 'center' },
   bgImage: { width: '111%', height: 235, bottom: -154, alignSelf: 'center' },
+  memberList: { marginTop: 10 },
+  memberListItem: {
+    width: '33.33%',
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  memberListItemSelected: {
+    backgroundColor: '#eef5ff',
+    borderRadius: 10,
+  },
+  memberListAvatar: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    marginBottom: 8,
+  },
+  memberListAvatarPlaceholder: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: '#bbb',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  memberListAvatarInitial: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 28,
+  },
+  memberName: {
+    fontSize: 14,
+    textAlign: 'center',
+    maxWidth: 110,
+  },
+  memberListAvatarSelected: {
+    borderWidth: 3,
+    borderColor: '#1A3C6B',
+  },
 });

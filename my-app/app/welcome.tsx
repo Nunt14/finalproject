@@ -88,7 +88,7 @@ export default function WelcomeScreen() {
 
       {/* Trip Card จากฐานข้อมูล เฉพาะของ user */}
       {!loading && trips.length > 0 && trips.map((trip) => (
-        <View key={trip.trip_id} style={styles.card}>
+        <TouchableOpacity key={trip.trip_id} style={styles.card} onPress={() => router.push({ pathname: '/Trip', params: { tripId: trip.trip_id } })}>
           {trip.trip_image_url ? (
             <Image source={{ uri: trip.trip_image_url }} style={styles.image} />
           ) : null}
@@ -98,7 +98,7 @@ export default function WelcomeScreen() {
               <Text style={styles.tripNote}>{trip.trip_status}</Text>
             ) : null}
           </View>
-        </View>
+        </TouchableOpacity>
       ))}
 
       {/* Navigation Bar */}
