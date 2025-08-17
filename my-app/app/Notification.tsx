@@ -205,41 +205,6 @@ export default function NotificationScreen() {
     const notificationText = getNotificationText(item);
     const isUnread = !item.is_read;
 
-    const isTripInvite = (item.title?.includes('ทริป') || item.message?.includes('ทริป')) && !!item.trip_id;
-
-    const onAccept = async () => {
-      if (!item.trip_id || !userId) return;
-      try {
-        // เปิดใช้งานสมาชิกในทริป
-        const { error: updErr } = await supabase
-          .from('trip_member')
-          .update({ is_active: true })
-          .eq('trip_id', item.trip_id)
-          .eq('user_id', userId);
-        if (updErr) throw updErr;
-        await markAsRead(item.notification_id);
-        // ไปหน้า Welcome ให้เห็นการ์ดทริป
-        navigation.navigate('Welcome');
-      } catch (e) {
-        Alert.alert('ผิดพลาด', 'ไม่สามารถยอมรับคำเชิญได้');
-      }
-    };
-
-    const onDecline = async () => {
-      if (!item.trip_id || !userId) return;
-      try {
-        // ลบแถว trip_member ของผู้ใช้คนนี้ออกจากทริป
-        await supabase
-          .from('trip_member')
-          .delete()
-          .eq('trip_id', item.trip_id)
-          .eq('user_id', userId);
-        await markAsRead(item.notification_id);
-      } catch (e) {
-        Alert.alert('ผิดพลาด', 'ไม่สามารถยกเลิกคำเชิญได้');
-      }
-    };
-
     return (
       <View style={[styles.notificationItem, isUnread && styles.unreadNotification]}>
         <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }} onPress={() => handleOpenNotification(item)}>
@@ -260,16 +225,6 @@ export default function NotificationScreen() {
             </Text>
           </View>
         </TouchableOpacity>
-        {isTripInvite && (
-          <View style={styles.inviteActions}>
-            <TouchableOpacity style={styles.acceptBtn} onPress={onAccept}>
-              <Text style={styles.actionText}>Accept</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.declineBtn} onPress={onDecline}>
-              <Text style={styles.actionText}>Decline</Text>
-            </TouchableOpacity>
-          </View>
-        )}
         {isUnread && <View style={styles.unreadDot} />}
       </View>
     );
@@ -414,29 +369,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     paddingVertical: 10,
   },
-  inviteActions: {
-    flexDirection: 'row',
-    gap: 6,
-    alignItems: 'center',
-  },
-  acceptBtn: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    marginLeft: 8,
-  },
-  declineBtn: {
-    backgroundColor: '#F44336',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  actionText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
-  },
+  
   // ไอคอนโปรไฟล์
   profileIcon: {
     width: 40,

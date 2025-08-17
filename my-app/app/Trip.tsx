@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '../constants/supabase';
@@ -11,6 +12,8 @@ type BillItem = {
   payer_user_id?: string | null;
   shares?: Array<{ user_id: string; amount_share: number; full_name?: string | null; profile_image_url?: string | null }>; 
   created_at?: string;
+  payer_full_name?: string | null;
+  payer_profile_image_url?: string | null;
 };
 
 export default function TripScreen() {
@@ -65,7 +68,10 @@ export default function TripScreen() {
           .select('bill_id, user_id, amount_share, amount_paid, status, is_confirmed')
           .in('bill_id', billIds);
 
-        const userIds = Array.from(new Set((shareRows || []).map((s: any) => String(s.user_id))));
+        const userIds = Array.from(new Set([
+          ...(shareRows || []).map((s: any) => String(s.user_id)),
+          ...billsBasic.map((b) => String(b.payer_user_id || '')),
+        ].filter(Boolean)));
         let userMap = new Map<string, { full_name: string | null; profile_image_url: string | null }>();
         if (userIds.length > 0) {
           const { data: users } = await supabase
@@ -85,6 +91,8 @@ export default function TripScreen() {
               full_name: userMap.get(String(s.user_id))?.full_name ?? null,
               profile_image_url: userMap.get(String(s.user_id))?.profile_image_url ?? null,
             })),
+          payer_full_name: b.payer_user_id ? (userMap.get(String(b.payer_user_id))?.full_name ?? null) : null,
+          payer_profile_image_url: b.payer_user_id ? (userMap.get(String(b.payer_user_id))?.profile_image_url ?? null) : null,
         }));
 
         setBills(withShares);
@@ -114,45 +122,75 @@ export default function TripScreen() {
       </View>
 
       {/* Bills list */}
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingVertical: 8 }}>
-        {bills.length === 0 && (
+      <View style={{ flex: 1 }}>
+        {bills.length === 0 ? (
           <View style={styles.emptyBox}>
             <Text style={{ color: '#666' }}>ยังไม่มีบิลในทริปนี้</Text>
           </View>
-        )}
-
-        {bills.map((bill) => {
-          const debtors = (bill.shares || []).filter((s) => s.user_id !== bill.payer_user_id);
-          const isPayer = currentUserId && bill.payer_user_id === currentUserId;
-          return (
-            <View key={bill.bill_id} style={styles.billCard}>
-              <View style={styles.rowBetween}>
-                <Text style={styles.amount}>{bill.total_amount.toLocaleString()} ฿</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Ionicons name="person-circle" size={22} color="#4C6EF5" />
-                  <Text style={{ marginLeft: 4, color: '#4C6EF5', fontWeight: '600' }}>Creditor</Text>
-                </View>
-              </View>
-
-              <View style={styles.shareList}>
-                {debtors.map((s, idx) => (
-                  <View key={s.user_id + idx} style={styles.shareRow}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Ionicons name="person" size={14} color="#95A5A6" />
-                      <Text style={styles.shareName}>{s.full_name || 'User'}</Text>
+        ) : (
+          <FlashList
+            data={bills}
+            keyExtractor={(item) => item.bill_id}
+            estimatedItemSize={160}
+            renderItem={({ item: bill }) => {
+              const debtors = (bill.shares || []).filter((s) => s.user_id !== bill.payer_user_id);
+              const isPayer = currentUserId && bill.payer_user_id === currentUserId;
+              return (
+                <View style={[styles.bubbleRow, isPayer ? styles.alignRight : styles.alignLeft]}>
+                  {!isPayer && (
+                    bill.payer_profile_image_url ? (
+                      <Image source={{ uri: bill.payer_profile_image_url }} style={styles.senderAvatar} />
+                    ) : (
+                      <Ionicons name="person-circle" size={26} color="#4C6EF5" style={{ marginRight: 8 }} />
+                    )
+                  )}
+                  <View style={[styles.billCard, styles.bubbleCard]}>
+                    <View style={styles.rowBetween}>
+                      <Text style={styles.amount}>{bill.total_amount.toLocaleString()} ฿</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        {bill.payer_profile_image_url ? (
+                          <Image source={{ uri: bill.payer_profile_image_url }} style={{ width: 20, height: 20, borderRadius: 10 }} />
+                        ) : (
+                          <Ionicons name="person-circle" size={20} color="#4C6EF5" />
+                        )}
+                        <Text style={{ marginLeft: 6, color: '#4C6EF5', fontWeight: '600' }}>{bill.payer_full_name || 'Payer'}</Text>
+                      </View>
                     </View>
-                    <Text style={styles.shareAmount}>{s.amount_share.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ฿</Text>
-                  </View>
-                ))}
-              </View>
 
-              <TouchableOpacity style={styles.payButton} disabled={!!isPayer}>
-                <Text style={{ color: '#fff', fontWeight: 'bold' }}>{isPayer ? 'Who paid!' : 'Pay'}</Text>
-              </TouchableOpacity>
-            </View>
-          );
-        })}
-      </ScrollView>
+                    <View style={styles.shareList}>
+                      {debtors.map((s, idx) => (
+                        <View key={s.user_id + idx} style={styles.shareRow}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            {s.profile_image_url ? (
+                              <Image source={{ uri: s.profile_image_url }} style={{ width: 20, height: 20, borderRadius: 10 }} />
+                            ) : (
+                              <Ionicons name="person" size={14} color="#95A5A6" />
+                            )}
+                            <Text style={styles.shareName}>{s.full_name || 'User'}</Text>
+                          </View>
+                          <Text style={styles.shareAmount}>{s.amount_share.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ฿</Text>
+                        </View>
+                      ))}
+                    </View>
+
+                    <TouchableOpacity style={styles.payButton} disabled={!!isPayer}>
+                      <Text style={{ color: '#fff', fontWeight: 'bold' }}>{isPayer ? 'Who paid!' : 'Pay'}</Text>
+                    </TouchableOpacity>
+
+                  </View>
+                  {isPayer && (
+                    bill.payer_profile_image_url ? (
+                      <Image source={{ uri: bill.payer_profile_image_url }} style={[styles.senderAvatar, { marginLeft: 8, marginRight: 0 }]} />
+                    ) : (
+                      <Ionicons name="person-circle" size={26} color="#4C6EF5" style={{ marginLeft: 8 }} />
+                    )
+                  )}
+                </View>
+              );
+            }}
+          />
+        )}
+      </View>
 
       {/* Bottom actions (mock) */}
       <View style={styles.bottomBar}>
@@ -193,6 +231,37 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
+  },
+  bubbleRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 },
+  centeredRow: { justifyContent: 'center' },
+  alignRight: { justifyContent: 'flex-end' },
+  alignLeft: { justifyContent: 'flex-start' },
+  bubbleCard: { maxWidth: '92%', minWidth: '78%' },
+  bubbleRight: { borderTopRightRadius: 6 },
+  bubbleLeft: { borderTopLeftRadius: 6 },
+  bubbleIndicator: { width: 10, height: 10, borderRadius: 5, marginHorizontal: 6, marginBottom: 6 },
+  tailRight: {
+    position: 'absolute',
+    right: -8,
+    bottom: 12,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 8,
+    borderLeftColor: 'transparent',
+    borderTopWidth: 8,
+    borderTopColor: '#f7f7fb',
+  },
+  senderAvatar: { width: 34, height: 34, borderRadius: 17, marginRight: 8 },
+  tailLeft: {
+    position: 'absolute',
+    left: -8,
+    bottom: 12,
+    width: 0,
+    height: 0,
+    borderRightWidth: 8,
+    borderRightColor: 'transparent',
+    borderTopWidth: 8,
+    borderTopColor: '#f7f7fb',
   },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   amount: { fontSize: 18, fontWeight: 'bold', color: 'red' },

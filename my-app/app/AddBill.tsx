@@ -4,12 +4,12 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  FlatList,
   StyleSheet,
   ScrollView,
   Image,
   Alert,
 } from "react-native";
+import { FlashList } from "@shopify/flash-list";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { supabase } from "../constants/supabase";
@@ -18,7 +18,7 @@ type Friend = {
   id: string;
   name: string;
   selected: boolean;
-  customAmount: string | null;
+  extraAmount: string | null;
   expanded: boolean;
   profileImageUrl?: string | null;
 };
@@ -34,6 +34,7 @@ export default function AddBillScreen() {
   const [selectAll, setSelectAll] = useState(true);
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const categories = useMemo(
     () => [
       { key: "stay", icon: "bed-outline" as const },
@@ -53,6 +54,8 @@ export default function AddBillScreen() {
       if (!tripId) return;
       setLoadingMembers(true);
       try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        setCurrentUserId(sessionData?.session?.user?.id ?? null);
         const { data: memberRows, error: memberErr } = await supabase
           .from("trip_member")
           .select("user_id")
@@ -76,7 +79,7 @@ export default function AddBillScreen() {
           id: String(u.user_id),
           name: u.full_name || "Unnamed",
           selected: true,
-          customAmount: null,
+          extraAmount: null,
           expanded: false,
           profileImageUrl: u.profile_image_url || null,
         }));
@@ -91,27 +94,23 @@ export default function AddBillScreen() {
     fetchMembers();
   }, [tripId]);
 
-  // ฟังก์ชันคำนวณ
+  // ฟังก์ชันคำนวณ: base split (เท่ากัน ไม่เปลี่ยนตาม extra) + extra ต่อคน
   const splitAmount = () => {
     const selected = friends.filter((f) => f.selected);
-    const customSum = selected.reduce(
-      (sum, f) => sum + (f.customAmount ? parseFloat(f.customAmount) : 0),
-      0
-    );
-    const remain = total - customSum;
-    const noCustom = selected.filter((f) => !f.customAmount);
+    const count = selected.length;
+    const basePerPerson = count > 0 ? total / count : 0;
 
-    const perPerson =
-      noCustom.length > 0 ? remain / noCustom.length : 0;
-
-    return friends.map((f) => ({
-      ...f,
-      amount: f.selected
-        ? f.customAmount
-          ? parseFloat(f.customAmount).toFixed(2)
-          : perPerson.toFixed(2)
-        : "0.00",
-    }));
+    return friends.map((f) => {
+      const extra = f.extraAmount ? parseFloat(f.extraAmount) : 0;
+      const base = f.selected ? basePerPerson : 0;
+      const totalForFriend = f.selected ? base + extra : 0;
+      return {
+        ...f,
+        baseAmount: base.toFixed(2),
+        extraAmountView: extra.toFixed(2),
+        amount: totalForFriend.toFixed(2),
+      } as any;
+    });
   };
 
   const handleToggleSelect = (id: string) => {
@@ -133,7 +132,7 @@ export default function AddBillScreen() {
   const handleCustomChange = (id: string, value: string) => {
     setFriends((prev) =>
       prev.map((f) =>
-        f.id === id ? { ...f, customAmount: value } : f
+        f.id === id ? { ...f, extraAmount: value } : f
       )
     );
   };
@@ -256,25 +255,22 @@ export default function AddBillScreen() {
       <View style={styles.divider} />
 
       <View style={styles.splitRow}>
-        <Text style={styles.splitText}>Split per person :</Text>
+        <Text style={styles.splitText}>Split base (equal) :</Text>
         <Text style={styles.green}>
-          {friends.filter((f) => f.selected).length > 0
-            ? (
-                total /
-                friends.filter((f) => f.selected).length
-              ).toFixed(2)
-            : "0.00"}{" "}
-          ฿
+          {(() => {
+            const count = friends.filter((f) => f.selected).length;
+            return count > 0 ? (total / count).toFixed(2) : '0.00';
+          })()} ฿
         </Text>
       </View>
 
       <View style={styles.divider} />
 
       <Text style={styles.sectionTitle}>Who has to divide?</Text>
-      <FlatList
+      <FlashList
         data={calculatedFriends}
         keyExtractor={(item) => item.id.toString()}
-        scrollEnabled={false}
+        estimatedItemSize={80}
         renderItem={({ item, index }) => (
           <View>
             <View
@@ -290,7 +286,7 @@ export default function AddBillScreen() {
                   ) : (
                     <Ionicons name="person" size={18} color={item.selected ? "#fff" : "#aaa"} />
                   )}
-                  {index === 0 && (
+                  {currentUserId && item.id === currentUserId && (
                     <View style={styles.crown}>
                       <Ionicons name="star" size={12} color="#f1c40f" />
                     </View>
@@ -313,13 +309,23 @@ export default function AddBillScreen() {
 
             {item.expanded && item.selected && (
               <View style={styles.dropdown}>
-                <TextInput
-                  style={styles.customInput}
-                  placeholder="Custom amount"
-                  keyboardType="numeric"
-                  value={item.customAmount ?? ""}
-                  onChangeText={(val) => handleCustomChange(item.id, val)}
-                />
+                <View style={styles.breakdownRow}>
+                  <Ionicons name="people" size={16} color="#888" style={{ marginRight: 8 }} />
+                  <Text style={{ flex: 1, color: '#666' }}>Base (equal)</Text>
+                  <Text style={[styles.green, { fontSize: 14 }]}>{item.baseAmount} ฿</Text>
+                </View>
+                <View style={[styles.breakdownRow, { borderTopWidth: 1, borderTopColor: '#eee', marginTop: 6, paddingTop: 6 }]}>
+                  <Ionicons name="person" size={16} color="#888" style={{ marginRight: 8 }} />
+                  <Text style={{ flex: 1, color: '#666' }}>Extra</Text>
+                  <TextInput
+                    style={[styles.customInput, { minWidth: 90, textAlign: 'right' }]}
+                    placeholder="0.00"
+                    keyboardType="numeric"
+                    value={item.extraAmount ?? ''}
+                    onChangeText={(val) => handleCustomChange(item.id, val)}
+                  />
+                  <Text style={{ marginLeft: 6, color: '#2ecc71' }}>฿</Text>
+                </View>
               </View>
             )}
           </View>
@@ -459,6 +465,7 @@ const styles = StyleSheet.create({
   },
   amountText: { fontSize: 14, color: "#2ecc71", fontWeight: "600" },
   dropdown: { paddingLeft: 50, paddingVertical: 6 },
+  breakdownRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
   customInput: {
     borderWidth: 1,
     borderColor: "#ccc",

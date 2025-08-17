@@ -214,7 +214,7 @@ export default function AddTripScreen() {
           trip_id: newTripId,
           user_id: memberId,
           is_admin: false,
-          is_active: false, // wait for accept
+          is_active: true, // no accept flow per new requirement
         }))
       ];
       
