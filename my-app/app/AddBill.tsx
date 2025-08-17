@@ -195,6 +195,25 @@ export default function AddBillScreen() {
         if (shareErr) throw shareErr;
       }
 
+      // Notify only users included in this bill (except payer)
+      try {
+        const recipients = shares
+          .map((s) => String(s.user_id))
+          .filter((uid) => uid !== currentUserId);
+        if (recipients.length > 0) {
+          const notifications = recipients.map((uid) => ({
+            user_id: uid,
+            title: "บิลใหม่ในทริป",
+            message: `มีบิลใหม่จำนวน ${Number(total).toLocaleString()} ฿`,
+            trip_id: String(tripId),
+            is_read: false,
+          }));
+          await supabase.from("notification").insert(notifications);
+        }
+      } catch (notifyErr) {
+        console.warn("Notify users failed", notifyErr);
+      }
+
       Alert.alert("สำเร็จ", "บันทึกบิลเรียบร้อย");
       // กลับไปหน้า Trip พร้อมรีโหลด
       try {

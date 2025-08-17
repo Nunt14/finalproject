@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Image, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Image, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -26,7 +26,7 @@ export default function WelcomeScreen() {
     // navigation.navigate('Settings');
   };
 
-  // โหลดข้อมูลจาก Supabase เฉพาะของ user ที่ล็อกอิน
+  // โหลดข้อมูลจาก Supabase เฉพาะทริปที่ผู้ใช้อยู่ในทริปและ active
   useEffect(() => {
     const fetchTrips = async () => {
       setLoading(true);
@@ -41,11 +41,28 @@ export default function WelcomeScreen() {
         return;
       }
 
-      // ดึงเฉพาะทริปของ user นี้
+      // ดึงทริปผ่าน trip_member ที่ active
+      const { data: memberRows, error: memberErr } = await supabase
+        .from('trip_member')
+        .select('trip_id')
+        .eq('user_id', userId)
+        .eq('is_active', true);
+      if (memberErr) {
+        console.log('Error fetching memberships:', memberErr);
+        setTrips([]);
+        setLoading(false);
+        return;
+      }
+      const tripIds = (memberRows || []).map((m: any) => m.trip_id);
+      if (tripIds.length === 0) {
+        setTrips([]);
+        setLoading(false);
+        return;
+      }
       const { data, error } = await supabase
         .from('trip')
         .select('*')
-        .eq('created_by', userId)
+        .in('trip_id', tripIds)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -62,45 +79,47 @@ export default function WelcomeScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Title */}
-      <Text style={styles.title}>Welcome {'\n'}to Harnty, {'\n'}User!</Text>
+      <ScrollView contentContainerStyle={{ paddingBottom: 140 }}>
+        {/* Title */}
+        <Text style={styles.title}>Welcome {'\n'}to Harnty, {'\n'}User!</Text>
 
-      <Image
-        source={require('../assets/images/img.png')}
-        style={styles.imgImage}
-        resizeMode="contain"
-      />
+        <Image
+          source={require('../assets/images/img.png')}
+          style={styles.imgImage}
+          resizeMode="contain"
+        />
 
-      {/* Search */}
-      <TextInput placeholder="Search" style={styles.searchBox} />
+        {/* Search */}
+        <TextInput placeholder="Search" style={styles.searchBox} />
 
-      {/* Section Header */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>All You Trip !</Text>
-        <View style={styles.iconsRight}>
-          <TouchableOpacity onPress={handleNotificationPress}>
-            <Ionicons name="notifications" size={20} color="red" style={{ marginRight: 10 }} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleMenuPress}>
-            <Ionicons name="menu" size={20} />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Trip Card จากฐานข้อมูล เฉพาะของ user */}
-      {!loading && trips.length > 0 && trips.map((trip) => (
-        <TouchableOpacity key={trip.trip_id} style={styles.card} onPress={() => router.push({ pathname: '/Trip', params: { tripId: trip.trip_id } })}>
-          {trip.trip_image_url ? (
-            <Image source={{ uri: trip.trip_image_url }} style={styles.image} />
-          ) : null}
-          <View style={styles.tripInfo}>
-            <Text style={styles.tripTitle}>{trip.trip_name}</Text>
-            {trip.trip_status ? (
-              <Text style={styles.tripNote}>{trip.trip_status}</Text>
-            ) : null}
+        {/* Section Header */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>All You Trip !</Text>
+          <View style={styles.iconsRight}>
+            <TouchableOpacity onPress={handleNotificationPress}>
+              <Ionicons name="notifications" size={20} color="red" style={{ marginRight: 10 }} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleMenuPress}>
+              <Ionicons name="menu" size={20} />
+            </TouchableOpacity>
           </View>
-        </TouchableOpacity>
-      ))}
+        </View>
+
+        {/* Trip Card จากฐานข้อมูล เฉพาะของ user */}
+        {!loading && trips.length > 0 && trips.map((trip) => (
+          <TouchableOpacity key={trip.trip_id} style={styles.card} onPress={() => router.push({ pathname: '/Trip', params: { tripId: trip.trip_id } })}>
+            {trip.trip_image_url ? (
+              <Image source={{ uri: trip.trip_image_url }} style={styles.image} />
+            ) : null}
+            <View style={styles.tripInfo}>
+              <Text style={styles.tripTitle}>{trip.trip_name}</Text>
+              {trip.trip_status ? (
+                <Text style={styles.tripNote}>{trip.trip_status}</Text>
+              ) : null}
+            </View>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
 
       {/* Navigation Bar */}
       <View style={styles.navbar}>
@@ -126,7 +145,7 @@ export default function WelcomeScreen() {
           <Ionicons name="person" size={30} color="#fff" />
         </TouchableOpacity>
       </View>
-    </View> 
+    </View>
   );
 }
 

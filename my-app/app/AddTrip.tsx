@@ -214,7 +214,7 @@ export default function AddTripScreen() {
           trip_id: newTripId,
           user_id: memberId,
           is_admin: false,
-          is_active: true,
+          is_active: false, // wait for accept
         }))
       ];
       
@@ -223,6 +223,23 @@ export default function AddTripScreen() {
         .insert(membersToInsert);
       
       if (membersError) throw membersError;
+      
+      // Create notifications for invited members (exclude creator)
+      try {
+        const invited = selectedMembers.filter((m) => m !== userId);
+        if (invited.length > 0) {
+          const notifications = invited.map((uid) => ({
+            user_id: uid,
+            title: 'ถูกเพิ่มเข้าทริปใหม่',
+            message: `คุณถูกเพิ่มเข้าไปในทริป ${tripName}`,
+            trip_id: String(newTripId),
+            is_read: false,
+          }));
+          await supabase.from('notification').insert(notifications);
+        }
+      } catch (notifyErr) {
+        console.warn('Notify trip members failed', notifyErr);
+      }
       
       Alert.alert('สำเร็จ', 'เพิ่มทริปเรียบร้อยแล้ว!');
       router.replace('/welcome');
