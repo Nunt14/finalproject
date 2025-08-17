@@ -5,11 +5,11 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
+  FlatList,
   ScrollView,
   Image,
   Alert,
 } from "react-native";
-import { FlashList } from "@shopify/flash-list";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { supabase } from "../constants/supabase";
@@ -267,10 +267,10 @@ export default function AddBillScreen() {
       <View style={styles.divider} />
 
       <Text style={styles.sectionTitle}>Who has to divide?</Text>
-      <FlashList
+      <FlatList
         data={calculatedFriends}
         keyExtractor={(item) => item.id.toString()}
-        estimatedItemSize={80}
+        scrollEnabled={false}
         renderItem={({ item, index }) => (
           <View>
             <View

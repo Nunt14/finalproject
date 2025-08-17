@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
-import { FlashList } from '@shopify/flash-list';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '../constants/supabase';
@@ -122,21 +121,18 @@ export default function TripScreen() {
       </View>
 
       {/* Bills list */}
-      <View style={{ flex: 1 }}>
-        {bills.length === 0 ? (
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingVertical: 8 }}>
+        {bills.length === 0 && (
           <View style={styles.emptyBox}>
             <Text style={{ color: '#666' }}>ยังไม่มีบิลในทริปนี้</Text>
           </View>
-        ) : (
-          <FlashList
-            data={bills}
-            keyExtractor={(item) => item.bill_id}
-            estimatedItemSize={160}
-            renderItem={({ item: bill }) => {
+        )}
+
+        {bills.map((bill) => {
               const debtors = (bill.shares || []).filter((s) => s.user_id !== bill.payer_user_id);
               const isPayer = currentUserId && bill.payer_user_id === currentUserId;
               return (
-                <View style={[styles.bubbleRow, isPayer ? styles.alignRight : styles.alignLeft]}>
+                <View key={bill.bill_id} style={[styles.bubbleRow, isPayer ? styles.alignRight : styles.alignLeft]}>
                   {!isPayer && (
                     bill.payer_profile_image_url ? (
                       <Image source={{ uri: bill.payer_profile_image_url }} style={styles.senderAvatar} />
@@ -186,11 +182,9 @@ export default function TripScreen() {
                     )
                   )}
                 </View>
-              );
-            }}
-          />
-        )}
-      </View>
+          );
+        })}
+      </ScrollView>
 
       {/* Bottom actions (mock) */}
       <View style={styles.bottomBar}>
