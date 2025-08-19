@@ -1,29 +1,64 @@
+// นำเข้า React และฮุคพื้นฐานที่ใช้ในคอมโพเนนต์นี้
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Modal, Pressable } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
+// นำเข้าฟังก์ชันสำหรับอ่านพารามิเตอร์จาก URL และการนำทาง
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '../constants/supabase';
 
+// ชนิดข้อมูลของส่วนแบ่งบิลของผู้ใช้แต่ละคน
+type BillShare = {
+  user_id: string;
+  amount_share: number;
+  status: 'paid' | 'unpaid';
+  full_name?: string | null;
+  profile_image_url?: string | null;
+  is_owner?: boolean;
+};
+
+// ชนิดข้อมูลของบิลในระบบ
 type BillItem = {
   bill_id: string;
   trip_id: string;
   total_amount: number;
   payer_user_id?: string | null;
-  shares?: Array<{ user_id: string; amount_share: number; full_name?: string | null; profile_image_url?: string | null }>; 
+  shares?: BillShare[];
   created_at?: string;
   payer_full_name?: string | null;
   payer_profile_image_url?: string | null;
 };
 
+// คอมโพเนนต์หลักของหน้าทริป
 export default function TripScreen() {
   const router = useRouter();
   const { tripId } = useLocalSearchParams<{ tripId: string }>();
 
+  // สเตตหลักสำหรับเก็บข้อมูลทริปและบิล
   const [trip, setTrip] = useState<any | null>(null);
   const [bills, setBills] = useState<BillItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [selectedBill, setSelectedBill] = useState<BillItem | null>(null);
 
+  // ฟังก์ชันสุ่มสีแบบคงที่จาก userId เพื่อใช้แสดงสีของ Avatar ให้คงเดิม
+  const getRandomColor = (userId: string) => {
+    const colors = ['#4A90E2', '#F5A623', '#FF6B6B', '#4CD964', '#9B59B6', '#E74C3C', '#1ABC9C', '#F39C12'];
+    const index = Math.abs(hashCode(userId)) % colors.length;
+    return colors[index];
+  };
+
+  // ฟังก์ชันช่วยสร้างค่าแฮชจากสตริง
+  const hashCode = (str: string) => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = (hash << 5) - hash + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    return hash;
+  };
+
+  // โหลดข้อมูลทริปและบิลเมื่อเปิดหน้าหรือเมื่อ tripId เปลี่ยน
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -33,7 +68,7 @@ export default function TripScreen() {
         const { data: sessionData } = await supabase.auth.getSession();
         setCurrentUserId(sessionData?.session?.user?.id ?? null);
 
-        // ดึงข้อมูลทริป
+        // ดึงข้อมูลทริปจากตาราง trip
         const { data: tripRows } = await supabase
           .from('trip')
           .select('*')
@@ -41,7 +76,7 @@ export default function TripScreen() {
           .limit(1);
         setTrip(tripRows?.[0] || null);
 
-        // โหลดบิลของทริป
+        // โหลดบิลของทริปจากตาราง bill (เฉพาะข้อมูลพื้นฐาน)
         const { data: billRows } = await supabase
           .from('bill')
           .select('bill_id, trip_id, total_amount, paid_by_user_id, created_at')
@@ -62,10 +97,18 @@ export default function TripScreen() {
           return;
         }
 
+        // โหลดข้อมูลส่วนแบ่งของแต่ละบิลจากตาราง bill_share
         const { data: shareRows } = await supabase
           .from('bill_share')
           .select('bill_id, user_id, amount_share, amount_paid, status, is_confirmed')
-          .in('bill_id', billIds);
+          .in('bill_id', billIds) as { data: Array<{
+            bill_id: string;
+            user_id: string;
+            amount_share: number;
+            amount_paid?: number;
+            status?: 'paid' | 'unpaid';
+            is_confirmed?: boolean;
+          }> | null };
 
         const userIds = Array.from(new Set([
           ...(shareRows || []).map((s: any) => String(s.user_id)),
@@ -73,6 +116,7 @@ export default function TripScreen() {
         ].filter(Boolean)));
         let userMap = new Map<string, { full_name: string | null; profile_image_url: string | null }>();
         if (userIds.length > 0) {
+          // ดึงข้อมูลผู้ใช้ที่เกี่ยวข้องทั้งหมด เพื่อมาแมปชื่อและรูปโปรไฟล์
           const { data: users } = await supabase
             .from('user')
             .select('user_id, full_name, profile_image_url')
@@ -80,20 +124,37 @@ export default function TripScreen() {
           userMap = new Map((users || []).map((u: any) => [String(u.user_id), { full_name: u.full_name ?? null, profile_image_url: u.profile_image_url ?? null }]));
         }
 
-        const withShares = billsBasic.map((b) => ({
-          ...b,
-          shares: (shareRows || [])
-            .filter((s: any) => String(s.bill_id) === b.bill_id)
-            .map((s: any) => ({
-              user_id: String(s.user_id),
-              amount_share: Number(s.amount_share || 0),
-              full_name: userMap.get(String(s.user_id))?.full_name ?? null,
-              profile_image_url: userMap.get(String(s.user_id))?.profile_image_url ?? null,
-            })),
-          payer_full_name: b.payer_user_id ? (userMap.get(String(b.payer_user_id))?.full_name ?? null) : null,
-          payer_profile_image_url: b.payer_user_id ? (userMap.get(String(b.payer_user_id))?.profile_image_url ?? null) : null,
-        }));
+        const withShares = billsBasic.map((b) => {
+          const shares = (shareRows || [])
+            .filter((s) => String(s.bill_id) === b.bill_id)
+            .map((s) => {
+              // คำนวณสถานะจากจำนวนที่จ่ายจริงก่อน (amount_paid) เพื่อความถูกต้องเสมอ
+              let status: 'paid' | 'unpaid' = 'unpaid';
+              if (typeof s.amount_paid === 'number') {
+                status = s.amount_paid >= s.amount_share ? 'paid' : 'unpaid';
+              } else if (s.status) {
+                status = s.status;
+              }
+              
+              return {
+                user_id: String(s.user_id),
+                amount_share: Number(s.amount_share || 0),
+                status,
+                full_name: userMap.get(String(s.user_id))?.full_name ?? null,
+                profile_image_url: userMap.get(String(s.user_id))?.profile_image_url ?? null,
+                is_owner: String(s.user_id) === String(b.payer_user_id)
+              } as BillShare; // ส่งกลับเป็นชนิด BillShare
+            });
+            
+          return {
+            ...b,
+            shares,
+            payer_full_name: b.payer_user_id ? (userMap.get(String(b.payer_user_id))?.full_name ?? null) : null,
+            payer_profile_image_url: b.payer_user_id ? (userMap.get(String(b.payer_user_id))?.profile_image_url ?? null) : null,
+          } as BillItem;
+        });
 
+        // เซ็ตบิลทั้งหมดที่ประกอบด้วยข้อมูลส่วนแบ่งและข้อมูลผู้จ่าย
         setBills(withShares);
       } finally {
         setLoading(false);
@@ -102,11 +163,12 @@ export default function TripScreen() {
     fetchData();
   }, [tripId]);
 
+  // คำนวณยอดรวมทั้งหมดของบิลในทริป (คำนวณใหม่เมื่อรายการบิลเปลี่ยน)
   const totalAmount = useMemo(() => bills.reduce((sum, b) => sum + (b.total_amount || 0), 0), [bills]);
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* ส่วนหัวของหน้า */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={24} color="black" />
@@ -114,13 +176,13 @@ export default function TripScreen() {
         <Text style={styles.headerTitle}>Group Trip</Text>
       </View>
 
-      {/* Trip summary */}
+      {/* สรุปข้อมูลทริป */}
       <View style={{ paddingHorizontal: 4 }}>
         <Text style={styles.tripName}>{trip?.trip_name || 'Trip'}</Text>
         <Text style={styles.totalText}>Total {totalAmount.toLocaleString()} ฿</Text>
       </View>
 
-      {/* Bills list */}
+      {/* รายการบิลทั้งหมด */}
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingVertical: 8 }}>
         {bills.length === 0 && (
           <View style={styles.emptyBox}>
@@ -169,7 +231,16 @@ export default function TripScreen() {
                       ))}
                     </View>
 
-                    <TouchableOpacity style={styles.payButton} disabled={!!isPayer}>
+                    <TouchableOpacity 
+                      style={styles.payButton}
+                      onPress={() => {
+                        if (isPayer) {
+                          setSelectedBill(bill);
+                        } else {
+                          // Existing pay action
+                        }
+                      }}
+                    >
                       <Text style={{ color: '#fff', fontWeight: 'bold' }}>{isPayer ? 'Who paid!' : 'Pay'}</Text>
                     </TouchableOpacity>
 
@@ -186,7 +257,7 @@ export default function TripScreen() {
         })}
       </ScrollView>
 
-      {/* Bottom actions (mock) */}
+      {/* ปุ่มการทำงานด้านล่าง (ตัวอย่าง) */}
       <View style={styles.bottomBar}>
         <TouchableOpacity style={styles.circleBtn} onPress={() => router.push('/Debt')}>
           <View style={{ alignItems: 'center', justifyContent: 'center' }}>
@@ -205,6 +276,137 @@ export default function TripScreen() {
       </View>
 
       <Image source={require('../assets/images/bg.png')} style={styles.bgImage} resizeMode="contain" />
+      
+      {/* โมดอลรายละเอียดการชำระเงิน */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={!!selectedBill}
+        onRequestClose={() => setSelectedBill(null)}
+      >
+        <View style={styles.modalContainer}>
+          {/* ส่วนหัวของโมดอล */}
+          <View style={styles.modalHeader}>
+            <TouchableOpacity 
+              style={styles.backButton}
+              onPress={() => setSelectedBill(null)}
+            >
+              <Ionicons name="arrow-back" size={24} color="#000" />
+            </TouchableOpacity>
+            <Text style={styles.modalHeaderTitle}>Who paid</Text>
+            <View style={{ width: 24 }} />
+          </View>
+          
+          {/* หมวดหมู่ค่าใช้จ่าย */}
+          <View style={styles.expenseCategory}>
+            <Ionicons name="bed" size={20} color="#000" />
+            <Text style={styles.expenseCategoryText}>Accommodation</Text>
+          </View>
+          
+          {/* การ์ดยอดรวมทั้งหมด */}
+          <View style={styles.amountCard}>
+            <Text style={styles.totalAmountText}>
+              {selectedBill?.total_amount?.toLocaleString(undefined, { 
+                minimumFractionDigits: 2, 
+                maximumFractionDigits: 2 
+              })} ฿
+            </Text>
+            <Text style={styles.noteText}>Note : ค่าห้องพัก</Text>
+          </View>
+          
+          {/* ส่วนที่ชำระแล้ว (Paid) */}
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Paid</Text>
+            <View style={styles.divider} />
+            
+            {/* ข้อมูลผู้ชำระเงิน (ผู้จ่ายบิล) */}
+            {selectedBill?.payer_user_id && selectedBill?.shares?.some(s => s.user_id === selectedBill.payer_user_id) && (
+              <View style={[styles.userRow, { marginBottom: 12 }]}>
+                <View style={[styles.avatar, { backgroundColor: getRandomColor(selectedBill.payer_user_id) }]}>
+                  <Text style={styles.avatarText}>
+                    {selectedBill.payer_full_name?.charAt(0) || 'P'}
+                  </Text>
+                </View>
+                <View style={styles.userInfo}>
+                  <View style={styles.nameContainer}>
+                    <Text style={styles.userName}>{selectedBill.payer_full_name || 'Payer'}</Text>
+                    <FontAwesome5 name="crown" size={14} color="#F4C542" style={{ marginRight: 6 }} />
+                    <Text style={styles.ownerInline}>Owner</Text>
+                  </View>
+                  <Text style={[styles.amount, { color: '#1A3C6B' }]}>
+                    {Number(selectedBill?.total_amount ?? 0).toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2
+                    })} ฿
+                  </Text>
+                </View>
+              </View>
+            )}
+            
+            {/* ผู้ที่ชำระแล้วคนอื่น ๆ */}
+            {selectedBill?.shares?.filter(share => share.status === 'paid' && share.user_id !== selectedBill?.payer_user_id).map((share, index) => (
+            <View key={`paid-${index}`} style={styles.userRow}>
+              <View style={[styles.avatar, { backgroundColor: getRandomColor(share.user_id) }]}>
+                <Text style={styles.avatarText}>{share.full_name?.charAt(0) || 'U'}</Text>
+              </View>
+              <View style={styles.userInfo}>
+                <View style={styles.nameContainer}>
+                  <Text style={styles.userName}>{share.full_name || 'User'}</Text>
+                  {share.is_owner && (
+                    <View style={styles.ownerBadge}>
+                      <Text style={styles.ownerText}>Owner</Text>
+                      <Text style={{ fontSize: 14 }}>👑</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={[styles.amount, { color: '#1A3C6B' }]}>
+                  {Number(share.amount_share ?? 0).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                  })} ฿
+                </Text>
+              </View>
+            </View>
+          ))}
+          </View>
+          
+          {/* ส่วนที่ยังไม่ชำระ (Unpaid) */}
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Unpaid</Text>
+            <View style={styles.divider} />
+            
+            {selectedBill?.shares?.filter(share => share.status === 'unpaid' && String(share.user_id) !== String(selectedBill?.payer_user_id || '') && !share.is_owner).map((share, index) => (
+              <View key={`unpaid-${index}`} style={styles.userRow}>
+                <View style={[styles.avatar, { backgroundColor: getRandomColor(share.user_id) }]}>
+                  <Text style={styles.avatarText}>{share.full_name?.charAt(0) || 'U'}</Text>
+                </View>
+                <View style={styles.userInfo}>
+                  <Text style={[styles.userName, { color: '#FF3B30' }]}>{share.full_name || 'User'}</Text>
+                  <Text style={[styles.amount, { color: '#FF3B30' }]}>
+                    {Number(share.amount_share ?? 0).toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2
+                    })} ฿
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+          
+          {/* ปุ่มคำสั่งด้านล่างของโมดอล */}
+          <View style={styles.actionButtons}>
+            <TouchableOpacity style={styles.cancelButton}>
+              <Text style={styles.cancelButtonText}>Cancel Bill</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.backButtonBottom}
+              onPress={() => setSelectedBill(null)}
+            >
+              <Text style={styles.backButtonText}>Back</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -287,6 +489,150 @@ const styles = StyleSheet.create({
   circleBtn: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#1A3C6B', alignItems: 'center', justifyContent: 'center' },
   bagText: { position: 'absolute', bottom: 8, color: '#fff', fontSize: 10, fontWeight: 'bold' },
   bgImage: { width: '111%', height: 235, position: 'absolute', bottom: -4, alignSelf: 'center', zIndex: -1 },
+  // Modal Styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 16,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  backButton: {
+    padding: 8,
+    marginLeft: -8,
+  },
+  modalHeaderTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000',
+  },
+  expenseCategory: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  expenseCategoryText: {
+    marginLeft: 8,
+    fontSize: 16,
+    color: '#000',
+  },
+  amountCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  totalAmountText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#2FBF71',
+    marginBottom: 4,
+  },
+  // Note text style is already defined above
+  // Removing duplicate style
+  sectionContainer: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 8,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#E0E0E0',
+    marginBottom: 12,
+  },
+  userRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  avatarText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  userInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  nameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  userName: {
+    fontSize: 16,
+    color: '#000',
+    fontWeight: '600',
+    marginRight: 8,
+  },
+  ownerInline: {
+    fontSize: 14,
+    color: '#9AA3AF',
+    marginLeft: 2,
+  },
+  ownerBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F7FF',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  ownerText: {
+    fontSize: 12,
+    color: '#1A73E8',
+    marginRight: 4,
+  },
+  // Amount text style is already defined above
+  // Removing duplicate style
+  actionButtons: {
+    marginTop: 'auto',
+    marginBottom: 24,
+  },
+  cancelButton: {
+    backgroundColor: '#1A3C6B',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  cancelButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  backButtonBottom: {
+    backgroundColor: '#F5F5F5',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+  },
+  backButtonText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   emptyBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: 20 },
 });
 
