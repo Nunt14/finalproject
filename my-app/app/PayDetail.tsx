@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { router } from 'expo-router';
 import { supabase } from '../constants/supabase';
 
 type BillDetail = {
@@ -115,7 +116,19 @@ export default function PayDetailScreen() {
               <Text style={styles.tripName}>{bill.trip_name}</Text>
               <Text style={styles.billAmount}>{bill.amount_share.toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿</Text>
             </View>
-            <TouchableOpacity style={styles.payButton}>
+            <TouchableOpacity
+              style={styles.payButton}
+              onPress={() =>
+                router.push({
+                  pathname: 'Payment',
+                  params: {
+                    billId: bill.bill_id,
+                    creditorId,
+                    amount: String(bill.amount_share),
+                  },
+                })
+              }
+            >
               <Text style={{ color: '#fff', fontWeight: 'bold' }}>Pay</Text>
             </TouchableOpacity>
             <Ionicons name="eye" size={22} color="#45647C" style={{ marginLeft: 10 }} />

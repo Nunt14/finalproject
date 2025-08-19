@@ -193,6 +193,7 @@ export default function TripScreen() {
         {bills.map((bill) => {
               const debtors = (bill.shares || []).filter((s) => s.user_id !== bill.payer_user_id);
               const isPayer = currentUserId && bill.payer_user_id === currentUserId;
+              const myShare = (bill.shares || []).find((s) => String(s.user_id) === String(currentUserId));
               return (
                 <View key={bill.bill_id} style={[styles.bubbleRow, isPayer ? styles.alignRight : styles.alignLeft]}>
                   {!isPayer && (
@@ -237,7 +238,14 @@ export default function TripScreen() {
                         if (isPayer) {
                           setSelectedBill(bill);
                         } else {
-                          // Existing pay action
+                          router.push({
+                            pathname: 'Payment',
+                            params: {
+                              billId: String(bill.bill_id),
+                              creditorId: String(bill.payer_user_id || ''),
+                              amount: String(myShare?.amount_share ?? 0),
+                            },
+                          });
                         }
                       }}
                     >
@@ -270,7 +278,7 @@ export default function TripScreen() {
           <Ionicons name="add" size={30} color="#fff" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.circleBtn}>
+        <TouchableOpacity style={styles.circleBtn} onPress={() => router.push('ConfirmPayments')}>
           <FontAwesome5 name="dollar-sign" size={26} color="#fff" />
         </TouchableOpacity>
       </View>
