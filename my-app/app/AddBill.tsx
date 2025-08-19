@@ -255,7 +255,7 @@ export default function AddBillScreen() {
       <View style={styles.divider} />
 
       <View style={styles.splitRow}>
-        <Text style={styles.splitText}>Split base (equal) :</Text>
+        <Text style={styles.splitText}>Split per person :</Text>
         <Text style={styles.green}>
           {(() => {
             const count = friends.filter((f) => f.selected).length;
