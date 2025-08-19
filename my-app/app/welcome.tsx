@@ -231,8 +231,8 @@ const styles = StyleSheet.create({
   },
   imgImage: {
     position: 'absolute',
-    top: 70,
-    right: 45,
+    top: 7,
+    right: 10,
     width: 150,
     height: 120,
     borderRadius: 10,
