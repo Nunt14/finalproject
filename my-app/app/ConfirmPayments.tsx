@@ -86,6 +86,57 @@ export default function ConfirmPaymentsScreen() {
           .update({ status: 'paid', amount_paid: p.amount ?? null, is_confirmed: true })
           .eq('bill_id', p.bill_id)
           .eq('user_id', p.debtor_user_id);
+
+        // อัปเดตสถานะ payment สำหรับ bill_share นี้
+        try {
+          const { data: bs } = await supabase
+            .from('bill_share')
+            .select('bill_share_id')
+            .eq('bill_id', p.bill_id)
+            .eq('user_id', p.debtor_user_id)
+            .single();
+          const billShareId = (bs as any)?.bill_share_id as string | undefined;
+          if (billShareId) {
+            await supabase
+              .from('payment')
+              .update({ status: 'approved', updated_at: new Date().toISOString() })
+              .eq('bill_share_id', billShareId);
+          }
+        } catch {}
+
+        // เพิ่มยอดจ่ายใน debt_summary และอัปเดตสถานะ
+        try {
+          const { data: currentSession } = await supabase.auth.getSession();
+          const creditorUid = currentSession?.session?.user?.id ?? null;
+          const { data: bill } = await supabase
+            .from('bill')
+            .select('trip_id')
+            .eq('bill_id', p.bill_id)
+            .single();
+          const tripId = (bill as any)?.trip_id ?? null;
+
+          if (creditorUid && tripId) {
+            const { data: ds } = await supabase
+              .from('debt_summary')
+              .select('debt_id, amount_owed, amount_paid')
+              .eq('trip_id', tripId)
+              .eq('debtor_user', p.debtor_user_id)
+              .eq('creditor_user', creditorUid)
+              .single();
+
+            const prevPaid = (ds as any)?.amount_paid ?? 0;
+            const owed = (ds as any)?.amount_owed ?? null;
+            const newPaid = prevPaid + (p.amount ?? 0);
+            const newStatus = owed != null && newPaid >= Number(owed) ? 'settled' : 'partial';
+
+            if (ds) {
+              await supabase
+                .from('debt_summary')
+                .update({ amount_paid: newPaid, status: newStatus, last_update: new Date().toISOString() })
+                .eq('debt_id', (ds as any).debt_id);
+            }
+          }
+        } catch {}
       }
 
       setProofs((prev) => prev.filter((x) => x.id !== p.id));
@@ -98,6 +149,22 @@ export default function ConfirmPaymentsScreen() {
   const onReject = async (p: Proof) => {
     try {
       await supabase.from('payment_proof').update({ status: 'rejected' }).eq('id', p.id);
+      // อัปเดต payment ให้เป็น rejected ด้วย
+      try {
+        const { data: bs } = await supabase
+          .from('bill_share')
+          .select('bill_share_id')
+          .eq('bill_id', p.bill_id)
+          .eq('user_id', p.debtor_user_id)
+          .single();
+        const billShareId = (bs as any)?.bill_share_id as string | undefined;
+        if (billShareId) {
+          await supabase
+            .from('payment')
+            .update({ status: 'rejected', updated_at: new Date().toISOString() })
+            .eq('bill_share_id', billShareId);
+        }
+      } catch {}
       setProofs((prev) => prev.filter((x) => x.id !== p.id));
     } catch (e) {
       Alert.alert('Error', 'ไม่สามารถปฏิเสธได้');
@@ -136,7 +203,7 @@ export default function ConfirmPaymentsScreen() {
               </View>
               <TouchableOpacity
                 style={styles.eyeBtn}
-                onPress={() => router.push({ pathname: 'ConfirmSlip', params: { proofId: p.id } })}
+                onPress={() => router.push({ pathname: '/ConfirmSlip', params: { proofId: p.id } })}
               >
                 <Ionicons name="eye" size={20} color="#213a5b" />
               </TouchableOpacity>

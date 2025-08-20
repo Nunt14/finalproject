@@ -48,6 +48,17 @@ export default function PaymentUploadScreen() {
       setSubmitting(true);
       const { data: sessionData } = await supabase.auth.getSession();
       const uid = sessionData?.session?.user?.id ?? null;
+      // ค้นหา bill_share_id ของผู้ใช้คนนี้ในบิลนี้เพื่อใช้บันทึกลงตาราง payment
+      let billShareId: string | null = null;
+      try {
+        const { data: bs } = await supabase
+          .from('bill_share')
+          .select('bill_share_id')
+          .eq('bill_id', billId)
+          .eq('user_id', uid)
+          .single();
+        billShareId = (bs as any)?.bill_share_id ?? null;
+      } catch {}
       await supabase.from('payment_proof').insert({
         bill_id: billId,
         creditor_id: creditorId,
@@ -55,6 +66,14 @@ export default function PaymentUploadScreen() {
         amount: amount ? Number(amount) : null,
         image_uri_local: imageUri,
         status: 'pending',
+      });
+      // บันทึก payment ตามสคีมาที่กำหนด
+      await supabase.from('payment').insert({
+        bill_share_id: billShareId,
+        amount: amount ? Number(amount) : null,
+        method: 'qr',
+        status: 'pending',
+        transaction_id: null,
       });
       Alert.alert('Success', 'Payment submitted for review.');
       if ((router as any).canGoBack && (router as any).canGoBack()) router.back();

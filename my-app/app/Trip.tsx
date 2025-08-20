@@ -239,7 +239,7 @@ export default function TripScreen() {
                           setSelectedBill(bill);
                         } else {
                           router.push({
-                            pathname: 'Payment',
+                            pathname: '/Payment',
                             params: {
                               billId: String(bill.bill_id),
                               creditorId: String(bill.payer_user_id || ''),
@@ -278,7 +278,7 @@ export default function TripScreen() {
           <Ionicons name="add" size={30} color="#fff" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.circleBtn} onPress={() => router.push('ConfirmPayments')}>
+        <TouchableOpacity style={styles.circleBtn} onPress={() => router.push('/ConfirmPayments')}>
           <FontAwesome5 name="dollar-sign" size={26} color="#fff" />
         </TouchableOpacity>
       </View>
@@ -385,9 +385,13 @@ export default function TripScreen() {
             
             {selectedBill?.shares?.filter(share => share.status === 'unpaid' && String(share.user_id) !== String(selectedBill?.payer_user_id || '') && !share.is_owner).map((share, index) => (
               <View key={`unpaid-${index}`} style={styles.userRow}>
-                <View style={[styles.avatar, { backgroundColor: getRandomColor(share.user_id) }]}>
-                  <Text style={styles.avatarText}>{share.full_name?.charAt(0) || 'U'}</Text>
-                </View>
+                {share.profile_image_url ? (
+                  <Image source={{ uri: share.profile_image_url }} style={styles.avatarImage} />
+                ) : (
+                  <View style={[styles.avatar, { backgroundColor: getRandomColor(share.user_id) }]}>
+                    <Text style={styles.avatarText}>{share.full_name?.charAt(0) || 'U'}</Text>
+                  </View>
+                )}
                 <View style={styles.userInfo}>
                   <Text style={[styles.userName, { color: '#FF3B30' }]}>{share.full_name || 'User'}</Text>
                   <Text style={[styles.amount, { color: '#FF3B30' }]}>
@@ -574,6 +578,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 12,
   },
+  avatarImage: { width: 40, height: 40, borderRadius: 20, marginRight: 12 },
   avatarText: {
     color: '#fff',
     fontWeight: '600',
