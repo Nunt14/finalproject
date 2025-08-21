@@ -5,11 +5,12 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { supabase } from '../constants/supabase';
 
 export default function ConfirmSlipScreen() {
-  const { proofId } = useLocalSearchParams<{ proofId: string }>();
-  const [imageUri, setImageUri] = useState<string | null>(null);
+  const { proofId, imageUri: imageUriParam } = useLocalSearchParams<{ proofId?: string; imageUri?: string }>();
+  const [imageUri, setImageUri] = useState<string | null>(imageUriParam ?? null);
 
   useEffect(() => {
     const run = async () => {
+      if (imageUriParam) return; // already have from navigation
       if (!proofId) return;
       const { data } = await supabase
         .from('payment_proof')
@@ -19,7 +20,7 @@ export default function ConfirmSlipScreen() {
       setImageUri((data as any)?.image_uri_local ?? null);
     };
     run();
-  }, [proofId]);
+  }, [proofId, imageUriParam]);
 
   return (
     <View style={styles.container}>

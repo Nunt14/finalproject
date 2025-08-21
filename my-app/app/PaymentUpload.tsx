@@ -48,6 +48,10 @@ export default function PaymentUploadScreen() {
       setSubmitting(true);
       const { data: sessionData } = await supabase.auth.getSession();
       const uid = sessionData?.session?.user?.id ?? null;
+      if (!uid) {
+        Alert.alert('Error', 'กรุณาเข้าสู่ระบบก่อน');
+        return;
+      }
       // ค้นหา bill_share_id ของผู้ใช้คนนี้ในบิลนี้เพื่อใช้บันทึกลงตาราง payment
       let billShareId: string | null = null;
       try {
@@ -59,12 +63,29 @@ export default function PaymentUploadScreen() {
           .single();
         billShareId = (bs as any)?.bill_share_id ?? null;
       } catch {}
+      // อัปโหลดสลิปไปยัง Supabase Storage เพื่อให้เจ้าหนี้สามารถเห็นรูปได้
+      let publicImageUrl: string | null = null;
+      try {
+        const response = await fetch(imageUri);
+        const blob = await response.blob();
+        const extension = 'jpg';
+        const filePath = `proofs/${uid}/${billId}-${Date.now()}.${extension}`;
+        const { error: uploadError } = await supabase.storage
+          .from('payment_proofs')
+          .upload(filePath, blob, { contentType: 'image/jpeg', upsert: true });
+        if (!uploadError) {
+          const { data: pub } = await supabase.storage
+            .from('payment_proofs')
+            .getPublicUrl(filePath);
+          publicImageUrl = (pub as any)?.publicUrl ?? null;
+        }
+      } catch {}
       await supabase.from('payment_proof').insert({
         bill_id: billId,
         creditor_id: creditorId,
         debtor_user_id: uid,
         amount: amount ? Number(amount) : null,
-        image_uri_local: imageUri,
+        image_uri_local: publicImageUrl ?? imageUri,
         status: 'pending',
       });
       // บันทึก payment ตามสคีมาที่กำหนด
