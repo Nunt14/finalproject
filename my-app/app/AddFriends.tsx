@@ -28,14 +28,13 @@ interface UserItemProps {
   handleAcceptRequest: (userId: string) => void;
   handleDeclineRequest: (userId: string) => void;
   handleDeleteFriend: (userId: string) => void;
-  handleViewProfile: (user: any) => void;
   loading: boolean;
   friendsList: any[];
   pendingRequests: any[];
   receivedRequests: any[];
 }
 
-const UserItem = React.memo(({ user, type, handleAddFriend, handleAcceptRequest, handleDeclineRequest, handleDeleteFriend, handleViewProfile, loading, friendsList, pendingRequests, receivedRequests }: UserItemProps) => {
+const UserItem = React.memo(({ user, type, handleAddFriend, handleAcceptRequest, handleDeclineRequest, handleDeleteFriend, loading, friendsList, pendingRequests, receivedRequests }: UserItemProps) => {
   const renderAction = () => {
     // Determine the action button/text based on the user's status
     // แก้ไขโดยใช้ optional chaining (?.) เพื่อป้องกัน TypeError หาก props เป็น undefined
@@ -46,22 +45,13 @@ const UserItem = React.memo(({ user, type, handleAddFriend, handleAcceptRequest,
     if (type === 'search') {
       if (isFriend) {
         return (
-          <View style={styles.actionButtons}>
-            <TouchableOpacity 
-              style={[styles.viewProfileButton, { marginRight: 5 }]} 
-              onPress={() => handleViewProfile(user)}
-              disabled={loading}
-            >
-              <Text style={styles.buttonText}>View Profile</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.deleteButton} 
-              onPress={() => handleDeleteFriend(user.user_id)}
-              disabled={loading}
-            >
-              <Text style={styles.buttonText}>Delete</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity 
+            style={styles.deleteButton} 
+            onPress={() => handleDeleteFriend(user.user_id)}
+            disabled={loading}
+          >
+            <Text style={styles.buttonText}>Delete</Text>
+          </TouchableOpacity>
         );
       }
       if (isPending) return <Text style={styles.pendingText}>Pending</Text>;
@@ -100,13 +90,6 @@ const UserItem = React.memo(({ user, type, handleAddFriend, handleAcceptRequest,
     if (type === 'friend') {
       return (
         <View style={styles.actionButtons}>
-          <TouchableOpacity 
-            style={[styles.viewProfileButton, { marginRight: 5 }]} 
-            onPress={() => handleViewProfile(user)}
-            disabled={loading}
-          >
-            <Text style={styles.buttonText}>View Profile</Text>
-          </TouchableOpacity>
           <TouchableOpacity 
             style={styles.deleteButton} 
             onPress={() => handleDeleteFriend(user.user_id)}
@@ -458,12 +441,6 @@ export default function AddFriendsScreen() {
     }
   };
 
-  const handleViewProfile = (user: any) => {
-    router.push({
-      pathname: '/FriendProfile',
-      params: { userId: user.user_id }
-    });
-  };
 
 
   
@@ -544,7 +521,6 @@ export default function AddFriendsScreen() {
                   handleAcceptRequest={handleAcceptRequest}
                   handleDeclineRequest={handleDeclineRequest}
                   handleDeleteFriend={handleDeleteFriend}
-                  handleViewProfile={handleViewProfile}
                   loading={loading}
                 />
               )}
@@ -570,9 +546,7 @@ export default function AddFriendsScreen() {
                     handleAcceptRequest={handleAcceptRequest}
                     handleDeclineRequest={handleDeclineRequest}
                     handleDeleteFriend={handleDeleteFriend}
-                    handleViewProfile={handleViewProfile}
                     loading={loading}
-                    // เพิ่ม props ที่จำเป็นเข้าไป
                     friendsList={friendsList}
                     pendingRequests={pendingRequests}
                     receivedRequests={receivedRequests}
