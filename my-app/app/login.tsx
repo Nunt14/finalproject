@@ -78,7 +78,15 @@ export default function LoginScreen() {
         value={password}
       />
 
-      <Text style={styles.hint}>Minimum 8 characters   <Text style={styles.link}>Forgot password</Text></Text>
+      <Text style={styles.hint}>
+        Minimum 8 characters   
+        <Text 
+          style={styles.link}
+          onPress={() => router.push('/forgot-password')}
+        >
+          Forgot password
+        </Text>
+      </Text>
 
       <TouchableOpacity style={styles.button} onPress={handleLogin}>
         <Text style={styles.buttonText}>Next</Text>
