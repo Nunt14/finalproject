@@ -12,6 +12,8 @@ export default function WelcomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'Welcome'>>();
 
   const [trips, setTrips] = useState<any[]>([]);
+  const [filteredTrips, setFilteredTrips] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
 
   // ฟังก์ชันสำหรับกระดิ่งแจ้งเตือน
@@ -69,6 +71,7 @@ export default function WelcomeScreen() {
         console.log('Error fetching trips:', error);
       } else {
         setTrips(data || []);
+        setFilteredTrips(data || []);
       }
 
       setLoading(false);
@@ -90,7 +93,27 @@ export default function WelcomeScreen() {
         />
 
         {/* Search */}
-        <TextInput placeholder="Search" style={styles.searchBox} />
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={20} color="#888" style={styles.searchIcon} />
+          <TextInput 
+            style={styles.searchBox} 
+            value={searchQuery}
+            onChangeText={(text) => {
+              setSearchQuery(text);
+              if (text === '') {
+                setFilteredTrips(trips);
+              } else {
+                const searchText = text.toLowerCase();
+                const filtered = trips.filter(trip => {
+                  const nameMatch = trip.trip_name?.toLowerCase().includes(searchText) || false;
+                  const descMatch = trip.description?.toLowerCase().includes(searchText) || false;
+                  return nameMatch || descMatch;
+                });
+                setFilteredTrips(filtered);
+              }
+            }}
+          />
+        </View>
 
         {/* Section Header */}
         <View style={styles.sectionHeader}>
@@ -105,8 +128,11 @@ export default function WelcomeScreen() {
           </View>
         </View>
 
-        {/* Trip Card จากฐานข้อมูล เฉพาะของ user */}
-        {!loading && trips.length > 0 && trips.map((trip) => (
+        {/* Trip List */}
+        {filteredTrips.length === 0 ? (
+          <Text style={styles.noResultsText}>ไม่พบทริปที่ค้นหา</Text>
+        ) : (
+          filteredTrips.map((trip) => (
           <TouchableOpacity key={trip.trip_id} style={styles.card} onPress={() => router.push({ pathname: '/Trip', params: { tripId: trip.trip_id } })}>
             {trip.trip_image_url ? (
               <Image source={{ uri: trip.trip_image_url }} style={styles.image} />
@@ -118,7 +144,7 @@ export default function WelcomeScreen() {
               ) : null}
             </View>
           </TouchableOpacity>
-        ))}
+        )))}
       </ScrollView>
 
       {/* Navigation Bar */}
@@ -161,11 +187,26 @@ const styles = StyleSheet.create({
     fontSize: 35,
     fontWeight: 'bold',
   },
-  searchBox: {
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#f0f0f0',
-    padding: 10,
-    marginTop: 15,
     borderRadius: 10,
+    marginTop: 15,
+    paddingHorizontal: 10,
+  },
+  searchBox: {
+    flex: 1,
+    padding: 10,
+    paddingLeft: 10,
+  },
+  searchIcon: {
+    marginRight: 5,
+  },
+  noResultsText: {
+    marginTop: 20,
+    textAlign: 'center',
+    color: '#666',
   },
   sectionHeader: {
     marginTop: 30,
