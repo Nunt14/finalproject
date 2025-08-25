@@ -45,6 +45,8 @@ export default function AddBillScreen() {
     []
   );
   const [selectedCategory, setSelectedCategory] = useState("stay");
+  const [basePerPerson, setBasePerPerson] = useState<number>(0);
+  const [lastEdited, setLastEdited] = useState<'base' | 'total'>('base');
 
   const avatarColors = ["#5DADE2", "#F39C12", "#F5B7B1", "#E74C3C"]; // blue, orange, pink, red
 
@@ -136,6 +138,50 @@ export default function AddBillScreen() {
       )
     );
   };
+
+  const getSelectedCount = () => friends.filter((f) => f.selected).length;
+  const getSumExtras = () => friends
+    .filter((f) => f.selected)
+    .reduce((sum, f) => sum + (f.extraAmount ? parseFloat(f.extraAmount) : 0), 0);
+
+  const recalcTotalFromBase = (nextBase?: number) => {
+    const base = typeof nextBase === 'number' ? nextBase : basePerPerson;
+    const count = getSelectedCount();
+    const sumExtras = getSumExtras();
+    const newTotal = (count > 0 ? base * count : 0) + sumExtras;
+    setTotal(Number(newTotal.toFixed(2)));
+  };
+
+  const handleBaseChange = (text: string) => {
+    const val = parseFloat(text);
+    const next = isNaN(val) ? 0 : val;
+    setLastEdited('base');
+    setBasePerPerson(next);
+    recalcTotalFromBase(next);
+  };
+
+  const handleTotalChange = (text: string) => {
+    const val = parseFloat(text);
+    const nextTotal = isNaN(val) ? 0 : val;
+    setLastEdited('total');
+    setTotal(nextTotal);
+    const count = getSelectedCount();
+    const sumExtras = getSumExtras();
+    const base = count > 0 ? (nextTotal - sumExtras) / count : 0;
+    setBasePerPerson(Number(base.toFixed(2)));
+  };
+
+  // เมื่อรายชื่อ/การเลือกเพื่อน หรือค่า extras เปลี่ยน ให้คำนวณ total จากฐาน + extras เสมอ
+  useEffect(() => {
+    if (lastEdited === 'base') {
+      recalcTotalFromBase();
+    } else {
+      const count = getSelectedCount();
+      const sumExtras = getSumExtras();
+      const base = count > 0 ? (total - sumExtras) / count : 0;
+      setBasePerPerson(Number(base.toFixed(2)));
+    }
+  }, [friends]);
 
   const calculatedFriends = splitAmount();
 
@@ -246,7 +292,7 @@ export default function AddBillScreen() {
             keyboardType="numeric"
             placeholder="0.00"
             value={total ? total.toString() : ""}
-            onChangeText={(text) => setTotal(parseFloat(text) || 0)}
+            onChangeText={handleTotalChange}
           />
           <Text style={styles.currency}>฿</Text>
         </View>
@@ -256,12 +302,15 @@ export default function AddBillScreen() {
 
       <View style={styles.splitRow}>
         <Text style={styles.splitText}>Split per person :</Text>
-        <Text style={styles.green}>
-          {(() => {
-            const count = friends.filter((f) => f.selected).length;
-            return count > 0 ? (total / count).toFixed(2) : '0.00';
-          })()} ฿
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TextInput
+            style={[styles.amountInput, { maxWidth: 110, textAlign: 'right', color: '#2ecc71' }]}
+            keyboardType="numeric"
+            value={Number.isFinite(basePerPerson) ? basePerPerson.toFixed(2) : '0.00'}
+            onChangeText={handleBaseChange}
+          />
+          <Text style={styles.green}> ฿</Text>
+        </View>
       </View>
 
       <View style={styles.divider} />

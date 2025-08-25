@@ -16,7 +16,7 @@ type BillDetail = {
 export default function PayDetailScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { creditorId } = route.params as { creditorId: string };
+  const { creditorId, tripId } = route.params as { creditorId: string; tripId?: string };
   const [bills, setBills] = useState<BillDetail[]>([]);
   const [creditor, setCreditor] = useState<{ full_name: string; profile_image?: string | null } | null>(null);
   const [total, setTotal] = useState(0);
@@ -30,7 +30,7 @@ export default function PayDetailScreen() {
     const userId = sessionData?.session?.user?.id;
     if (!userId) return;
 
-    // 1. ดึง bill_share ที่ต้องจ่ายให้ creditor นี้
+    // 1. ดึง bill_share ที่ต้องจ่ายให้ creditor นี้ (และกรองตามทริปถ้ามี)
     const { data, error } = await supabase
       .from('bill_share')
       .select(`
@@ -39,6 +39,7 @@ export default function PayDetailScreen() {
         status,
         bill:bill_id (
           created_at,
+          trip_id,
           trip:trip_id (
             trip_name
           ),
@@ -53,18 +54,27 @@ export default function PayDetailScreen() {
       return;
     }
 
-    // 2. filter เฉพาะ bill ที่ paid_by_user_id === creditorId
-    const filtered = (data || []).filter((row: any) => row.bill?.paid_by_user_id === creditorId);
+    // 2. filter เฉพาะ bill ที่ paid_by_user_id === creditorId และ (ถ้ามี) อยู่ในทริปที่เลือก
+    const filtered = (data || []).filter((row: any) => {
+      const isCreditor = row.bill?.paid_by_user_id === creditorId;
+      const isInTrip = tripId ? String(row.bill?.trip_id) === String(tripId) : true;
+      return isCreditor && isInTrip;
+    });
 
-    // 3. ดึงข้อมูล creditor (user)
+    // 3. ดึงข้อมูล creditor (user) พร้อม fallback รูป
     let creditorInfo = null;
     if (filtered.length > 0) {
       const { data: userRows } = await supabase
         .from('user')
-        .select('full_name, profile_image')
+        .select('full_name, profile_image_url')
         .eq('user_id', creditorId)
         .single();
-      creditorInfo = userRows;
+      if (userRows) {
+        creditorInfo = {
+          full_name: userRows.full_name,
+          profile_image: userRows.profile_image_url || null,
+        };
+      }
     }
 
     // 4. สร้าง list และยอดรวม
@@ -120,7 +130,7 @@ export default function PayDetailScreen() {
               style={styles.payButton}
               onPress={() =>
                 router.push({
-                  pathname: 'Payment',
+                  pathname: '/Payment',
                   params: {
                     billId: bill.bill_id,
                     creditorId,

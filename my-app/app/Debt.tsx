@@ -4,15 +4,19 @@ import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../constants/supabase';
 
-// ประเภทข้อมูลสำหรับแต่ละเจ้าหนี้
-type DebtGroup = {
+// ประเภทข้อมูลสำหรับแต่ละบิลที่ค้างจ่าย (หนึ่งการ์ดต่อหนึ่งบิล)
+type DebtItem = {
+  bill_id: string;
+  amount_share: number;
   creditor_id: string;
   creditor_name: string;
   creditor_profile_image?: string | null;
-  total_amount: number;
-  list_count: number;
   category_icon?: string;
   category_color?: string;
+  bill_label?: string | null;
+  trip_name?: string | null;
+  created_ts?: number;
+  trip_id: string;
 };
 
 const CATEGORY_ICON: Record<string, { icon: string; color: string }> = {
@@ -25,7 +29,7 @@ const CATEGORY_ICON: Record<string, { icon: string; color: string }> = {
 
 export default function DebtScreen() {
   const router = useRouter();
-  const [debts, setDebts] = useState<DebtGroup[]>([]);
+  const [debts, setDebts] = useState<DebtItem[]>([]);
 
   useEffect(() => {
     fetchDebts();
@@ -36,76 +40,96 @@ export default function DebtScreen() {
     const userId = sessionData?.session?.user?.id;
     if (!userId) return;
 
-    // 1. ดึง bill_share ที่ user เป็นลูกหนี้และยังไม่จ่าย
-    const { data: billShares, error } = await supabase
+    // 1) ดึงรายการ bill_share ที่ผู้ใช้เป็นลูกหนี้ (unpaid)
+    const { data: billShares, error: billShareErr } = await supabase
       .from('bill_share')
-      .select(`
-        bill_share_id,
-        bill_id,
-        amount_share,
-        status,
-        bill:bill_id (
-          bill_id,
-          paid_by_user_id,
-          category_id
-        )
-      `)
+      .select(`bill_share_id, bill_id, amount_share, status, bill:bill_id (trip_id, paid_by_user_id, category_id, created_at)`)
       .eq('user_id', userId)
       .eq('status', 'unpaid');
 
-    if (error) {
-      console.error(error);
+    if (billShareErr) {
+      console.error(billShareErr);
       return;
     }
 
-    // 2. รวมยอดตาม creditor (paid_by_user_id) + category
-    const groupMap: { [key: string]: DebtGroup } = {};
-    for (const row of billShares || []) {
-      const creditorId = row.bill?.paid_by_user_id;
-      const categoryId = row.bill?.category_id?.toString() || '1';
-      if (!creditorId) continue;
-      const groupKey = `${creditorId}_${categoryId}`;
-      if (!groupMap[groupKey]) {
-        groupMap[groupKey] = {
-          creditor_id: creditorId,
-          creditor_name: '',
-          creditor_profile_image: '',
-          total_amount: 0,
-          list_count: 0,
-          category_icon: CATEGORY_ICON[categoryId]?.icon || 'car',
-          category_color: CATEGORY_ICON[categoryId]?.color || '#45647C',
-        };
-      }
-      groupMap[groupKey].total_amount += Number(row.amount_share || 0);
-      groupMap[groupKey].list_count += 1;
+    const shares = billShares || [];
+    if (shares.length === 0) {
+      setDebts([]);
+      return;
     }
 
-    // 3. ดึงข้อมูล creditor (user) ทีเดียว
-    const creditorIds = Array.from(new Set(Object.values(groupMap).map(g => g.creditor_id)));
-    let creditors: any[] = [];
-    if (creditorIds.length > 0) {
-      const { data: userRows } = await supabase
-        .from('user')
-        .select('user_id, full_name, profile_image')
-        .in('user_id', creditorIds);
-      creditors = userRows || [];
+    // 2) ดึงข้อมูลบิลทั้งหมดที่เกี่ยวข้อง พร้อมข้อมูลผู้จ่าย (payer)
+    const billIds = Array.from(new Set(shares.map((s: any) => String(s.bill_id))));
+    const { data: billRows, error: billErr } = await supabase
+      .from('bill')
+      .select('bill_id, trip_id, paid_by_user_id, category_id, created_at, payer:paid_by_user_id ( user_id, full_name, profile_image_url )')
+      .in('bill_id', billIds);
+
+    if (billErr) {
+      console.error(billErr);
+      return;
     }
 
-    // 4. ใส่ชื่อและรูป creditor
-    Object.values(groupMap).forEach(g => {
-      const u = creditors.find(u => u.user_id === g.creditor_id);
-      g.creditor_name = u?.full_name || 'Unknown';
-      g.creditor_profile_image = u?.profile_image || null;
-    });
+    const bills = (billRows || []).map((b: any) => ({
+      bill_id: String(b.bill_id),
+      trip_id: String(b.trip_id),
+      paid_by_user_id: String(b.paid_by_user_id),
+      category_id: b.category_id == null ? null : String(b.category_id),
+      created_at: b.created_at ? new Date(b.created_at).getTime() : 0,
+      payer_full_name: b.payer?.full_name ?? null,
+      payer_profile_image: (b.payer?.profile_image_url ?? null) as string | null,
+    }));
 
-    setDebts(Object.values(groupMap));
+    // 3) ดึงชื่อทริป
+    const tripIds = Array.from(new Set(bills.map((b) => b.trip_id)));
+    let tripMap = new Map<string, string | null>();
+    if (tripIds.length > 0) {
+      const { data: tripRows } = await supabase
+        .from('trip')
+        .select('trip_id, trip_name')
+        .in('trip_id', tripIds);
+      tripMap = new Map((tripRows || []).map((t: any) => [String(t.trip_id), t.trip_name ?? null]));
+    }
+
+    // 4) สร้างรายการการ์ดหนี้แบบต่อบิล
+    const items: DebtItem[] = [];
+    for (const share of shares) {
+      const billId = String(share.bill_id);
+      const amountShare = Number(share.amount_share || 0);
+      const bill = bills.find((b) => b.bill_id === billId);
+      if (!bill) continue;
+
+      const categoryId = bill.category_id || '1';
+      const icon = CATEGORY_ICON[categoryId]?.icon || 'car';
+      const color = CATEGORY_ICON[categoryId]?.color || '#45647C';
+
+      const shortId = bill.bill_id.slice(-6).toUpperCase();
+      items.push({
+        bill_id: bill.bill_id,
+        amount_share: amountShare,
+        creditor_id: bill.paid_by_user_id,
+        creditor_name: bill.payer_full_name || 'Unknown',
+        creditor_profile_image: bill.payer_profile_image || null,
+        category_icon: icon,
+        category_color: color,
+        bill_label: `Bill #${shortId}`,
+        trip_name: tripMap.get(bill.trip_id) || null,
+        created_ts: bill.created_at || 0,
+        trip_id: bill.trip_id,
+      });
+    }
+
+    // 5) เรียงรายการตามวันที่ล่าสุด
+    items.sort((a, b) => (b.created_ts || 0) - (a.created_ts || 0));
+
+    setDebts(items);
   };
 
-  const renderDebtCard = (debt: DebtGroup) => (
-    <View key={debt.creditor_id + debt.category_icon} style={styles.card}>
+  const renderDebtCard = (debt: DebtItem) => (
+    <View key={debt.bill_id} style={styles.card}>
       <View style={styles.rowBetween}>
         <Text style={styles.amount}>
-          {debt.total_amount.toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿
+          {debt.amount_share.toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿
         </Text>
         {debt.creditor_profile_image ? (
           <Image
@@ -116,6 +140,7 @@ export default function DebtScreen() {
           <Ionicons name="person-circle" size={36} color="#bbb" />
         )}
       </View>
+
       <View style={styles.rowBetween}>
         <View style={styles.row}>
           <FontAwesome5
@@ -124,15 +149,21 @@ export default function DebtScreen() {
             color={debt.category_color}
             style={{ marginRight: 6 }}
           />
-          <Text style={styles.totalList}>Total: {debt.list_count} list</Text>
+          <Text style={styles.totalList}>{debt.creditor_name}</Text>
         </View>
         <TouchableOpacity
-          onPress={() => router.push({ pathname: '/PayDetail', params: { creditorId: debt.creditor_id } })}
+          onPress={() => router.push({ pathname: '/PayDetail', params: { creditorId: debt.creditor_id, tripId: debt.trip_id } })}
         >
           <Ionicons name="eye" size={24} color="#45647C" />
         </TouchableOpacity>
       </View>
-      <Text style={styles.creditorName}>{debt.creditor_name}</Text>
+
+      {!!debt.bill_label && (
+        <Text style={{ color: '#666', marginTop: 2 }}>Bill: {debt.bill_label}</Text>
+      )}
+      {!!debt.trip_name && (
+        <Text style={{ color: '#666', marginTop: 2 }}>Trip: {debt.trip_name}</Text>
+      )}
     </View>
   );
 
@@ -181,7 +212,7 @@ const styles = StyleSheet.create({
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   row: { flexDirection: 'row', alignItems: 'center' },
   amount: { fontSize: 20, fontWeight: 'bold', color: 'red' },
-  totalList: { color: '#45647C' },
+  totalList: { color: '#45647C', fontWeight: '600' },
   avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#eee' },
   creditorName: { fontSize: 15, color: '#333', fontWeight: 'bold', marginTop: 2, marginLeft: 2 },
   bgImage: { width: '111%', height: 235, position: 'absolute', bottom: -4, left: 0 },
