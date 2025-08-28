@@ -325,7 +325,7 @@ export default function TripScreen() {
 
       {/* ปุ่มการทำงานด้านล่าง (ตัวอย่าง) */}
       <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.circleBtn} onPress={() => router.push('/Debt')}>
+        <TouchableOpacity style={styles.circleBtn} onPress={() => router.push(`/Debttrip?tripId=${tripId}`)}>
           <View style={{ alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="bag" size={26} color="#fff" />
             <Text style={styles.bagText}>DEBT</Text>

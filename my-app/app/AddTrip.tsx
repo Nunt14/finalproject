@@ -261,91 +261,104 @@ export default function AddTripScreen() {
           <Ionicons name="chevron-back" size={24} color="black" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Add new trip</Text>
+        <View style={{ width: 24 }} />
       </View>
 
-      {/* Camera Icon or Selected Image */}
-      <TouchableOpacity style={styles.imageBox} onPress={pickImage}>
-        {selectedImage ? (
-          <Image source={{ uri: selectedImage }} style={styles.tripImage} />
-        ) : (
-          <MaterialIcons name="photo-camera" size={40} color="#1A3C6B" />
-        )}
-      </TouchableOpacity>
-
-      {/* Title input */}
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>title :</Text>
-        <TextInput
-          value={tripName}
-          onChangeText={setTripName}
-          style={styles.input}
-          placeholder="Enter trip title"
-        />
-      </View>
-
-      {/* Member section */}
-      <Text style={styles.label}>Member :</Text>
-      {loading ? (
-        <ActivityIndicator style={{ marginTop: 20 }} size="large" color="#1A3C6B" />
-      ) : (
-        <View>
-          {/* removed small horizontal avatar list per request */}
-          <TouchableOpacity 
-            style={styles.everyoneBox}
-            onPress={handleSelectAll}
-          >
-            <Ionicons 
-              name={selectAll ? "checkbox" : "square-outline"} 
-              size={20} 
-              color={selectAll ? "#1A3C6B" : "#888"}
-            />
-            <Text style={styles.everyoneLabel}>Everyone</Text>
-          </TouchableOpacity>
-          {/* รายชื่อเพื่อนแบบมีชื่อและรูปโปรไฟล์ให้เลือก */}
-          <View style={styles.memberList}>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-            {members.map((member) => {
-              const isSelected = selectedMembers.includes(member.user_id);
-              return (
-                <TouchableOpacity
-                  key={member.user_id}
-                  style={[styles.memberListItem, isSelected && styles.memberListItemSelected]}
-                  onPress={() => handleMemberSelect(member.user_id)}
-                >
-                  {member.profile_image_url ? (
-                    <Image source={{ uri: member.profile_image_url }} style={[styles.memberListAvatar, isSelected && styles.memberListAvatarSelected]} />
-                  ) : (
-                    <View style={[styles.memberListAvatarPlaceholder, isSelected && styles.memberListAvatarSelected]}>
-                      <Text style={styles.memberListAvatarInitial}>
-                        {member.full_name ? member.full_name.charAt(0) : '?'}
-                      </Text>
-                    </View>
-                  )}
-                  <Text style={styles.memberName} numberOfLines={1}>
-                    {member.full_name || 'Unnamed'}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Camera Icon or Selected Image */}
+        <TouchableOpacity style={styles.imageBox} onPress={pickImage}>
+          {selectedImage ? (
+            <Image source={{ uri: selectedImage }} style={styles.tripImage} />
+          ) : (
+            <View style={styles.cameraIconContainer}>
+              <MaterialIcons name="photo-camera" size={48} color="#fff" />
             </View>
-          </View>
+          )}
+        </TouchableOpacity>
+
+        {/* Title input */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>title :</Text>
+          <TextInput
+            value={tripName}
+            onChangeText={setTripName}
+            style={styles.input}
+            placeholder="Enter trip title"
+            placeholderTextColor="#999"
+          />
         </View>
-      )}
 
-      {/* Buttons */}
-      <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm} disabled={loading}>
-        <Text style={styles.confirmText}>{loading ? 'Saving...' : 'Confirm'}</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.backBtn} onPress={() => router.replace('/welcome')}>
-        <Text style={styles.backText}>Back</Text>
-      </TouchableOpacity>
+        {/* Member section */}
+        <View style={styles.memberSection}>
+          <Text style={styles.label}>Member :</Text>
+          {loading ? (
+            <ActivityIndicator style={{ marginTop: 20 }} size="large" color="#1A3C6B" />
+          ) : (
+            <View>
+              {/* Member avatars in horizontal scroll */}
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                style={styles.memberScrollView}
+                contentContainerStyle={styles.memberScrollContent}
+              >
+                {members.slice(0, 4).map((member, index) => {
+                  const isSelected = selectedMembers.includes(member.user_id);
+                  const colors = ['#5DADE2', '#F39C12', '#F5B7B1', '#E74C3C'];
+                  return (
+                    <TouchableOpacity
+                      key={member.user_id}
+                      style={[
+                        styles.memberAvatar,
+                        { backgroundColor: colors[index % colors.length] },
+                        isSelected && styles.memberAvatarSelected
+                      ]}
+                      onPress={() => handleMemberSelect(member.user_id)}
+                    >
+                      {member.profile_image_url ? (
+                        <Image source={{ uri: member.profile_image_url }} style={styles.memberAvatarImage} />
+                      ) : (
+                        <Text style={styles.memberAvatarText}>
+                          {member.full_name ? member.full_name.charAt(0).toUpperCase() : '?'}
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+                {members.length > 4 && (
+                  <View style={[styles.memberAvatar, styles.moreIndicator]}>
+                    <Text style={styles.moreText}>+{members.length - 4}</Text>
+                  </View>
+                )}
+              </ScrollView>
 
-      {/* Decorative image */}
-      <Image
-        source={require('../assets/images/bg.png')}
-        style={styles.bgImage}
-        resizeMode="contain"
-      />
+              {/* Everyone checkbox */}
+              <TouchableOpacity 
+                style={styles.everyoneBox}
+                onPress={handleSelectAll}
+              >
+                <View style={[styles.checkbox, selectAll && styles.checkboxSelected]}>
+                  {selectAll && <Ionicons name="checkmark" size={16} color="#fff" />}
+                </View>
+                <Text style={styles.everyoneLabel}>everyone</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </ScrollView>
+
+      {/* Bottom buttons */}
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm} disabled={loading}>
+          <Text style={styles.confirmText}>{loading ? 'Saving...' : 'Confirm'}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.replace('/welcome')}>
+          <Text style={styles.backText}>Back</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Background images */}
+      <Image source={require('../assets/images/bg.png')} style={styles.bgImage} resizeMode="contain" />
     </View>
   );
 }
@@ -354,6 +367,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, paddingTop: 50, paddingHorizontal: 20, backgroundColor: '#fff' },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   headerTitle: { fontSize: 18, fontWeight: 'bold', marginLeft: 10 },
+  scrollView: { flex: 1 },
+  scrollContent: { paddingVertical: 20 },
   imageBox: {
     alignSelf: 'center',
     backgroundColor: '#9EC4C2',
@@ -370,33 +385,48 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 15,
   },
+  cameraIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#1A3C6B',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   inputGroup: { marginBottom: 20 },
   label: { fontWeight: 'bold', marginBottom: 5 },
   input: { borderBottomWidth: 1, borderBottomColor: '#ccc', paddingVertical: 5 },
-  memberRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 15, gap: 10 },
-  memberCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginHorizontal: 5,
-    backgroundColor: '#ddd',
+  memberSection: { marginBottom: 20 },
+  memberScrollView: { paddingVertical: 10 },
+  memberScrollContent: { paddingHorizontal: 10 },
+  memberAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
-    overflow: 'hidden', // เพิ่ม overflow เพื่อให้รูปภาพไม่เกินขอบ
   },
-  selectedMember: {
+  memberAvatarSelected: {
+    borderWidth: 3,
     borderColor: '#1A3C6B',
   },
-  memberText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  profileImage: {
+  memberAvatarImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 20,
+    borderRadius: 24,
+  },
+  memberAvatarText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  moreIndicator: {
+    backgroundColor: '#ddd',
+  },
+  moreText: {
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   everyoneBox: {
     flexDirection: 'row',
@@ -406,50 +436,25 @@ const styles = StyleSheet.create({
     padding: 5,
     borderRadius: 5,
   },
-  everyoneLabel: { fontSize: 14, color: '#888', marginLeft: 10 },
-  confirmBtn: { backgroundColor: '#1A3C6B', padding: 15, borderRadius: 10, marginBottom: 10 },
-  confirmText: { color: '#fff', textAlign: 'center', fontWeight: 'bold' },
-  backBtn: { backgroundColor: '#333', padding: 15, borderRadius: 10 },
-  backText: { color: '#fff', textAlign: 'center' },
-  bgImage: { width: '111%', height: 235, bottom: -154, alignSelf: 'center' },
-  memberList: { marginTop: 10 },
-  memberListItem: {
-    width: '33.33%',
-    paddingVertical: 12,
-    alignItems: 'center',
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#ccc',
     justifyContent: 'center',
-  },
-  memberListItemSelected: {
-    backgroundColor: '#eef5ff',
-    borderRadius: 10,
-  },
-  memberListAvatar: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    marginBottom: 8,
-  },
-  memberListAvatarPlaceholder: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: '#bbb',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
+    marginRight: 10,
   },
-  memberListAvatarInitial: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 28,
-  },
-  memberName: {
-    fontSize: 14,
-    textAlign: 'center',
-    maxWidth: 110,
-  },
-  memberListAvatarSelected: {
-    borderWidth: 3,
+  checkboxSelected: {
+    backgroundColor: '#1A3C6B',
     borderColor: '#1A3C6B',
   },
+  everyoneLabel: { fontSize: 14, color: '#888' },
+  buttonContainer: { paddingVertical: 20, paddingHorizontal: 20 },
+  confirmBtn: { backgroundColor: '#1A3C6B', padding: 15, borderRadius: 10, marginBottom: 10, width: '100%' },
+  confirmText: { color: '#fff', textAlign: 'center', fontWeight: 'bold' },
+  backBtn: { backgroundColor: '#333', padding: 15, borderRadius: 10, width: '100%' },
+  backText: { color: '#fff', textAlign: 'center' },
+  bgImage: { width: '111%', height: 235, bottom: -100, alignSelf: 'center', zIndex: -1 },
 });

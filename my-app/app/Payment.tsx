@@ -14,14 +14,14 @@ type RouteParams = {
 export default function PaymentScreen() {
   const route = useRoute();
   const { billId, creditorId, amount } = route.params as unknown as RouteParams;
-  const [creditor, setCreditor] = useState<{ full_name: string; profile_image?: string | null; qr_code_img?: string | null } | null>(null);
-  const [debtor, setDebtor] = useState<{ full_name: string; profile_image_url?: string | null; profile_image?: string | null } | null>(null);
+  const [creditor, setCreditor] = useState<{ full_name: string; profile_image_url?: string | null; qr_code_img?: string | null } | null>(null);
+  const [debtor, setDebtor] = useState<{ full_name: string; profile_image_url?: string | null } | null>(null);
 
   useEffect(() => {
     const fetchCreditor = async () => {
       const { data } = await supabase
         .from('user')
-        .select('full_name, profile_image, qr_code_img')
+        .select('full_name, profile_image_url, qr_code_img')
         .eq('user_id', creditorId)
         .single();
       setCreditor(data as any);
@@ -32,15 +32,13 @@ export default function PaymentScreen() {
       if (!uid) return;
       const { data } = await supabase
         .from('user')
-        .select('full_name, profile_image_url, profile_image')
+        .select('full_name, profile_image_url')
         .eq('user_id', uid)
         .single();
       const fallbackName = (sessionData?.session?.user as any)?.user_metadata?.full_name || (sessionData?.session?.user?.email ?? null);
-      const fallbackAvatar = (sessionData?.session?.user as any)?.user_metadata?.avatar_url ?? null;
       setDebtor({
         full_name: (data as any)?.full_name ?? fallbackName ?? '-',
-        profile_image_url: (data as any)?.profile_image_url ?? (data as any)?.profile_image ?? fallbackAvatar ?? null,
-        profile_image: (data as any)?.profile_image ?? null,
+        profile_image_url: (data as any)?.profile_image_url ?? null,
       });
     };
 
@@ -95,13 +93,13 @@ export default function PaymentScreen() {
     ensureDebtSummary();
   }, [billId, creditorId, amount]);
 
-  const debtorImageUrl = useMemo(() => {
-    const url = (debtor?.profile_image_url || debtor?.profile_image) as string | undefined;
+  const creditorImageUrl = useMemo(() => {
+    const url = (creditor?.profile_image_url) as string | undefined;
     if (!url) return null;
     // ใช้เฉพาะ URL ที่โหลดได้จริง (http/https หรือ data URI) เพื่อเลี่ยง file:// และ path ภายในเครื่อง
     if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
     return null;
-  }, [debtor]);
+  }, [creditor]);
 
   return (
     <View style={styles.container}>
@@ -118,13 +116,13 @@ export default function PaymentScreen() {
       </View>
 
       <View style={styles.creditorSection}>
-        {debtorImageUrl ? (
-          <Image source={{ uri: debtorImageUrl }} style={styles.avatar} onError={() => { /* swallow */ }} />
+        {creditorImageUrl ? (
+          <Image source={{ uri: creditorImageUrl }} style={styles.avatar} onError={() => { /* swallow */ }} />
         ) : (
           <Ionicons name="person-circle" size={50} color="#bbb" />
         )}
         <View style={{ marginLeft: 10 }}>
-          <Text style={styles.creditorName}>{debtor?.full_name || '-'}</Text>
+          <Text style={styles.creditorName}>{creditor?.full_name || '-'}</Text>
           <Text style={styles.unpaidText}>Unpaid</Text>
         </View>
         {!!amount && (
@@ -220,5 +218,3 @@ const styles = StyleSheet.create({
   secondaryButtonText: { color: '#fff', fontWeight: 'bold' },
   bgImage: { width: '111%', height: 235, position: 'absolute', bottom: -4, left: 0 },
 });
-
-

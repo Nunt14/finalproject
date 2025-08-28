@@ -170,9 +170,14 @@ export default function AddFriendsScreen() {
           .select('user_two_id, user_one_id')
           .or(`user_one_id.eq.${currentUserId},user_two_id.eq.${currentUserId}`); 
         if (friendsError) throw friendsError;
-        const confirmedFriendIds = friendsData ? friendsData.map(friend => 
-          friend.user_two_id === currentUserId ? friend.user_one_id : friend.user_two_id
-        ) : [];
+        
+        // Use Set to deduplicate friend IDs
+        const friendIdSet = new Set<string>();
+        friendsData?.forEach(friend => {
+          const friendId = friend.user_two_id === currentUserId ? friend.user_one_id : friend.user_two_id;
+          friendIdSet.add(friendId);
+        });
+        const confirmedFriendIds = Array.from(friendIdSet);
         
         const { data: sentRequests, error: sentError } = await supabase
           .from('friend_requests')
@@ -352,14 +357,12 @@ export default function AddFriendsScreen() {
       
       if (updateError) throw updateError;
       
-      const { error: insertError1 } = await supabase
+      // Insert only one friendship record (bidirectional relationship)
+      const { error: insertError } = await supabase
         .from('friends')
         .insert({ user_one_id: userId, user_two_id: senderId });
-      const { error: insertError2 } = await supabase
-        .from('friends')
-        .insert({ user_one_id: senderId, user_two_id: userId });
         
-      if (insertError1 || insertError2) throw new Error(insertError1?.message || insertError2?.message);
+      if (insertError) throw insertError;
 
       // แจ้งเตือนผู้ส่งผ่าน RPC
       const { error: notificationError } = await supabase.rpc('notify_user', {
@@ -514,6 +517,7 @@ export default function AddFriendsScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={24} />
         </TouchableOpacity>
+        <View style={{ flex: 1 }} />
         <Text style={styles.headerTitle}>Add Friends</Text>
       </View>
 
@@ -665,7 +669,10 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     marginBottom: 20,
   },
   headerTitle: {
@@ -820,7 +827,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     marginTop: 10,
-    marginBottom: 20, // Added margin to lift the button higher
+    marginBottom: 50, // Increased from 20 to 40 to move button up
   },
   bottomButtonText: {
     color: '#fff',

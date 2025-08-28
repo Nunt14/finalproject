@@ -368,7 +368,6 @@ export default function AddBillScreen() {
           <Ionicons name="chevron-back" size={22} color="#333" />
         </TouchableOpacity>
         <Text style={styles.header}>Add new Bill</Text>
-        <View style={{ width: 22 }} />
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -536,7 +535,7 @@ export default function AddBillScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1, backgroundColor: "#fff", paddingTop: 50 },
   scrollView: { flex: 1 },
   content: { padding: 16, paddingTop: 8, paddingBottom: 120 },
   headerRow: {
@@ -545,9 +544,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-    backgroundColor: "#fff",
+    marginBottom: 10,
   },
   header: { fontSize: 18, fontWeight: "600", color: "#222" },
   sectionTitle: { fontSize: 16, color: "#333", marginBottom: 8, fontWeight: "600" },
@@ -714,7 +711,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   confirmBtn: {
-    backgroundColor: "#2e86de",
+    backgroundColor: "#1A3C6B",
     padding: 15,
     borderRadius: 12,
     alignItems: "center",

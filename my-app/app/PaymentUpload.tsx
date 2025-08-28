@@ -63,23 +63,36 @@ export default function PaymentUploadScreen() {
           .single();
         billShareId = (bs as any)?.bill_share_id ?? null;
       } catch {}
-      // อัปโหลดสลิปไปยัง Supabase Storage เพื่อให้เจ้าหนี้สามารถเห็นรูปได้
+      
+      // อัปโหลดสลิปไปยัง Supabase Storage
       let publicImageUrl: string | null = null;
       try {
         const response = await fetch(imageUri);
         const blob = await response.blob();
         const extension = 'jpg';
-        const filePath = `proofs/${uid}/${billId}-${Date.now()}.${extension}`;
+        const filePath = `slips/${uid}/${billId}-${Date.now()}.${extension}`;
         const { error: uploadError } = await supabase.storage
-          .from('payment_proofs')
+          .from('payment-proofs')
           .upload(filePath, blob, { contentType: 'image/jpeg', upsert: true });
         if (!uploadError) {
           const { data: pub } = await supabase.storage
-            .from('payment_proofs')
+            .from('payment-proofs')
             .getPublicUrl(filePath);
           publicImageUrl = (pub as any)?.publicUrl ?? null;
         }
       } catch {}
+      
+      // บันทึก payment พร้อมกับ slip_qr
+      await supabase.from('payment').insert({
+        bill_share_id: billShareId,
+        amount: amount ? Number(amount) : null,
+        method: 'qr',
+        status: 'pending',
+        transaction_id: null,
+        slip_qr: publicImageUrl ?? imageUri, // บันทึกรูปสลิปใน slip_qr field
+      });
+      
+      // บันทึก payment_proof สำหรับ backup (optional)
       await supabase.from('payment_proof').insert({
         bill_id: billId,
         creditor_id: creditorId,
@@ -88,14 +101,7 @@ export default function PaymentUploadScreen() {
         image_uri_local: publicImageUrl ?? imageUri,
         status: 'pending',
       });
-      // บันทึก payment ตามสคีมาที่กำหนด
-      await supabase.from('payment').insert({
-        bill_share_id: billShareId,
-        amount: amount ? Number(amount) : null,
-        method: 'qr',
-        status: 'pending',
-        transaction_id: null,
-      });
+      
       Alert.alert('Success', 'Payment submitted for review.');
       if ((router as any).canGoBack && (router as any).canGoBack()) router.back();
       if ((router as any).canGoBack && (router as any).canGoBack()) router.back();
@@ -200,5 +206,3 @@ const styles = StyleSheet.create({
   secondaryButtonText: { color: '#fff', fontWeight: 'bold' },
   bgImage: { width: '111%', height: 235, position: 'absolute', bottom: -4, left: 0 },
 });
-
-
