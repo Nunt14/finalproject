@@ -462,11 +462,51 @@ export default function AddFriendsScreen() {
     return items;
   }, [receivedRequests, pendingRequests, friendsList]);
 
-  const groups = [
-    { name: 'Nakhon NaYok Trip', image: 'https://source.unsplash.com/100x100/?car,road', expense: false },
-    { name: 'Chiang Mai', image: 'https://source.unsplash.com/100x100/?chiangmai', expense: true },
-    { name: 'เกาะล้าน', image: 'https://source.unsplash.com/100x100/?beach,thailand', expense: true },
-  ];
+  const [trips, setTrips] = useState<any[]>([]);
+  const [loadingTrips, setLoadingTrips] = useState(true);
+
+  // Fetch user's trips
+  useEffect(() => {
+    const fetchTrips = async () => {
+      if (!userId) return;
+      
+      setLoadingTrips(true);
+      try {
+        // Get trip memberships for current user
+        const { data: memberRows, error: memberErr } = await supabase
+          .from('trip_member')
+          .select('trip_id')
+          .eq('user_id', userId)
+          .eq('is_active', true);
+          
+        if (memberErr) throw memberErr;
+        
+        const tripIds = (memberRows || []).map((m: any) => m.trip_id);
+        if (tripIds.length === 0) {
+          setTrips([]);
+          return;
+        }
+        
+        // Get trip details
+        const { data: tripData, error: tripErr } = await supabase
+          .from('trip')
+          .select('*')
+          .in('trip_id', tripIds)
+          .order('created_at', { ascending: false });
+          
+        if (tripErr) throw tripErr;
+        
+        setTrips(tripData || []);
+      } catch (err) {
+        console.error('Error fetching trips:', err);
+        Alert.alert('Error', 'Failed to load trips');
+      } finally {
+        setLoadingTrips(false);
+      }
+    };
+    
+    fetchTrips();
+  }, [userId]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -562,22 +602,43 @@ export default function AddFriendsScreen() {
           )}
         </>
       ) : (
+        loadingTrips ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#45647C" />
+          </View>
+        ) : trips.length === 0 ? (
+          <View style={styles.emptyList}>
+            <Ionicons name="sad-outline" size={48} color="#999" />
+            <Text style={styles.emptyText}>No trips found</Text>
+            <Text style={styles.emptyStateSubtext}>Create a new trip to get started</Text>
+          </View>
+        ) : (
           <FlatList
-          data={groups}
-          keyExtractor={(item) => item.name}
-          contentContainerStyle={{ paddingVertical: 10 }}
-          renderItem={({ item }) => (
-            <View style={styles.groupItem}>
-              <Image source={{ uri: item.image }} style={styles.groupImage} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.groupName}>{item.name}</Text>
-                <Text style={{ color: item.expense ? 'red' : 'gray', fontSize: 12 }}>
-                  {item.expense ? 'with expenses' : 'no expenses'}
-                </Text>
-              </View>
-            </View>
-          )}
-        />
+            data={trips}
+            keyExtractor={(item) => item.trip_id}
+            contentContainerStyle={{ paddingVertical: 10 }}
+            renderItem={({ item }) => (
+              <TouchableOpacity 
+                style={styles.groupItem}
+                onPress={() => router.push(`/Trip?tripId=${item.trip_id}`)}
+              >
+                {item.trip_image_url ? (
+                  <Image source={{ uri: item.trip_image_url }} style={styles.groupImage} />
+                ) : (
+                  <View style={[styles.groupImage, { backgroundColor: '#e0e0e0', justifyContent: 'center', alignItems: 'center' }]}>
+                    <Ionicons name="images" size={32} color="#999" />
+                  </View>
+                )}
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.groupName}>{item.trip_name}</Text>
+                  <Text style={{ color: '#666', fontSize: 12 }}>
+                    {new Date(item.created_at).toLocaleDateString()}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
+          />
+        )
       )}
 
       <TouchableOpacity style={styles.bottomButton}>
@@ -759,6 +820,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     marginTop: 10,
+    marginBottom: 20, // Added margin to lift the button higher
   },
   bottomButtonText: {
     color: '#fff',
@@ -771,6 +833,17 @@ const styles = StyleSheet.create({
   emptyText: {
     color: '#888',
     fontSize: 16,
+    marginTop: 10,
+  },
+  emptyStateSubtext: {
+    color: '#999',
+    fontSize: 14,
+    marginTop: 5,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   bgImage: {
     width: '111%',
