@@ -4,6 +4,29 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, router } from 'expo-router';
 import { supabase } from '../constants/supabase';
 
+// Helper function to get proper image URL from Supabase storage
+const getImageUrl = (imageUri: string | null | undefined): string | null => {
+  if (!imageUri) return null;
+  
+  // If it's already a full URL, return as is
+  if (imageUri.startsWith('http')) return imageUri;
+  
+  // If it's a Supabase storage path, construct the full URL
+  if (imageUri.startsWith('payment-proofs/') || imageUri.startsWith('slips/')) {
+    const path = imageUri.replace('payment-proofs/', '').replace('slips/', '');
+    const { data } = supabase.storage.from('payment-proofs').getPublicUrl(path);
+    return data.publicUrl;
+  }
+  
+  // For other storage paths, try to construct URL
+  try {
+    const { data } = supabase.storage.from('payment-proofs').getPublicUrl(imageUri);
+    return data.publicUrl;
+  } catch {
+    return null;
+  }
+};
+
 export default function ConfirmSlipScreen() {
   const { proofId, imageUri: imageUriParam } = useLocalSearchParams<{ proofId?: string; imageUri?: string }>();
   const [imageUri, setImageUri] = useState<string | null>(imageUriParam ?? null);
@@ -14,10 +37,12 @@ export default function ConfirmSlipScreen() {
       if (!proofId) return;
       const { data } = await supabase
         .from('payment_proof')
-        .select('image_uri_local')
+        .select('image_uri_local, slip_qr')
         .eq('id', proofId)
         .single();
-      setImageUri((data as any)?.image_uri_local ?? null);
+      // ใช้ slip_qr เป็นหลัก แล้วค่อย fallback ไป image_uri_local
+      const imgUri = (data as any)?.slip_qr || (data as any)?.image_uri_local || null;
+      setImageUri(imgUri);
     };
     run();
   }, [proofId, imageUriParam]);
@@ -33,9 +58,12 @@ export default function ConfirmSlipScreen() {
 
       <View style={styles.previewBox}>
         {imageUri ? (
-          <Image source={{ uri: imageUri }} style={styles.preview} resizeMode="contain" />
+          <Image source={{ uri: getImageUrl(imageUri) }} style={styles.preview} resizeMode="contain" />
         ) : (
-          <Text>No image</Text>
+          <View style={styles.noImageContainer}>
+            <Ionicons name="image-outline" size={48} color="#ccc" />
+            <Text style={styles.noImageText}>No image available</Text>
+          </View>
         )}
       </View>
 
@@ -63,7 +91,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   preview: { width: '92%', height: '100%', borderRadius: 8 },
+  noImageContainer: { alignItems: 'center', justifyContent: 'center' },
+  noImageText: { marginTop: 8, color: '#666', fontSize: 14 },
   bgImage: { width: '111%', height: 235, position: 'absolute', bottom: -4, left: 0 },
 });
-
-

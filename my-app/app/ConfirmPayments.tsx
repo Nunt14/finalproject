@@ -12,9 +12,10 @@ type Proof = {
   debtor_user_id: string;
   amount: number | null;
   image_uri_local?: string | null;
+  slip_qr?: string | null;
   status?: string | null;
   created_at?: string;
-  payment_id?: string | null; // ถ้ามาจากตาราง payment
+  payment_id?: string | null; 
   source?: 'proof' | 'payment';
 };
 
@@ -63,6 +64,7 @@ export default function ConfirmPaymentsScreen() {
             debtor_user_id: String(row.debtor_user_id),
             amount: row.amount != null ? Number(row.amount) : null,
             image_uri_local: row.image_uri_local ?? null,
+            slip_qr: row.slip_qr ?? null,
             status: row.status ?? null,
             created_at: row.created_at,
           };
@@ -133,6 +135,7 @@ export default function ConfirmPaymentsScreen() {
               debtor_user_id: debtorId,
               amount: row.amount != null ? Number(row.amount) : null,
               image_uri_local: imageUrl,
+              slip_qr: row.slip_qr ?? null,
               status: 'pending',
               created_at: row.created_at,
               source: 'payment',
@@ -155,6 +158,7 @@ export default function ConfirmPaymentsScreen() {
               ...x,
               amount: row.amount != null ? Number(row.amount) : x.amount,
               image_uri_local: row.image_uri_local ?? x.image_uri_local,
+              slip_qr: row.slip_qr ?? x.slip_qr,
               status: updatedStatus,
             } : x));
           }
@@ -170,7 +174,7 @@ export default function ConfirmPaymentsScreen() {
     try {
       const { data } = await supabase
         .from('payment_proof')
-        .select('id, bill_id, creditor_id, debtor_user_id, amount, image_uri_local, status, created_at')
+        .select('id, bill_id, creditor_id, debtor_user_id, amount, image_uri_local, slip_qr, status, created_at')
         .eq('creditor_id', uid)
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
@@ -182,6 +186,7 @@ export default function ConfirmPaymentsScreen() {
         debtor_user_id: String(p.debtor_user_id),
         amount: p.amount != null ? Number(p.amount) : null,
         image_uri_local: p.image_uri_local ?? null,
+        slip_qr: p.slip_qr ?? null,
         status: p.status ?? null,
         created_at: p.created_at,
         payment_id: null,
@@ -194,7 +199,7 @@ export default function ConfirmPaymentsScreen() {
       try {
         const { data: pay } = await supabase
           .from('payment')
-          .select('payment_id, bill_share_id, amount, status, created_at')
+          .select('payment_id, bill_share_id, amount, status, created_at, slip_qr')
           .eq('status', 'pending')
           .order('created_at', { ascending: false });
 
@@ -235,41 +240,12 @@ export default function ConfirmPaymentsScreen() {
 
           // ใช้ bill.paid_by_user_id เป็นตัวระบุ creditor อย่างชัดเจน
 
-          // พยายามดึงรูปจาก payment_proof ถ้ามี
-          // เตรียม key สำหรับค้นหา proof: bill_id + debtor_user_id
-          const candidatePairs: { bill_id: string; debtor_user_id: string }[] = [];
-          payments.forEach((pmt) => {
-            const bs = billShareMap.get(String(pmt.bill_share_id));
-            if (bs) {
-              const billCreditor = billIdToCreditor.get(bs.bill_id);
-              if (billCreditor === uid) {
-                candidatePairs.push({ bill_id: bs.bill_id, debtor_user_id: bs.debtor_user_id });
-              }
-            }
-          });
-          let pairToImage = new Map<string, string | null>();
-          if (candidatePairs.length > 0) {
-            const uniqueDebtors = Array.from(new Set(candidatePairs.map((c) => c.debtor_user_id)));
-            const uniqueBills = Array.from(new Set(candidatePairs.map((c) => c.bill_id)));
-            const { data: pr } = await supabase
-              .from('payment_proof')
-              .select('bill_id, debtor_user_id, image_uri_local, status')
-              .in('bill_id', uniqueBills)
-              .in('debtor_user_id', uniqueDebtors)
-              .eq('status', 'pending');
-            (pr || []).forEach((row: any) => {
-              pairToImage.set(`${String(row.bill_id)}|${String(row.debtor_user_id)}`, row.image_uri_local ?? null);
-            });
-          }
-
           const fromPayments: Proof[] = payments
             .map((pmt) => {
               const bsInfo = billShareMap.get(String(pmt.bill_share_id));
               if (!bsInfo) return null;
               const billCreditor = billIdToCreditor.get(bsInfo.bill_id);
               if (billCreditor !== uid) return null;
-              const key = `${bsInfo.bill_id}|${bsInfo.debtor_user_id}`;
-              const img = pairToImage.get(key) ?? null;
               return {
                 id: String(pmt.payment_id),
                 payment_id: String(pmt.payment_id),
@@ -277,7 +253,8 @@ export default function ConfirmPaymentsScreen() {
                 creditor_id: uid,
                 debtor_user_id: bsInfo.debtor_user_id,
                 amount: pmt.amount != null ? Number(pmt.amount) : null,
-                image_uri_local: img,
+                image_uri_local: null, // ไม่ใช้ image_uri_local สำหรับ payment
+                slip_qr: pmt.slip_qr ?? null,
                 status: pmt.status ?? 'pending',
                 created_at: pmt.created_at,
                 source: 'payment',
@@ -321,39 +298,27 @@ export default function ConfirmPaymentsScreen() {
     }
   };
 
-  // เติมรูปให้คำขอจาก payment ที่ยังไม่มีรูป โดยค้นหาจาก payment_proof ล่าสุดตาม bill_id + debtor_user_id
-  useEffect(() => {
-    const run = async () => {
-      const targets = proofs.filter(p => p.source === 'payment' && !p.image_uri_local);
-      if (targets.length === 0) return;
-      const billIds = Array.from(new Set(targets.map(t => t.bill_id)));
-      const debtorIds = Array.from(new Set(targets.map(t => t.debtor_user_id)));
-      try {
-        const { data: pr } = await supabase
-          .from('payment_proof')
-          .select('bill_id, debtor_user_id, image_uri_local, created_at')
-          .in('bill_id', billIds)
-          .in('debtor_user_id', debtorIds)
-          .order('created_at', { ascending: false });
-        const latestMap = new Map<string, string | null>();
-        (pr || []).forEach((row: any) => {
-          const key = `${String(row.bill_id)}|${String(row.debtor_user_id)}`;
-          if (!latestMap.has(key)) latestMap.set(key, row.image_uri_local ?? null);
-        });
-        if (latestMap.size > 0) {
-          setProofs(prev => prev.map(p => {
-            if (p.source === 'payment' && !p.image_uri_local) {
-              const key = `${p.bill_id}|${p.debtor_user_id}`;
-              const img = latestMap.get(key) ?? null;
-              return img ? { ...p, image_uri_local: img } : p;
-            }
-            return p;
-          }));
-        }
-      } catch {}
-    };
-    run();
-  }, [proofs]);
+  // Helper function to get proper image URL from Supabase storage
+  const getImageUrl = (imageUri: string | null | undefined): string | null => {
+    if (!imageUri) return null;
+    
+    // If it's already a full URL, return as is
+    if (imageUri.startsWith('http')) return imageUri;
+    
+    // If it's a Supabase storage path, construct the full URL
+    if (imageUri.startsWith('payment-proofs/')) {
+      const { data } = supabase.storage.from('payment-proofs').getPublicUrl(imageUri.replace('payment-proofs/', ''));
+      return data.publicUrl;
+    }
+    
+    // For other storage paths, try to construct URL
+    try {
+      const { data } = supabase.storage.from('payment-proofs').getPublicUrl(imageUri);
+      return data.publicUrl;
+    } catch {
+      return null;
+    }
+  };
 
   const onApprove = async (p: Proof) => {
     try {
@@ -498,10 +463,11 @@ export default function ConfirmPaymentsScreen() {
           </View>
         ) : proofs.map((p) => {
           const debtor = userMap.get(p.debtor_user_id);
+          const imageUri = p.slip_qr || p.image_uri_local; // ใช้ slip_qr เป็นหลัก แล้วค่อย fallback ไป image_uri_local
           return (
             <View key={p.id} style={styles.card}>
-              {p.image_uri_local ? (
-                <Image source={{ uri: p.image_uri_local }} style={styles.thumb} />
+              {imageUri ? (
+                <Image source={{ uri: getImageUrl(imageUri) }} style={styles.thumb} />
               ) : (
                 <View style={styles.thumbPlaceholder}>
                   <Ionicons name="image" size={20} color="#666" />
@@ -520,7 +486,7 @@ export default function ConfirmPaymentsScreen() {
               </View>
               <TouchableOpacity
                 style={styles.eyeBtn}
-                onPress={() => router.push({ pathname: '/ConfirmSlip', params: p.source === 'payment' ? { imageUri: p.image_uri_local || '' } : { proofId: p.id } })}
+                onPress={() => router.push({ pathname: '/ConfirmSlip', params: p.source === 'payment' ? { imageUri: getImageUrl(imageUri || '') } : { proofId: p.id } })}
               >
                 <Ionicons name="eye" size={20} color="#213a5b" />
               </TouchableOpacity>
@@ -576,5 +542,3 @@ const styles = StyleSheet.create({
   circle: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginLeft: 6 },
   bgImage: { width: '111%', height: 235, position: 'absolute', bottom: -4, left: 0 },
 });
-
-
