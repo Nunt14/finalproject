@@ -46,7 +46,8 @@ export default function AddBillScreen() {
   );
   const [selectedCategory, setSelectedCategory] = useState("stay");
   const [basePerPerson, setBasePerPerson] = useState<number>(0);
-  const [lastEdited, setLastEdited] = useState<'base' | 'total'>('base');
+  const [note, setNote] = useState("");
+  const [totalLocked, setTotalLocked] = useState(false);
 
   const avatarColors = ["#5DADE2", "#F39C12", "#F5B7B1", "#E74C3C"]; // blue, orange, pink, red
 
@@ -79,12 +80,22 @@ export default function AddBillScreen() {
 
         const loaded: Friend[] = (users || []).map((u: any) => ({
           id: String(u.user_id),
-          name: u.full_name || "Unnamed",
+          name: u.full_name || `User ${u.user_id}`,
           selected: true,
           extraAmount: null,
           expanded: false,
           profileImageUrl: u.profile_image_url || null,
         }));
+        
+        // จัดเรียงให้เจ้าของบิลอยู่เป็นชื่อแรก
+        const currentUserId = sessionData?.session?.user?.id;
+        if (currentUserId) {
+          loaded.sort((a, b) => {
+            if (a.id === currentUserId) return -1;
+            if (b.id === currentUserId) return 1;
+            return 0;
+          });
+        }
         setFriends(loaded);
         setSelectAll(true);
       } catch (e) {
@@ -96,15 +107,98 @@ export default function AddBillScreen() {
     fetchMembers();
   }, [tripId]);
 
-  // ฟังก์ชันคำนวณ: base split (เท่ากัน ไม่เปลี่ยนตาม extra) + extra ต่อคน
+  // ฟังก์ชันคำนวณใหม่: คำนวณตามลอจิกใหม่
   const splitAmount = () => {
     const selected = friends.filter((f) => f.selected);
     const count = selected.length;
-    const basePerPerson = count > 0 ? total / count : 0;
+    
+    if (count === 0) {
+      return friends.map((f) => ({
+        ...f,
+        baseAmount: "0.00",
+        extraAmountView: "0.00",
+        amount: "0.00",
+      } as any));
+    }
+
+    // ถ้าไม่มี basePerPerson (ยังไม่ได้ใส่ Split per person) 
+    if (!basePerPerson || basePerPerson === 0) {
+      // คำนวณยอดรวมของคนที่ใส่ Extra
+      const friendsWithExtras = selected.filter((f) => f.extraAmount && parseFloat(f.extraAmount) > 0);
+      const friendsWithoutExtras = selected.filter((f) => !f.extraAmount || parseFloat(f.extraAmount) === 0);
+      
+      let totalExtras = 0;
+      friendsWithExtras.forEach((f) => {
+        totalExtras += parseFloat(f.extraAmount || "0");
+      });
+      
+      // คำนวณยอดที่เหลือสำหรับคนที่ไม่ได้ใส่ Extra
+      const remainingAmount = total - totalExtras;
+      const remainingCount = friendsWithoutExtras.length;
+      const remainingPerPerson = remainingCount > 0 ? remainingAmount / remainingCount : 0;
+      
+      return friends.map((f) => {
+        if (!f.selected) {
+          return {
+            ...f,
+            baseAmount: "0.00",
+            extraAmountView: "0.00",
+            amount: "0.00",
+          } as any;
+        }
+        
+        const extra = f.extraAmount ? parseFloat(f.extraAmount) : 0;
+        
+        if (extra > 0) {
+          // คนที่ใส่ Extra ใช้ค่า Extra เป็นจำนวนสุดท้าย
+          return {
+            ...f,
+            baseAmount: "0.00",
+            extraAmountView: extra.toFixed(2),
+            amount: extra.toFixed(2),
+          } as any;
+        } else {
+          // คนที่ไม่ได้ใส่ Extra ได้ส่วนแบ่งจากยอดที่เหลือ
+          return {
+            ...f,
+            baseAmount: remainingPerPerson.toFixed(2),
+            extraAmountView: "0.00",
+            amount: remainingPerPerson.toFixed(2),
+          } as any;
+        }
+      });
+    }
+
+    // ถ้ามี basePerPerson (ใส่ Split per person แล้ว) ให้คำนวณตามลอจิกเดิม
+    const friendsWithExtras = selected.filter((f) => f.extraAmount && parseFloat(f.extraAmount) > 0);
+    const friendsWithoutExtras = selected.filter((f) => !f.extraAmount || parseFloat(f.extraAmount) === 0);
+    
+    // คำนวณยอดรวมของคนที่มี Extra
+    let totalWithExtras = 0;
+    friendsWithExtras.forEach((f) => {
+      const extra = parseFloat(f.extraAmount || "0");
+      totalWithExtras += basePerPerson + extra;
+    });
+
+    // คำนวณยอดที่เหลือสำหรับคนที่ไม่มี Extra
+    const remainingAmount = total - totalWithExtras;
+    const remainingCount = friendsWithoutExtras.length;
+    const remainingPerPerson = remainingCount > 0 ? remainingAmount / remainingCount : 0;
 
     return friends.map((f) => {
       const extra = f.extraAmount ? parseFloat(f.extraAmount) : 0;
-      const base = f.selected ? basePerPerson : 0;
+      let base = 0;
+      
+      if (f.selected) {
+        if (extra > 0) {
+          // คนที่มี Extra ใช้ basePerPerson
+          base = basePerPerson;
+        } else {
+          // คนที่ไม่มี Extra ใช้ยอดที่เหลือ
+          base = remainingPerPerson;
+        }
+      }
+      
       const totalForFriend = f.selected ? base + extra : 0;
       return {
         ...f,
@@ -144,44 +238,37 @@ export default function AddBillScreen() {
     .filter((f) => f.selected)
     .reduce((sum, f) => sum + (f.extraAmount ? parseFloat(f.extraAmount) : 0), 0);
 
-  const recalcTotalFromBase = (nextBase?: number) => {
-    const base = typeof nextBase === 'number' ? nextBase : basePerPerson;
+  const handleTotalChange = (text: string) => {
+    const val = parseFloat(text);
+    const nextTotal = isNaN(val) ? 0 : val;
+    setTotal(nextTotal);
+    
+    // ล็อคค่า total เมื่อผู้ใช้ป้อนค่า
+    if (nextTotal > 0) {
+      setTotalLocked(true);
+    }
+    
+    // เมื่อใส่ค่า How much ให้หารเท่าก่อนเป็นอันดับแรก และปล่อยให้ Split per person เป็นค่าว่าง
     const count = getSelectedCount();
-    const sumExtras = getSumExtras();
-    const newTotal = (count > 0 ? base * count : 0) + sumExtras;
-    setTotal(Number(newTotal.toFixed(2)));
+    if (count > 0) {
+      const equalSplit = nextTotal / count;
+      // ไม่ต้องเซ็ต basePerPerson ให้เป็นค่าว่างก่อน
+    }
   };
 
   const handleBaseChange = (text: string) => {
     const val = parseFloat(text);
     const next = isNaN(val) ? 0 : val;
-    setLastEdited('base');
     setBasePerPerson(next);
-    recalcTotalFromBase(next);
+    
+    // ไม่คำนวณ total ใหม่ เพราะ total ถูกกำหนดจาก How much แล้ว
   };
 
-  const handleTotalChange = (text: string) => {
-    const val = parseFloat(text);
-    const nextTotal = isNaN(val) ? 0 : val;
-    setLastEdited('total');
-    setTotal(nextTotal);
-    const count = getSelectedCount();
-    const sumExtras = getSumExtras();
-    const base = count > 0 ? (nextTotal - sumExtras) / count : 0;
-    setBasePerPerson(Number(base.toFixed(2)));
-  };
-
-  // เมื่อรายชื่อ/การเลือกเพื่อน หรือค่า extras เปลี่ยน ให้คำนวณ total จากฐาน + extras เสมอ
+  // เมื่อรายชื่อ/การเลือกเพื่อน หรือค่า extras เปลี่ยน ไม่ต้องคำนวณ basePerPerson ใหม่
+  // เพราะ basePerPerson จะถูกกำหนดจาก Split per person เท่านั้น
   useEffect(() => {
-    if (lastEdited === 'base') {
-      recalcTotalFromBase();
-    } else {
-      const count = getSelectedCount();
-      const sumExtras = getSumExtras();
-      const base = count > 0 ? (total - sumExtras) / count : 0;
-      setBasePerPerson(Number(base.toFixed(2)));
-    }
-  }, [friends]);
+    // ไม่ต้องทำอะไร เพราะ basePerPerson จะถูกกำหนดจาก Split per person เท่านั้น
+  }, [friends, total, totalLocked]);
 
   const calculatedFriends = splitAmount();
 
@@ -216,6 +303,7 @@ export default function AddBillScreen() {
           total_amount: Number(total.toFixed(2)),
           paid_by_user_id: currentUserId,
           is_settled: false,
+          note: note.trim() || null,
           updated_at: new Date().toISOString(),
         })
         .select()
@@ -275,7 +363,6 @@ export default function AddBillScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content}>
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={22} color="#333" />
@@ -284,151 +371,165 @@ export default function AddBillScreen() {
         <View style={{ width: 22 }} />
       </View>
 
-      <Text style={styles.sectionTitle}>How much?</Text>
-      <View style={styles.card}>
-        <View style={styles.amountRow}>
-          <TextInput
-            style={styles.amountInput}
-            keyboardType="numeric"
-            placeholder="0.00"
-            value={total ? total.toString() : ""}
-            onChangeText={handleTotalChange}
-          />
-          <Text style={styles.currency}>฿</Text>
-        </View>
-      </View>
-
-      <View style={styles.divider} />
-
-      <View style={styles.splitRow}>
-        <Text style={styles.splitText}>Split per person :</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <TextInput
-            style={[styles.amountInput, { maxWidth: 110, textAlign: 'right', color: '#2ecc71' }]}
-            keyboardType="numeric"
-            value={Number.isFinite(basePerPerson) ? basePerPerson.toFixed(2) : '0.00'}
-            onChangeText={handleBaseChange}
-          />
-          <Text style={styles.green}> ฿</Text>
-        </View>
-      </View>
-
-      <View style={styles.divider} />
-
-      <Text style={styles.sectionTitle}>Who has to divide?</Text>
-      <FlatList
-        data={calculatedFriends}
-        keyExtractor={(item) => item.id.toString()}
-        scrollEnabled={false}
-        renderItem={({ item, index }) => (
-          <View>
-            <View
-              style={[
-                styles.friendRow,
-                { opacity: item.selected ? 1 : 0.4 },
-              ]}
-            >
-              <TouchableOpacity onPress={() => handleToggleSelect(item.id)}>
-                <View style={[styles.avatar, { backgroundColor: item.selected ? avatarColors[index % avatarColors.length] : "#eee" }]}>
-                  {item.profileImageUrl ? (
-                    <Image source={{ uri: item.profileImageUrl }} style={styles.avatarImage} />
-                  ) : (
-                    <Ionicons name="person" size={18} color={item.selected ? "#fff" : "#aaa"} />
-                  )}
-                  {currentUserId && item.id === currentUserId && (
-                    <View style={styles.crown}>
-                      <Ionicons name="star" size={12} color="#f1c40f" />
-                    </View>
-                  )}
-                </View>
-              </TouchableOpacity>
-              <Text style={styles.friendName}>{item.name}</Text>
-
-              <View style={styles.amountPill}>
-                <Text style={styles.amountText}>{item.amount} ฿</Text>
-                <TouchableOpacity onPress={() => handleToggleExpand(item.id)}>
-                  <Ionicons
-                    name={item.expanded ? "chevron-up" : "chevron-down"}
-                    size={18}
-                    color="#7f8c8d"
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {item.expanded && item.selected && (
-              <View style={styles.dropdown}>
-                <View style={styles.breakdownRow}>
-                  <Ionicons name="people" size={16} color="#888" style={{ marginRight: 8 }} />
-                  <Text style={{ flex: 1, color: '#666' }}>Base (equal)</Text>
-                  <Text style={[styles.green, { fontSize: 14 }]}>{item.baseAmount} ฿</Text>
-                </View>
-                <View style={[styles.breakdownRow, { borderTopWidth: 1, borderTopColor: '#eee', marginTop: 6, paddingTop: 6 }]}>
-                  <Ionicons name="person" size={16} color="#888" style={{ marginRight: 8 }} />
-                  <Text style={{ flex: 1, color: '#666' }}>Extra</Text>
-                  <TextInput
-                    style={[styles.customInput, { minWidth: 90, textAlign: 'right' }]}
-                    placeholder="0.00"
-                    keyboardType="numeric"
-                    value={item.extraAmount ?? ''}
-                    onChangeText={(val) => handleCustomChange(item.id, val)}
-                  />
-                  <Text style={{ marginLeft: 6, color: '#2ecc71' }}>฿</Text>
-                </View>
-              </View>
-            )}
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <Text style={styles.sectionTitle}>How much?</Text>
+        <View style={styles.card}>
+          <View style={styles.amountRow}>
+            <TextInput
+              style={styles.amountInput}
+              keyboardType="numeric"
+              placeholder="0.00"
+              value={total ? total.toString() : ""}
+              onChangeText={handleTotalChange}
+            />
+            <Text style={styles.currency}>฿</Text>
           </View>
-        )}
-      />
-
-      <View style={styles.everyoneRow}>
-        <TouchableOpacity
-          style={[styles.checkbox, selectAll && styles.checkboxChecked]}
-          onPress={() => {
-            const next = !selectAll;
-            setSelectAll(next);
-            setFriends((prev) => prev.map((f) => ({ ...f, selected: next })));
-          }}
-        >
-          {selectAll && <Ionicons name="checkmark" size={14} color="#fff" />}
-        </TouchableOpacity>
-        <Text style={styles.everyoneText}>everyone</Text>
-      </View>
-
-      <View style={styles.divider} />
-
-      <Text style={styles.sectionTitle}>category</Text>
-      <View style={styles.categoryBar}>
-        <Ionicons name="chevron-back" size={18} color="#7f8c8d" />
-        <View style={styles.categoryRow}>
-          {categories.map((c) => (
-            <TouchableOpacity
-              key={c.key}
-              style={[
-                styles.categoryIcon,
-                selectedCategory === c.key && styles.categoryIconActive,
-              ]}
-              onPress={() => setSelectedCategory(c.key)}
-            >
-              <Ionicons
-                name={c.icon}
-                size={22}
-                color={selectedCategory === c.key ? "#2e86de" : "#7f8c8d"}
-              />
-            </TouchableOpacity>
-          ))}
+          <View style={styles.noteContainer}>
+            <Text style={styles.noteLabel}>Note :</Text>
+            <TextInput
+              style={styles.noteInput}
+              placeholder="..."
+              value={note}
+              onChangeText={setNote}
+              multiline
+            />
+          </View>
         </View>
-        <Ionicons name="chevron-forward" size={18} color="#7f8c8d" />
-      </View>
 
-      <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm} disabled={saving}>
-        <Text style={styles.confirmText}>{saving ? "Saving..." : "Confirm"}</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-        <Text style={styles.backText}>Back</Text>
-      </TouchableOpacity>
+        <View style={styles.divider} />
 
+        <View style={styles.splitRow}>
+          <Text style={styles.splitText}>Split per person :</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TextInput
+              style={styles.splitAmountInput}
+              keyboardType="numeric"
+              placeholder="0.00"
+              value={basePerPerson ? basePerPerson.toString() : ""}
+              onChangeText={handleBaseChange}
+            />
+            <Text style={{ marginLeft: 6, color: '#2ecc71', fontSize: 20, fontWeight: 'bold' }}>฿</Text>
+          </View>
+        </View>
+
+        <View style={styles.divider} />
+
+        <Text style={styles.sectionTitle}>Who has to divide?</Text>
+        <FlatList
+          data={calculatedFriends}
+          keyExtractor={(item) => item.id.toString()}
+          scrollEnabled={false}
+          renderItem={({ item, index }) => (
+            <View>
+              <View
+                style={[
+                  styles.friendRow,
+                  { opacity: item.selected ? 1 : 0.4 },
+                ]}
+              >
+                <TouchableOpacity onPress={() => handleToggleSelect(item.id)}>
+                  <View style={[styles.avatar, { backgroundColor: item.selected ? avatarColors[index % avatarColors.length] : "#eee" }]}>
+                    {item.profileImageUrl ? (
+                      <Image source={{ uri: item.profileImageUrl }} style={styles.avatarImage} />
+                    ) : (
+                      <Ionicons name="person" size={18} color={item.selected ? "#fff" : "#aaa"} />
+                    )}
+                    {currentUserId && item.id === currentUserId && (
+                      <View style={styles.crown}>
+                        <Ionicons name="star" size={12} color="#f1c40f" />
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+                <Text style={styles.friendName}>{item.name}</Text>
+
+                <View style={styles.amountPill}>
+                  <Text style={styles.amountText}>{item.amount} ฿</Text>
+                  <TouchableOpacity onPress={() => handleToggleExpand(item.id)}>
+                    <Ionicons
+                      name={item.expanded ? "chevron-up" : "chevron-down"}
+                      size={18}
+                      color="#7f8c8d"
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {item.expanded && item.selected && (
+                <View style={styles.dropdown}>
+                  <View style={styles.breakdownRow}>
+                    <Ionicons name="people" size={16} color="#888" style={{ marginRight: 8 }} />
+                    <Text style={{ flex: 1, color: '#666', fontSize: 16 }}>per person</Text>
+                    <Text style={[styles.green, { fontSize: 16 }]}>{basePerPerson.toFixed(2)} ฿</Text>
+                  </View>
+                  <View style={[styles.breakdownRow, { borderTopWidth: 1, borderTopColor: '#eee', marginTop: 6, paddingTop: 6 }]}>
+                    <Ionicons name="person" size={16} color="#888" style={{ marginRight: 8 }} />
+                    <Text style={{ flex: 1, color: '#666', fontSize: 16 }}>Extra</Text>
+                    <TextInput
+                      style={[styles.customInput, { minWidth: 90, textAlign: 'right' }]}
+                      placeholder="0.00"
+                      keyboardType="numeric"
+                      value={item.extraAmount ?? ''}
+                      onChangeText={(val) => handleCustomChange(item.id, val)}
+                    />
+                    <Text style={{ marginLeft: 6, color: '#2ecc71', fontSize: 16 }}>฿</Text>
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
+        />
+
+        <View style={styles.everyoneRow}>
+          <TouchableOpacity
+            style={[styles.checkbox, selectAll && styles.checkboxChecked]}
+            onPress={() => {
+              const next = !selectAll;
+              setSelectAll(next);
+              setFriends((prev) => prev.map((f) => ({ ...f, selected: next })));
+            }}
+          >
+            {selectAll && <Ionicons name="checkmark" size={14} color="#fff" />}
+          </TouchableOpacity>
+          <Text style={styles.everyoneText}>everyone</Text>
+        </View>
+
+        <View style={styles.divider} />
+
+        <Text style={styles.sectionTitle}>category</Text>
+        <View style={styles.categoryBar}>
+          <Ionicons name="chevron-back" size={18} color="#7f8c8d" />
+          <View style={styles.categoryRow}>
+            {categories.map((c) => (
+              <TouchableOpacity
+                key={c.key}
+                style={[
+                  styles.categoryIcon,
+                  selectedCategory === c.key && styles.categoryIconActive,
+                ]}
+                onPress={() => setSelectedCategory(c.key)}
+              >
+                <Ionicons
+                  name={c.icon}
+                  size={22}
+                  color={selectedCategory === c.key ? "#2e86de" : "#7f8c8d"}
+                />
+              </TouchableOpacity>
+            ))}
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#7f8c8d" />
+        </View>
+
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm} disabled={saving}>
+            <Text style={styles.confirmText}>{saving ? "Saving..." : "Confirm"}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+            <Text style={styles.backText}>Back</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
+      
       <Image source={require("../assets/images/bg.png")} style={styles.bgImage} resizeMode="contain" />
     </View>
   );
@@ -436,22 +537,25 @@ export default function AddBillScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
-  content: { padding: 16, paddingBottom: 40 },
+  scrollView: { flex: 1 },
+  content: { padding: 16, paddingTop: 8, paddingBottom: 120 },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+    backgroundColor: "#fff",
   },
   header: { fontSize: 18, fontWeight: "600", color: "#222" },
-  sectionTitle: { fontSize: 14, color: "#333", marginBottom: 8 },
+  sectionTitle: { fontSize: 16, color: "#333", marginBottom: 8, fontWeight: "600" },
   card: {
-    flexDirection: "row",
-    alignItems: "center",
     borderWidth: 1,
     borderColor: "#ddd",
     borderRadius: 12,
-    padding: 12,
+    padding: 16,
     marginBottom: 8,
     backgroundColor: "#fff",
     shadowColor: "#000",
@@ -463,17 +567,49 @@ const styles = StyleSheet.create({
   amountRow: {
     flexDirection: "row",
     alignItems: "center",
-    width: "100%",
+    justifyContent: "center",
+    marginBottom: 8,
   },
-  amountInput: { flex: 1, fontSize: 22, color: "#2ecc71" },
+  amountInput: { 
+    fontSize: 32, 
+    color: "#2ecc71", 
+    fontWeight: "bold",
+    textAlign: "center",
+    minWidth: 150,
+  },
+  splitAmountInput: { 
+    fontSize: 20, 
+    color: "#2ecc71", 
+    fontWeight: "bold",
+    textAlign: "right",
+    minWidth: 50,
+  },
   currency: { fontSize: 20, fontWeight: "bold", color: "#2ecc71" },
+  noteContainer: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#eee",
+  },
+  noteLabel: { fontSize: 16, color: "#666", marginBottom: 4, fontWeight: "500" },
+  noteInput: {
+    fontSize: 16,
+    color: "#333",
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    borderRadius: 8,
+    backgroundColor: "#f8f9fa",
+    minHeight: 50,
+    textAlignVertical: "top",
+  },
   splitRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 8,
   },
-  splitText: { fontSize: 14, color: "#333" },
+  splitText: { fontSize: 16, color: "#333", fontWeight: "500" },
   green: { color: "#2ecc71", fontWeight: "600" },
   friendRow: {
     flexDirection: "row",
@@ -500,7 +636,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 1,
   },
-  friendName: { flex: 1, fontSize: 16, marginLeft: 8 },
+  friendName: { flex: 1, fontSize: 16, marginLeft: 8, fontWeight: "500" },
   amountPill: {
     flexDirection: "row",
     alignItems: "center",
@@ -512,7 +648,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e6edf5",
   },
-  amountText: { fontSize: 14, color: "#2ecc71", fontWeight: "600" },
+  amountText: { fontSize: 16, color: "#2ecc71", fontWeight: "600" },
   dropdown: { paddingLeft: 50, paddingVertical: 6 },
   breakdownRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
   customInput: {
@@ -520,7 +656,7 @@ const styles = StyleSheet.create({
     borderColor: "#ccc",
     borderRadius: 8,
     padding: 8,
-    fontSize: 14,
+    fontSize: 16,
   },
   everyoneRow: {
     flexDirection: "row",
@@ -542,7 +678,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#2e86de",
     borderColor: "#2e86de",
   },
-  everyoneText: { color: "#333" },
+  everyoneText: { color: "#333", fontSize: 16, fontWeight: "500" },
   divider: {
     height: 1,
     backgroundColor: "#eee",
@@ -573,8 +709,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#e8f1ff",
     borderColor: "#cfe3ff",
   },
-  confirmBtn: {
+  buttonContainer: {
     marginTop: 20,
+    gap: 10,
+  },
+  confirmBtn: {
     backgroundColor: "#2e86de",
     padding: 15,
     borderRadius: 12,
@@ -582,7 +721,6 @@ const styles = StyleSheet.create({
   },
   confirmText: { color: "#fff", fontSize: 16 },
   backBtn: {
-    marginTop: 10,
     backgroundColor: "#555",
     padding: 15,
     borderRadius: 12,

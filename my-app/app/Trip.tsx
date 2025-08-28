@@ -1,6 +1,6 @@
 // นำเข้า React และฮุคพื้นฐานที่ใช้ในคอมโพเนนต์นี้
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Modal, Pressable } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Modal, Pressable, Alert } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 // นำเข้าฟังก์ชันสำหรับอ่านพารามิเตอร์จาก URL และการนำทาง
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -26,6 +26,7 @@ type BillItem = {
   created_at?: string;
   payer_full_name?: string | null;
   payer_profile_image_url?: string | null;
+  note?: string | null;
 };
 
 // คอมโพเนนต์หลักของหน้าทริป
@@ -39,6 +40,7 @@ export default function TripScreen() {
   const [loading, setLoading] = useState<boolean>(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [selectedBill, setSelectedBill] = useState<BillItem | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
 
   // ฟังก์ชันสุ่มสีแบบคงที่จาก userId เพื่อใช้แสดงสีของ Avatar ให้คงเดิม
   const getRandomColor = (userId: string) => {
@@ -79,7 +81,7 @@ export default function TripScreen() {
         // โหลดบิลของทริปจากตาราง bill (เฉพาะข้อมูลพื้นฐาน)
         const { data: billRows } = await supabase
           .from('bill')
-          .select('bill_id, trip_id, total_amount, paid_by_user_id, created_at')
+          .select('bill_id, trip_id, total_amount, paid_by_user_id, created_at, note')
           .eq('trip_id', tripId)
           .order('created_at', { ascending: false });
 
@@ -89,6 +91,7 @@ export default function TripScreen() {
           total_amount: Number(b.total_amount || 0),
           payer_user_id: b.paid_by_user_id,
           created_at: b.created_at,
+          note: b.note,
         }));
 
         const billIds = billsBasic.map((b) => b.bill_id);
@@ -166,7 +169,57 @@ export default function TripScreen() {
   // คำนวณยอดรวมทั้งหมดของบิลในทริป (คำนวณใหม่เมื่อรายการบิลเปลี่ยน)
   const totalAmount = useMemo(() => bills.reduce((sum, b) => sum + (b.total_amount || 0), 0), [bills]);
 
+  // ฟังก์ชันลบบิล
+  const deleteBill = async (billId: string) => {
+    try {
+      // ลบ bill_share ก่อน
+      await supabase
+        .from('bill_share')
+        .delete()
+        .eq('bill_id', billId);
+
+      // ลบ bill
+      const { error } = await supabase
+        .from('bill')
+        .delete()
+        .eq('bill_id', billId);
+
+      if (error) throw error;
+
+      // อัปเดต state
+      setBills(prev => prev.filter(bill => bill.bill_id !== billId));
+      setSelectedBill(null);
+      setShowDeleteConfirm(false);
+      
+      Alert.alert('สำเร็จ', 'ลบบิลเรียบร้อยแล้ว');
+    } catch (error) {
+      console.error('Error deleting bill:', error);
+      Alert.alert('ข้อผิดพลาด', 'ไม่สามารถลบบิลได้');
+    }
+  };
+
+  // ฟังก์ชันแสดง confirmation dialog สำหรับการลบ
+  const confirmDelete = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  // ฟังก์ชันไปหน้าแก้ไขบิล
+  const editBill = () => {
+    if (selectedBill) {
+      setSelectedBill(null);
+      router.push({
+        pathname: '/AddBill',
+        params: {
+          tripId: tripId,
+          billId: selectedBill.bill_id,
+          editMode: 'true'
+        }
+      });
+    }
+  };
+
   return (
+    
     <View style={styles.container}>
       {/* ส่วนหัวของหน้า */}
       <View style={styles.header}>
@@ -215,6 +268,11 @@ export default function TripScreen() {
                         <Text style={{ marginLeft: 6, color: '#4C6EF5', fontWeight: '600' }}>{bill.payer_full_name || 'Payer'}</Text>
                       </View>
                     </View>
+                    
+                    {/* แสดงโน๊ต */}
+                    {bill.note && (
+                      <Text style={styles.noteText}>Note : {bill.note}</Text>
+                    )}
 
                     <View style={styles.shareList}>
                       {debtors.map((s, idx) => (
@@ -284,6 +342,7 @@ export default function TripScreen() {
       </View>
 
       <Image source={require('../assets/images/bg.png')} style={styles.bgImage} resizeMode="contain" />
+      <Image source={require('../assets/images/bg2.png')} style={styles.bg2Image} resizeMode="cover" />
       
       {/* โมดอลรายละเอียดการชำระเงิน */}
       <Modal
@@ -407,15 +466,64 @@ export default function TripScreen() {
           
           {/* ปุ่มคำสั่งด้านล่างของโมดอล */}
           <View style={styles.actionButtons}>
-            <TouchableOpacity style={styles.cancelButton}>
-              <Text style={styles.cancelButtonText}>Cancel Bill</Text>
+            <TouchableOpacity 
+              style={styles.editButton}
+              onPress={editBill}
+            >
+              <Ionicons name="pencil" size={20} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={styles.editButtonText}>Edit Bill</Text>
             </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.deleteButton}
+              onPress={confirmDelete}
+            >
+              <Ionicons name="trash" size={20} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={styles.deleteButtonText}>Delete Bill</Text>
+            </TouchableOpacity>
+            
             <TouchableOpacity 
               style={styles.backButtonBottom}
               onPress={() => setSelectedBill(null)}
             >
               <Text style={styles.backButtonText}>Back</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal ยืนยันการลบ */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showDeleteConfirm}
+        onRequestClose={() => setShowDeleteConfirm(false)}
+      >
+        <View style={styles.confirmModalOverlay}>
+          <View style={styles.confirmModalContainer}>
+            <View style={styles.confirmModalHeader}>
+              <Ionicons name="warning" size={48} color="#FF3B30" />
+              <Text style={styles.confirmModalTitle}>ยืนยันการลบบิล</Text>
+              <Text style={styles.confirmModalMessage}>
+                คุณต้องการลบบิลนี้ใช่หรือไม่? การดำเนินการนี้ไม่สามารถยกเลิกได้
+              </Text>
+            </View>
+            
+            <View style={styles.confirmModalButtons}>
+              <TouchableOpacity 
+                style={styles.confirmCancelButton}
+                onPress={() => setShowDeleteConfirm(false)}
+              >
+                <Text style={styles.confirmCancelText}>ยกเลิก</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.confirmDeleteButton}
+                onPress={() => selectedBill && deleteBill(selectedBill.bill_id)}
+              >
+                <Text style={styles.confirmDeleteText}>ลบบิล</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -473,7 +581,7 @@ const styles = StyleSheet.create({
   },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   amount: { fontSize: 18, fontWeight: 'bold', color: 'red' },
-  noteText: { color: '#888' },
+  noteText: { color: '#888', fontSize: 14, marginBottom: 8 },
   payButton: { backgroundColor: '#1A3C6B', paddingVertical: 10, borderRadius: 8, alignItems: 'center', marginTop: 6 },
   shareList: { backgroundColor: '#fff', borderRadius: 12, paddingVertical: 8, paddingHorizontal: 10, marginTop: 4, marginBottom: 6 },
   shareRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
@@ -486,7 +594,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: '#fff',
     position: 'absolute',
-    bottom: 10,
+    bottom: 100,
     left: 16,
     right: 16,
     height: 72,
@@ -501,6 +609,16 @@ const styles = StyleSheet.create({
   circleBtn: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#1A3C6B', alignItems: 'center', justifyContent: 'center' },
   bagText: { position: 'absolute', bottom: 8, color: '#fff', fontSize: 10, fontWeight: 'bold' },
   bgImage: { width: '111%', height: 235, position: 'absolute', bottom: -4, alignSelf: 'center', zIndex: -1 },
+  bg2Image: { 
+    width: '100%', 
+    height: '100%', 
+    position: 'absolute', 
+    top: 0, 
+    left: 0, 
+    right: 0, 
+    bottom: 0, 
+    zIndex: -2 
+  },
   // Modal Styles
   modalContainer: {
     flex: 1,
@@ -623,17 +741,33 @@ const styles = StyleSheet.create({
     marginTop: 'auto',
     marginBottom: 24,
   },
-  cancelButton: {
+  editButton: {
     backgroundColor: '#1A3C6B',
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
     marginBottom: 12,
+    flexDirection: 'row',
   },
-  cancelButtonText: {
+  editButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+    marginLeft: 8,
+  },
+  deleteButton: {
+    backgroundColor: '#FF3B30',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 12,
+    flexDirection: 'row',
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   backButtonBottom: {
     backgroundColor: '#F5F5F5',
@@ -647,6 +781,62 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   emptyBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: 20 },
+  confirmModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  confirmModalContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 24,
+    width: '80%',
+  },
+  confirmModalHeader: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  confirmModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 8,
+  },
+  confirmModalMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  confirmModalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  confirmCancelButton: {
+    backgroundColor: '#F5F5F5',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 12,
+  },
+  confirmCancelText: {
+    fontSize: 16,
+    color: '#000',
+    fontWeight: '600',
+  },
+  confirmDeleteButton: {
+    backgroundColor: '#FF3B30',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    flex: 1,
+  },
+  confirmDeleteText: {
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: '600',
+  },
 });
-
-
