@@ -28,6 +28,57 @@ export default function WelcomeScreen() {
     // navigation.navigate('Settings');
   };
 
+  // ฟังก์ชันสำหรับลบทริป
+  const handleDeleteTrip = async (tripId: string, tripName: string) => {
+    try {
+      // แสดงกล่องยืนยันการลบ
+      Alert.alert(
+        'ยืนยันการลบทริป',
+        `คุณแน่ใจหรือไม่ว่าต้องการลบทริป "${tripName}"?`,
+        [
+          {
+            text: 'ยกเลิก',
+            style: 'cancel',
+          },
+          {
+            text: 'ลบ',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                // 1. ลบข้อมูลจากตาราง trip_member ก่อน (เนื่องจากมี foreign key constraint)
+                const { error: memberError } = await supabase
+                  .from('trip_member')
+                  .delete()
+                  .eq('trip_id', tripId);
+
+                if (memberError) throw memberError;
+
+                // 2. ลบข้อมูลจากตาราง trip
+                const { error: tripError } = await supabase
+                  .from('trip')
+                  .delete()
+                  .eq('trip_id', tripId);
+
+                if (tripError) throw tripError;
+
+                // 3. อัพเดท state เพื่อลบทริปออกจากรายการ
+                setTrips(prevTrips => prevTrips.filter(trip => trip.trip_id !== tripId));
+                setFilteredTrips(prevTrips => prevTrips.filter(trip => trip.trip_id !== tripId));
+
+                Alert.alert('สำเร็จ', 'ลบทริปเรียบร้อยแล้ว');
+              } catch (error) {
+                console.error('Error deleting trip:', error);
+                Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถลบทริปได้ในขณะนี้');
+              }
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Error showing delete confirmation:', error);
+    }
+  };
+
   // โหลดข้อมูลจาก Supabase เฉพาะทริปที่ผู้ใช้อยู่ในทริปและ active
   useEffect(() => {
     const fetchTrips = async () => {
@@ -133,17 +184,28 @@ export default function WelcomeScreen() {
           <Text style={styles.noResultsText}>ไม่พบทริปที่ค้นหา</Text>
         ) : (
           filteredTrips.map((trip) => (
-          <TouchableOpacity key={trip.trip_id} style={styles.card} onPress={() => router.push({ pathname: '/Trip', params: { tripId: trip.trip_id } })}>
-            {trip.trip_image_url ? (
-              <Image source={{ uri: trip.trip_image_url }} style={styles.image} />
-            ) : null}
-            <View style={styles.tripInfo}>
-              <Text style={styles.tripTitle}>{trip.trip_name}</Text>
-              {trip.trip_status ? (
-                <Text style={styles.tripNote}>{trip.trip_status}</Text>
+          <View key={trip.trip_id} style={styles.card}>
+            <TouchableOpacity 
+              style={styles.cardContent}
+              onPress={() => router.push({ pathname: '/Trip', params: { tripId: trip.trip_id } })}
+            >
+              {trip.trip_image_url ? (
+                <Image source={{ uri: trip.trip_image_url }} style={styles.image} />
               ) : null}
-            </View>
-          </TouchableOpacity>
+              <View style={styles.tripInfo}>
+                <Text style={styles.tripTitle}>{trip.trip_name}</Text>
+                {trip.trip_status ? (
+                  <Text style={styles.tripNote}>{trip.trip_status}</Text>
+                ) : null}
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.deleteButton}
+              onPress={() => handleDeleteTrip(trip.trip_id, trip.trip_name)}
+            >
+              <Ionicons name="trash" size={24} color="#ff3b30" />
+            </TouchableOpacity>
+          </View>
         )))}
       </ScrollView>
 
@@ -227,6 +289,11 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     overflow: 'hidden',
     backgroundColor: '#eee',
+    position: 'relative',
+    paddingBottom: 40, // Add space for delete button
+  },
+  cardContent: {
+    paddingBottom: 10, // Add some padding at the bottom
   },
   image: {
     height: 150,
@@ -269,6 +336,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+  },
+  deleteButton: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    padding: 5,
   },
   imgImage: {
     position: 'absolute',
