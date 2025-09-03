@@ -10,7 +10,7 @@ export default function LoginScreen() {
     <View style={styles.container}>
       {/* แสดงรูปโลโก้แทนที่ Text */}
       <Image
-        source={require('../assets/images/logo.png')}
+        source={require('../assets/images/logo2.png')}
         style={styles.logoImage}
         resizeMode="contain"
       />
@@ -43,8 +43,8 @@ const styles = StyleSheet.create({
   },
   logoImage: {
     width: 600,
-    height: 200,
-    marginBottom: 15,
+    height: 150,
+    marginBottom: 35,
   },
   button: {
     backgroundColor: '#1A3C6B',

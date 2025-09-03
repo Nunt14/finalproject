@@ -15,17 +15,37 @@ export default function WelcomeScreen() {
   const [filteredTrips, setFilteredTrips] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [userFullName, setUserFullName] = useState<string>('User');
+  const [sortMode, setSortMode] = useState<'date' | 'alphabetical'>('date'); // 'date' is default (original order)
 
   // ฟังก์ชันสำหรับกระดิ่งแจ้งเตือน
   const handleNotificationPress = () => {
     navigation.navigate('Notification');
   };
 
-  // ฟังก์ชันสำหรับเมนูสามเส้น
+  // ฟังก์ชันสำหรับเมนูสามเส้น - สลับระหว่างเรียง A-Z และเรียงตามวันที่สร้าง
   const handleMenuPress = () => {
-    Alert.alert('เมนู', 'เลือกตัวเลือกที่ต้องการ');
-    // สามารถเพิ่มการนำทางไปยังหน้าต่างๆ ได้ที่นี่
-    // navigation.navigate('Settings');
+    let sortedTrips;
+    
+    if (sortMode === 'date') {
+      // เรียงตาม A-Z
+      sortedTrips = [...filteredTrips].sort((a, b) => {
+        const nameA = a.trip_name?.toLowerCase() || '';
+        const nameB = b.trip_name?.toLowerCase() || '';
+        return nameA.localeCompare(nameB);
+      });
+      setSortMode('alphabetical');
+    } else {
+      // เรียงตามวันที่สร้าง (ใหม่ไปเก่า)
+      sortedTrips = [...filteredTrips].sort((a, b) => {
+        const dateA = new Date(a.created_at || 0);
+        const dateB = new Date(b.created_at || 0);
+        return dateB.getTime() - dateA.getTime();
+      });
+      setSortMode('date');
+    }
+    
+    setFilteredTrips(sortedTrips);
   };
 
   // ฟังก์ชันสำหรับลบทริป
@@ -94,6 +114,17 @@ export default function WelcomeScreen() {
         return;
       }
 
+      // ดึงข้อมูลผู้ใช้
+      const { data: userData, error: userError } = await supabase
+        .from('user')
+        .select('full_name')
+        .eq('user_id', userId)
+        .single();
+
+      if (!userError && userData?.full_name) {
+        setUserFullName(userData.full_name);
+      }
+
       // ดึงทริปผ่าน trip_member ที่ active
       const { data: memberRows, error: memberErr } = await supabase
         .from('trip_member')
@@ -135,7 +166,7 @@ export default function WelcomeScreen() {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={{ paddingBottom: 140 }}>
         {/* Title */}
-        <Text style={styles.title}>Welcome {'\n'}to Harnty, {'\n'}User!</Text>
+        <Text style={styles.title}>Welcome {'\n'}to Harnty, {'\n'}{userFullName}!</Text>
 
         <Image
           source={require('../assets/images/img.png')}
@@ -290,10 +321,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#eee',
     position: 'relative',
-    paddingBottom: 40, // Add space for delete button
+    paddingBottom: -5, // Add space for delete button
   },
   cardContent: {
-    paddingBottom: 10, // Add some padding at the bottom
+    paddingBottom: 1, // Add some padding at the bottom
   },
   image: {
     height: 150,
