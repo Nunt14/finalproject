@@ -5,19 +5,18 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { supabase } from '../constants/supabase';
 
-type BillDetail = {
-  bill_id: string;
-  trip_name?: string;
-  amount_share: number;
-  status: string;
-  bill_created_at?: string;
+type TripAggregate = {
+  trip_id: string | null;
+  trip_name: string;
+  total_amount: number;
+  rep_bill_id?: string; // representative bill to pass to Payment if needed
 };
 
 export default function PayDetailScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { creditorId, tripId } = route.params as { creditorId: string; tripId?: string };
-  const [bills, setBills] = useState<BillDetail[]>([]);
+  const [trips, setTrips] = useState<TripAggregate[]>([]);
   const [creditor, setCreditor] = useState<{ full_name: string; profile_image?: string | null } | null>(null);
   const [total, setTotal] = useState(0);
 
@@ -77,21 +76,22 @@ export default function PayDetailScreen() {
       }
     }
 
-    // 4. สร้าง list และยอดรวม
+    // 4. รวมยอดเป็นรายทริป และยอดรวมทั้งหมด
+    const byTrip = new Map<string, TripAggregate>();
     let sum = 0;
-    const billList: BillDetail[] = [];
-    filtered.forEach((row: any) => {
-      sum += Number(row.amount_share || 0);
-      billList.push({
-        bill_id: row.bill_id,
-        trip_name: row.bill?.trip?.trip_name || '-',
-        amount_share: row.amount_share,
-        status: row.status,
-        bill_created_at: row.bill?.created_at,
-      });
-    });
+    for (const row of filtered as any[]) {
+      const tripIdVal = row.bill?.trip_id ? String(row.bill.trip_id) : 'unknown';
+      const tripName = row.bill?.trip?.trip_name || '-';
+      const amt = Number(row.amount_share || 0);
+      sum += amt;
+      const current = byTrip.get(tripIdVal) || { trip_id: row.bill?.trip_id ?? null, trip_name: tripName, total_amount: 0, rep_bill_id: row.bill_id };
+      current.total_amount += amt;
+      if (!current.rep_bill_id) current.rep_bill_id = row.bill_id;
+      byTrip.set(tripIdVal, current);
+    }
 
-    setBills(billList);
+    const tripList = Array.from(byTrip.values()).sort((a, b) => b.total_amount - a.total_amount);
+    setTrips(tripList);
     setTotal(sum);
     setCreditor(creditorInfo);
   };
@@ -120,28 +120,32 @@ export default function PayDetailScreen() {
 
       <Text style={styles.allListTitle}>All List</Text>
       <ScrollView style={{ flex: 1 }}>
-        {bills.map((bill) => (
-          <View key={bill.bill_id} style={styles.billCard}>
+        {trips.map((t, idx) => (
+          <View key={(t.trip_id ?? 'unknown') + '-' + idx} style={styles.billCard}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.tripName}>{bill.trip_name}</Text>
-              <Text style={styles.billAmount}>{bill.amount_share.toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿</Text>
+              <Text style={styles.tripName}>{t.trip_name}</Text>
+              <Text style={styles.billAmount}>{Number(t.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿</Text>
             </View>
-            <TouchableOpacity
-              style={styles.payButton}
-              onPress={() =>
-                router.push({
-                  pathname: '/Payment',
-                  params: {
-                    billId: bill.bill_id,
-                    creditorId,
-                    amount: String(bill.amount_share),
-                  },
-                })
-              }
-            >
-              <Text style={{ color: '#fff', fontWeight: 'bold' }}>Pay</Text>
+            {t.rep_bill_id ? (
+              <TouchableOpacity
+                style={styles.payButton}
+                onPress={() =>
+                  router.push({
+                    pathname: '/Payment',
+                    params: {
+                      billId: t.rep_bill_id,
+                      creditorId,
+                      amount: String(t.total_amount),
+                    },
+                  })
+                }
+              >
+                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Pay</Text>
+              </TouchableOpacity>
+            ) : null}
+            <TouchableOpacity onPress={() => router.push(`/TripDebtDetail?creditorId=${creditorId}&tripId=${t.trip_id}`)}>
+              <Ionicons name="eye" size={22} color="#45647C" style={{ marginLeft: 10 }} />
             </TouchableOpacity>
-            <Ionicons name="eye" size={22} color="#45647C" style={{ marginLeft: 10 }} />
           </View>
         ))}
       </ScrollView>

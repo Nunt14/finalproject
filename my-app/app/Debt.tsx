@@ -1,22 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../constants/supabase';
 
-// ประเภทข้อมูลสำหรับแต่ละบิลที่ค้างจ่าย (หนึ่งการ์ดต่อหนึ่งบิล)
+// ประเภทข้อมูลสำหรับการ์ดแบบรวมต่อผู้ให้เครดิต (หนึ่งการ์ดต่อหนึ่งผู้ให้เครดิต)
 type DebtItem = {
-  bill_id: string;
-  amount_share: number;
   creditor_id: string;
   creditor_name: string;
   creditor_profile_image?: string | null;
-  category_icon?: string;
-  category_color?: string;
-  bill_label?: string | null;
-  trip_name?: string | null;
-  created_ts?: number;
-  trip_id: string;
+  total_amount: number; // รวมจากทุกทริปที่ยังไม่ชำระ
+  trip_count: number; // จำนวนทริปที่ติดหนี้กับผู้ใช้คนนี้
+  last_created_ts?: number; // สำหรับเรียงเวลา
 };
 
 const CATEGORY_ICON: Record<string, { icon: string; color: string }> = {
@@ -30,10 +25,19 @@ const CATEGORY_ICON: Record<string, { icon: string; color: string }> = {
 export default function DebtScreen() {
   const router = useRouter();
   const [debts, setDebts] = useState<DebtItem[]>([]);
+  const [pendingConfirms, setPendingConfirms] = useState<Array<{ creditor_id: string; creditor_name: string; creditor_profile_image?: string | null; total_amount: number }>>([]);
+  const [confirmedPays, setConfirmedPays] = useState<Array<{ creditor_id: string; creditor_name: string; creditor_profile_image?: string | null; total_amount: number }>>([]);
 
   useEffect(() => {
     fetchDebts();
   }, []);
+
+  // รีเฟรชทุกครั้งเมื่อหน้าได้รับโฟกัส (หลังอัปโหลดสลิปแล้วกลับมา)
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchDebts();
+    }, [])
+  );
 
   const fetchDebts = async () => {
     const { data: sessionData } = await supabase.auth.getSession();
@@ -43,7 +47,7 @@ export default function DebtScreen() {
     // 1) ดึงรายการ bill_share ที่ผู้ใช้เป็นลูกหนี้ (unpaid)
     const { data: billShares, error: billShareErr } = await supabase
       .from('bill_share')
-      .select(`bill_share_id, bill_id, amount_share, status, bill:bill_id (trip_id, paid_by_user_id, category_id, created_at)`)
+      .select(`bill_share_id, bill_id, amount_share, status, bill:bill_id (trip_id, paid_by_user_id, created_at)`)
       .eq('user_id', userId)
       .eq('status', 'unpaid');
 
@@ -53,89 +57,139 @@ export default function DebtScreen() {
     }
 
     const shares = billShares || [];
-    if (shares.length === 0) {
-      setDebts([]);
-      return;
+
+    // 2) รวมยอดตามผู้ให้เครดิต (paid_by_user_id) และนับจำนวนทริป
+    type Acc = { total: number; tripIds: Set<string>; lastCreated: number };
+    const byCreditor = new Map<string, Acc>();
+    const creditorIds = new Set<string>();
+
+    if (shares.length > 0) {
+      for (const s of shares as any[]) {
+        const bill = s.bill;
+        if (!bill) continue;
+        const creditorId = String(bill.paid_by_user_id);
+        const tripId = bill.trip_id ? String(bill.trip_id) : '';
+        const createdTs = bill.created_at ? new Date(bill.created_at).getTime() : 0;
+        const amount = Number(s.amount_share || 0);
+
+        creditorIds.add(creditorId);
+        const acc = byCreditor.get(creditorId) || { total: 0, tripIds: new Set<string>(), lastCreated: 0 };
+        acc.total += amount;
+        if (tripId) acc.tripIds.add(tripId);
+        acc.lastCreated = Math.max(acc.lastCreated, createdTs);
+        byCreditor.set(creditorId, acc);
+      }
     }
 
-    // 2) ดึงข้อมูลบิลทั้งหมดที่เกี่ยวข้อง พร้อมข้อมูลผู้จ่าย (payer)
-    const billIds = Array.from(new Set(shares.map((s: any) => String(s.bill_id))));
-    const { data: billRows, error: billErr } = await supabase
-      .from('bill')
-      .select('bill_id, trip_id, paid_by_user_id, category_id, created_at, payer:paid_by_user_id ( user_id, full_name, profile_image_url )')
-      .in('bill_id', billIds);
+    // 3) อ่านสถานะการชำระจาก payment_proof ของผู้ใช้นี้
+    const { data: proofs } = await supabase
+      .from('payment_proof')
+      .select('creditor_id, amount, status')
+      .eq('debtor_user_id', userId)
+      .in('status', ['pending', 'approved']);
 
-    if (billErr) {
-      console.error(billErr);
-      return;
+    const aggPending = new Map<string, number>();
+    const aggConfirmed = new Map<string, number>();
+    const proofCreditorIds = new Set<string>();
+    (proofs || []).forEach((p: any) => {
+      const cid = String(p.creditor_id);
+      const amt = Number(p.amount || 0);
+      proofCreditorIds.add(cid);
+      if (p.status === 'pending') aggPending.set(cid, (aggPending.get(cid) || 0) + amt);
+      if (p.status === 'approved') aggConfirmed.set(cid, (aggConfirmed.get(cid) || 0) + amt);
+    });
+
+    // 3.1) Fallback: อ่านจากตาราง payment (กรณีไม่ได้เขียน payment_proof)
+    try {
+      const { data: payRows } = await supabase
+        .from('payment')
+        .select('payment_id, bill_share_id, amount, status')
+        .in('status', ['pending', 'approved']);
+      const payments = (payRows || []) as any[];
+      if (payments.length > 0) {
+        const bsIds = Array.from(new Set(payments.map((p) => String(p.bill_share_id)).filter(Boolean)));
+        let bsMap = new Map<string, { user_id: string; bill_id: string }>();
+        if (bsIds.length > 0) {
+          const { data: bsRows } = await supabase
+            .from('bill_share')
+            .select('bill_share_id, user_id, bill_id')
+            .in('bill_share_id', bsIds);
+          (bsRows || []).forEach((bs: any) => bsMap.set(String(bs.bill_share_id), { user_id: String(bs.user_id), bill_id: String(bs.bill_id) }));
+        }
+        const billIds = Array.from(new Set(Array.from(bsMap.values()).map((v) => v.bill_id)));
+        let billToCreditor = new Map<string, string>();
+        if (billIds.length > 0) {
+          const { data: billRows } = await supabase
+            .from('bill')
+            .select('bill_id, paid_by_user_id')
+            .in('bill_id', billIds);
+          (billRows || []).forEach((b: any) => billToCreditor.set(String(b.bill_id), String(b.paid_by_user_id)));
+        }
+
+        for (const p of payments) {
+          const bs = bsMap.get(String(p.bill_share_id));
+          if (!bs || String(bs.user_id) !== String(userId)) continue; // ensure debtor is current user
+          const creditor = billToCreditor.get(bs.bill_id);
+          if (!creditor) continue;
+          const amt = Number(p.amount || 0);
+          proofCreditorIds.add(creditor);
+          if (p.status === 'pending') aggPending.set(creditor, (aggPending.get(creditor) || 0) + amt);
+          if (p.status === 'approved') aggConfirmed.set(creditor, (aggConfirmed.get(creditor) || 0) + amt);
+        }
+      }
+    } catch {}
+
+    // 4) ดึงข้อมูลผู้ให้เครดิตทั้งหมด (รวมจาก unpaid และ proofs)
+    const ids = Array.from(new Set<string>([...Array.from(creditorIds), ...Array.from(proofCreditorIds)]));
+    let userMap = new Map<string, { full_name: string | null; profile_image_url: string | null }>();
+    if (ids.length > 0) {
+      const { data: users } = await supabase
+        .from('user')
+        .select('user_id, full_name, profile_image_url')
+        .in('user_id', ids);
+      userMap = new Map((users || []).map((u: any) => [String(u.user_id), { full_name: u.full_name ?? null, profile_image_url: u.profile_image_url ?? null }]));
     }
 
-    const bills = (billRows || []).map((b: any) => ({
-      bill_id: String(b.bill_id),
-      trip_id: String(b.trip_id),
-      paid_by_user_id: String(b.paid_by_user_id),
-      category_id: b.category_id == null ? null : String(b.category_id),
-      created_at: b.created_at ? new Date(b.created_at).getTime() : 0,
-      payer_full_name: b.payer?.full_name ?? null,
-      payer_profile_image: (b.payer?.profile_image_url ?? null) as string | null,
+    // 4) แปลงเป็นรายการการ์ด (Waiting for pay)
+    const items: DebtItem[] = Array.from(byCreditor.entries()).map(([cid, acc]) => ({
+      creditor_id: cid,
+      creditor_name: userMap.get(cid)?.full_name || 'Unknown',
+      creditor_profile_image: userMap.get(cid)?.profile_image_url || null,
+      total_amount: acc.total,
+      trip_count: acc.tripIds.size,
+      last_created_ts: acc.lastCreated,
     }));
 
-    // 3) ดึงชื่อทริป
-    const tripIds = Array.from(new Set(bills.map((b) => b.trip_id)));
-    let tripMap = new Map<string, string | null>();
-    if (tripIds.length > 0) {
-      const { data: tripRows } = await supabase
-        .from('trip')
-        .select('trip_id, trip_name')
-        .in('trip_id', tripIds);
-      tripMap = new Map((tripRows || []).map((t: any) => [String(t.trip_id), t.trip_name ?? null]));
-    }
-
-    // 4) สร้างรายการการ์ดหนี้แบบต่อบิล
-    const items: DebtItem[] = [];
-    for (const share of shares) {
-      const billId = String(share.bill_id);
-      const amountShare = Number(share.amount_share || 0);
-      const bill = bills.find((b) => b.bill_id === billId);
-      if (!bill) continue;
-
-      const categoryId = bill.category_id || '1';
-      const icon = CATEGORY_ICON[categoryId]?.icon || 'car';
-      const color = CATEGORY_ICON[categoryId]?.color || '#45647C';
-
-      const shortId = bill.bill_id.slice(-6).toUpperCase();
-      items.push({
-        bill_id: bill.bill_id,
-        amount_share: amountShare,
-        creditor_id: bill.paid_by_user_id,
-        creditor_name: bill.payer_full_name || 'Unknown',
-        creditor_profile_image: bill.payer_profile_image || null,
-        category_icon: icon,
-        category_color: color,
-        bill_label: `Bill #${shortId}`,
-        trip_name: tripMap.get(bill.trip_id) || null,
-        created_ts: bill.created_at || 0,
-        trip_id: bill.trip_id,
-      });
-    }
-
-    // 5) เรียงรายการตามวันที่ล่าสุด
-    items.sort((a, b) => (b.created_ts || 0) - (a.created_ts || 0));
+    // 5) เรียงตามยอดรวมมากไปน้อย หรือเวลาล่าสุด
+    items.sort((a, b) => b.total_amount - a.total_amount || (b.last_created_ts || 0) - (a.last_created_ts || 0));
 
     setDebts(items);
+
+    // 6) สร้างรายการ Already Paid (pending/confirmed)
+    const pendings = Array.from(aggPending.entries()).map(([cid, total]) => ({
+      creditor_id: cid,
+      creditor_name: userMap.get(cid)?.full_name || 'Unknown',
+      creditor_profile_image: userMap.get(cid)?.profile_image_url || null,
+      total_amount: total,
+    }));
+    const confirmeds = Array.from(aggConfirmed.entries()).map(([cid, total]) => ({
+      creditor_id: cid,
+      creditor_name: userMap.get(cid)?.full_name || 'Unknown',
+      creditor_profile_image: userMap.get(cid)?.profile_image_url || null,
+      total_amount: total,
+    }));
+    setPendingConfirms(pendings);
+    setConfirmedPays(confirmeds);
   };
 
   const renderDebtCard = (debt: DebtItem) => (
-    <View key={debt.bill_id} style={styles.card}>
+    <View key={debt.creditor_id} style={styles.card}>
       <View style={styles.rowBetween}>
         <Text style={styles.amount}>
-          {debt.amount_share.toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿
+          {Number(debt.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿
         </Text>
         {debt.creditor_profile_image ? (
-          <Image
-            source={{ uri: debt.creditor_profile_image }}
-            style={styles.avatar}
-          />
+          <Image source={{ uri: debt.creditor_profile_image }} style={styles.avatar} />
         ) : (
           <Ionicons name="person-circle" size={36} color="#bbb" />
         )}
@@ -143,27 +197,13 @@ export default function DebtScreen() {
 
       <View style={styles.rowBetween}>
         <View style={styles.row}>
-          <FontAwesome5
-            name={debt.category_icon as any}
-            size={18}
-            color={debt.category_color}
-            style={{ marginRight: 6 }}
-          />
-          <Text style={styles.totalList}>{debt.creditor_name}</Text>
+          <FontAwesome5 name="globe" size={18} color="#45647C" style={{ marginRight: 6 }} />
+          <Text style={styles.totalList}>Total : {debt.trip_count} list</Text>
         </View>
-        <TouchableOpacity
-          onPress={() => router.push({ pathname: '/PayDetail', params: { creditorId: debt.creditor_id, tripId: debt.trip_id } })}
-        >
+        <TouchableOpacity onPress={() => router.push({ pathname: '/PayDetail', params: { creditorId: debt.creditor_id } })}>
           <Ionicons name="eye" size={24} color="#45647C" />
         </TouchableOpacity>
       </View>
-
-      {!!debt.bill_label && (
-        <Text style={{ color: '#666', marginTop: 2 }}>Bill: {debt.bill_label}</Text>
-      )}
-      {!!debt.trip_name && (
-        <Text style={{ color: '#666', marginTop: 2 }}>Trip: {debt.trip_name}</Text>
-      )}
     </View>
   );
 
@@ -183,9 +223,49 @@ export default function DebtScreen() {
         ) : (
           debts.map(renderDebtCard)
         )}
-      </ScrollView>
 
-      <Image source={require('../assets/images/bg.png')} style={styles.bgImage} />
+        {(pendingConfirms.length > 0 || confirmedPays.length > 0) && (
+          <>
+            <Text style={[styles.subHeader, { marginTop: 12 }]}>Already Paid</Text>
+            {pendingConfirms.map((p) => (
+              <View key={`p-${p.creditor_id}`} style={[styles.card, { borderColor: '#FFE7A2' }]}> 
+                <View style={styles.rowBetween}>
+                  <Text style={[styles.amount, { color: '#F4B400' }]}>{Number(p.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿</Text>
+                  {p.creditor_profile_image ? (
+                    <Image source={{ uri: p.creditor_profile_image }} style={styles.avatar} />
+                  ) : (
+                    <Ionicons name="person-circle" size={36} color="#F4B400" />
+                  )}
+                </View>
+                <View style={styles.rowBetween}>
+                  <View style={styles.row}>
+                    <FontAwesome5 name="clock" size={18} color="#F4B400" style={{ marginRight: 6 }} />
+                    <Text style={styles.totalList}>Waiting for confirm</Text>
+                  </View>
+                </View>
+              </View>
+            ))}
+            {confirmedPays.map((c) => (
+              <View key={`c-${c.creditor_id}`} style={[styles.card, { borderColor: '#B7EAC8' }]}> 
+                <View style={styles.rowBetween}>
+                  <Text style={[styles.amount, { color: '#2FBF71' }]}>{Number(c.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿</Text>
+                  {c.creditor_profile_image ? (
+                    <Image source={{ uri: c.creditor_profile_image }} style={styles.avatar} />
+                  ) : (
+                    <Ionicons name="person-circle" size={36} color="#2FBF71" />
+                  )}
+                </View>
+                <View style={styles.rowBetween}>
+                  <View style={styles.row}>
+                    <FontAwesome5 name="check-circle" size={18} color="#2FBF71" style={{ marginRight: 6 }} />
+                    <Text style={styles.totalList}>Confirmed</Text>
+                  </View>
+                </View>
+              </View>
+            ))}
+          </>
+        )}
+      </ScrollView>
     </View>
   );
 }
