@@ -6,6 +6,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system';
+import { decode as decodeBase64 } from 'base64-arraybuffer';
 
 export default function ProfileEditScreen() {
   const [user, setUser] = useState<any>(null);
@@ -42,6 +44,35 @@ export default function ProfileEditScreen() {
     fetchUser();
   }, []);
 
+  const uploadToStorage = async (localUri: string, keyPrefix: string): Promise<string | null> => {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const uid = sessionData?.session?.user?.id;
+      if (!uid) return null;
+
+      // detect ext/content-type
+      const match = localUri.match(/\.([a-zA-Z0-9]+)(?:\?|$)/);
+      const ext = (match?.[1] || 'jpg').toLowerCase();
+      const contentType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+
+      const base64 = await FileSystem.readAsStringAsync(localUri, { encoding: FileSystem.EncodingType.Base64 });
+      const arrayBuffer = decodeBase64(base64);
+      const filePath = `${keyPrefix}/${uid}/${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from('payment-proofs')
+        .upload(filePath, arrayBuffer, { contentType, upsert: true });
+      if (uploadError) return null;
+
+      const { data: pub } = await supabase.storage
+        .from('payment-proofs')
+        .getPublicUrl(filePath);
+      const publicUrl = (pub as any)?.publicUrl ?? null;
+      return publicUrl;
+    } catch {
+      return null;
+    }
+  };
+
   const handleImagePick = async (type: 'profile' | 'qr') => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -54,11 +85,21 @@ export default function ProfileEditScreen() {
       const imageUri = result.assets[0].uri;
 
       if (type === 'profile') {
-        setProfileImage(imageUri);
-        await supabase.from('user').update({ profile_image_url: imageUri }).eq('user_id', user.user_id);
+        const publicUrl = await uploadToStorage(imageUri, 'user-profile');
+        if (!publicUrl) {
+          Alert.alert('Upload Failed', 'ไม่สามารถอัปโหลดรูปโปรไฟล์ได้');
+          return;
+        }
+        setProfileImage(publicUrl);
+        await supabase.from('user').update({ profile_image_url: publicUrl }).eq('user_id', user.user_id);
       } else {
-        setQRImage(imageUri);
-        await supabase.from('user').update({ qr_code_img: imageUri }).eq('user_id', user.user_id);
+        const publicUrl = await uploadToStorage(imageUri, 'user-qr');
+        if (!publicUrl) {
+          Alert.alert('Upload Failed', 'ไม่สามารถอัปโหลดรูป QR ได้');
+          return;
+        }
+        setQRImage(publicUrl);
+        await supabase.from('user').update({ qr_code_img: publicUrl }).eq('user_id', user.user_id);
       }
     }
   };

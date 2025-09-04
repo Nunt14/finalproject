@@ -12,6 +12,8 @@ import {
 import { supabase } from '../constants/supabase';
 import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system';
+import { decode as decodeBase64 } from 'base64-arraybuffer';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -64,6 +66,46 @@ export default function ProfileScreen() {
     }, [])
   );
 
+  const uploadToStorage = async (localUri: string, keyPrefix: string): Promise<string | null> => {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const uid = sessionData?.session?.user?.id;
+      if (!uid) return null;
+
+      // Detect extension and contentType
+      const match = localUri.match(/\.([a-zA-Z0-9]+)(?:\?|$)/);
+      const ext = (match?.[1] || 'jpg').toLowerCase();
+      const contentType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+
+      // Read the file as Base64 and convert to ArrayBuffer (RN-safe)
+      const base64 = await FileSystem.readAsStringAsync(localUri, { encoding: FileSystem.EncodingType.Base64 });
+      const arrayBuffer = decodeBase64(base64);
+      const filePath = `${keyPrefix}/${uid}/${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from('payment-proofs')
+        .upload(filePath, arrayBuffer, { contentType, upsert: true });
+      if (uploadError) {
+        Alert.alert('Upload Failed', uploadError.message || 'ไม่สามารถอัปโหลดไฟล์ได้');
+        return null;
+      }
+
+      const { data: pub } = await supabase.storage
+        .from('payment-proofs')
+        .getPublicUrl(filePath);
+      let publicUrl = (pub as any)?.publicUrl ?? null;
+      if (!publicUrl) {
+        // Try signed URL fallback if bucket is private
+        const { data: signed } = await supabase.storage
+          .from('payment-proofs')
+          .createSignedUrl(filePath, 60 * 60 * 24);
+        publicUrl = (signed as any)?.signedUrl ?? null;
+      }
+      return publicUrl;
+    } catch {
+      return null;
+    }
+  };
+
   const handleImagePick = async (type: 'profile' | 'qr') => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -76,9 +118,19 @@ export default function ProfileScreen() {
       const imageUri = result.assets[0].uri;
 
       if (type === 'profile') {
-        setProfileImage(imageUri);
+        const publicUrl = await uploadToStorage(imageUri, 'user-profile');
+        if (!publicUrl) return;
+        setProfileImage(publicUrl);
+        if (user?.user_id) {
+          await supabase.from('user').update({ profile_image_url: publicUrl }).eq('user_id', user.user_id);
+        }
       } else if (type === 'qr') {
-        setQRImage(imageUri);
+        const publicUrl = await uploadToStorage(imageUri, 'user-qr');
+        if (!publicUrl) return;
+        setQRImage(publicUrl);
+        if (user?.user_id) {
+          await supabase.from('user').update({ qr_code_img: publicUrl }).eq('user_id', user.user_id);
+        }
       }
     }
   };

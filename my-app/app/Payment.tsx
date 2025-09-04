@@ -139,7 +139,7 @@ export default function PaymentScreen() {
               : require('../assets/images/qr.png')
           }
           resizeMode="contain"
-          style={{ width: 170, height: 170 }}
+          style={{ width: 240, height: 240 }}
         />
         <Text style={styles.qrNote}>สแกนเพื่อชำระเงิน</Text>
       </View>
