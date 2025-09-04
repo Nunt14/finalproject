@@ -8,6 +8,7 @@ import {
   TextInput,
   Alert,
   ScrollView,
+  Modal,
 } from 'react-native';
 import { supabase } from '../constants/supabase';
 import { router, useFocusEffect } from 'expo-router';
@@ -26,6 +27,8 @@ export default function ProfileScreen() {
   const [language, setLanguage] = useState('TH');
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [qrImage, setQRImage] = useState<string | null>(null);
+  const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
+  const currencyOptions = ['THB', 'USD', 'EUR', 'JPY', 'KRW', 'CNY', 'IDR'];
 
   const fetchUser = async () => {
     const { data: sessionData } = await supabase.auth.getSession();
@@ -275,12 +278,10 @@ export default function ProfileScreen() {
           <Ionicons name="cash-outline" size={18} color="#3f5b78" style={styles.iconLeft} />
           <Text style={styles.label}>Default currency</Text>
           {editMode ? (
-            <TextInput
-              style={styles.inlineInput}
-              value={currency}
-              onChangeText={setCurrency}
-              placeholder="e.g., THB"
-            />
+            <TouchableOpacity style={styles.currencyPill} onPress={() => setShowCurrencyPicker(true)}>
+              <Text style={styles.currencyPillText}>{currency}</Text>
+              <Ionicons name="chevron-down" size={16} color="#fff" />
+            </TouchableOpacity>
           ) : (
             <Text style={styles.value}>{currency}</Text>
           )}
@@ -311,6 +312,24 @@ export default function ProfileScreen() {
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Text style={styles.logoutButtonText}>Log out</Text>
       </TouchableOpacity>
+
+      {/* Currency picker modal */}
+      <Modal transparent visible={showCurrencyPicker} animationType="fade" onRequestClose={() => setShowCurrencyPicker(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.pickerCard}>
+            <Text style={{ fontWeight: '600', marginBottom: 10 }}>Select currency</Text>
+            {currencyOptions.map((c) => (
+              <TouchableOpacity key={c} style={styles.pickerRow} onPress={() => { setCurrency(c); setShowCurrencyPicker(false); }}>
+                <Text style={{ color: '#333' }}>{c}</Text>
+                {currency === c ? <Ionicons name="checkmark" size={18} color="#1A3C6B" /> : null}
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={[styles.pickerRow, { justifyContent: 'center' }]} onPress={() => setShowCurrencyPicker(false)}>
+              <Text style={{ color: '#1A3C6B', fontWeight: '600' }}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -343,6 +362,24 @@ const styles = StyleSheet.create({
     marginRight: 10,
     color: '#333',
   },
+  inlineInputTouchable: {
+    flex: 1,
+    fontSize: 15,
+    borderBottomWidth: 1,
+    borderColor: '#ccc',
+    paddingVertical: 8,
+    marginRight: 10,
+  },
+  currencyPill: {
+    backgroundColor: '#1A3C6B',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  currencyPillText: { color: '#fff', fontWeight: '700' },
   qrBox: {
     position: 'relative',
     backgroundColor: '#fff',
@@ -379,4 +416,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoutButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center' },
+  pickerCard: { backgroundColor: '#fff', width: '80%', borderRadius: 12, padding: 16 },
+  pickerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#eee' },
 });

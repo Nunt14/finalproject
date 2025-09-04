@@ -594,7 +594,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: '#fff',
     position: 'absolute',
-    bottom: 100,
+    bottom: 24,
     left: 16,
     right: 16,
     height: 72,

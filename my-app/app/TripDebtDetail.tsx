@@ -120,7 +120,7 @@ export default function TripDebtDetailScreen() {
         <Text style={styles.totalAmount}>{Number(total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿</Text>
       </View>
 
-      <ScrollView style={{ flex: 1 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 20 }}>
         <View style={styles.cardContainer}>
           <View style={styles.cardHeader}>
             <Text style={styles.tripTitle}>{tripName}</Text>
@@ -129,7 +129,7 @@ export default function TripDebtDetailScreen() {
 
           <View style={styles.tableHeader}>
             <Text style={[styles.tableText, { flex: 1 }]}>รายละเอียด</Text>
-            <Text style={[styles.tableText, { width: 70, textAlign: 'right' }]}>ราคา</Text>
+            <Text style={[styles.tableText, { width: 84, textAlign: 'right' }]}>ราคา</Text>
           </View>
 
           {bills.map((bill) => {
@@ -140,24 +140,23 @@ export default function TripDebtDetailScreen() {
                   {category ? (
                     <FontAwesome5 name={category.icon as any} size={14} color={category.color} style={{ marginRight: 8 }} />
                   ) : (
-                    <Ionicons name="pricetag" size={14} color="#999" style={{ marginRight: 8 }} />
+                    <Ionicons name="ellipse" size={10} color="#BFC9D9" style={{ marginRight: 10 }} />
                   )}
                   <Text style={styles.itemLabel}>{category?.label || 'ค่าใช้จ่าย'}</Text>
                 </View>
-                <Text style={styles.itemPrice}>{Number(bill.amount_share || 0).toLocaleString(undefined, { minimumFractionDigits: 0 })}฿</Text>
+                <Text style={styles.itemPrice}>{Number(bill.amount_share || 0).toLocaleString(undefined, { minimumFractionDigits: 0 })} ฿</Text>
               </View>
             );
           })}
 
           <View style={styles.totalBar}>
             <Text style={styles.totalLabel}>รวม</Text>
-            <Text style={styles.totalValue}>{Number(total || 0).toLocaleString(undefined, { minimumFractionDigits: 0 })}฿</Text>
+            <Text style={styles.totalValue}>{Number(total || 0).toLocaleString(undefined, { minimumFractionDigits: 0 })} ฿</Text>
           </View>
 
           <TouchableOpacity
             style={styles.payScanBtn}
             onPress={() => {
-              // ส่งยอดรวมไป Payment โดยเลือก bill แรกเป็น reference
               const firstBill = bills[0];
               if (firstBill) {
                 router.push({ pathname: '/Payment', params: { billId: firstBill.bill_id, creditorId: String(creditorId), amount: String(total) } });
@@ -228,27 +227,29 @@ const styles = StyleSheet.create({
   // New card styles
   cardContainer: {
     backgroundColor: '#fff',
-    borderRadius: 18,
+    borderRadius: 16,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#ECECEC',
     shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
     marginTop: 8,
   },
-  cardHeader: { backgroundColor: '#F2F2F2', paddingHorizontal: 16, paddingVertical: 12 },
+  cardHeader: { backgroundColor: '#f6f7fb', paddingHorizontal: 16, paddingVertical: 12 },
   tripTitle: { fontSize: 16, fontWeight: 'bold', color: '#1A3C6B' },
-  payMethod: { fontSize: 12, color: '#777', marginTop: 4 },
-  tableHeader: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#DDD', paddingHorizontal: 16, paddingVertical: 10 },
-  tableText: { fontSize: 12, color: '#666' },
+  payMethod: { fontSize: 11, color: '#7a7a7a', marginTop: 4 },
+  tableHeader: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#EEE', paddingHorizontal: 16, paddingVertical: 10 },
+  tableText: { fontSize: 12, color: '#8a8a8a' },
   rowItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
   itemLabel: { color: '#333', fontSize: 14 },
-  itemPrice: { color: '#333', fontSize: 14, width: 70, textAlign: 'right' },
-  totalBar: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#DDD' },
+  itemPrice: { color: '#1A3C6B', fontSize: 14, width: 84, textAlign: 'right', fontWeight: '600' },
+  totalBar: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#EEE', backgroundColor: '#fafbff' },
   totalLabel: { color: '#333', fontWeight: '600' },
-  totalValue: { color: '#333', fontWeight: '700' },
-  payScanBtn: { backgroundColor: '#45647C', margin: 16, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
+  totalValue: { color: '#1A3C6B', fontWeight: '700' },
+  payScanBtn: { backgroundColor: '#234080', margin: 16, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
   payScanText: { color: '#fff', fontWeight: 'bold' },
 });
 

@@ -27,6 +27,7 @@ export default function DebtScreen() {
   const [debts, setDebts] = useState<DebtItem[]>([]);
   const [pendingConfirms, setPendingConfirms] = useState<Array<{ creditor_id: string; creditor_name: string; creditor_profile_image?: string | null; total_amount: number }>>([]);
   const [confirmedPays, setConfirmedPays] = useState<Array<{ creditor_id: string; creditor_name: string; creditor_profile_image?: string | null; total_amount: number }>>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDebts();
@@ -43,6 +44,7 @@ export default function DebtScreen() {
     const { data: sessionData } = await supabase.auth.getSession();
     const userId = sessionData?.session?.user?.id;
     if (!userId) return;
+    setCurrentUserId(userId);
 
     // 1) ดึงรายการ bill_share ที่ผู้ใช้เป็นลูกหนี้ (unpaid)
     const { data: billShares, error: billShareErr } = await supabase
@@ -68,6 +70,8 @@ export default function DebtScreen() {
         const bill = s.bill;
         if (!bill) continue;
         const creditorId = String(bill.paid_by_user_id);
+        // อย่าแสดงหนี้ที่ผู้ให้เครดิตเป็นตัวเราเอง
+        if (creditorId === String(userId)) continue;
         const tripId = bill.trip_id ? String(bill.trip_id) : '';
         const createdTs = bill.created_at ? new Date(bill.created_at).getTime() : 0;
         const amount = Number(s.amount_share || 0);
@@ -93,6 +97,7 @@ export default function DebtScreen() {
     const proofCreditorIds = new Set<string>();
     (proofs || []).forEach((p: any) => {
       const cid = String(p.creditor_id);
+      if (cid === String(userId)) return; // ข้ามของตัวเอง
       const amt = Number(p.amount || 0);
       proofCreditorIds.add(cid);
       if (p.status === 'pending') aggPending.set(cid, (aggPending.get(cid) || 0) + amt);
@@ -130,7 +135,7 @@ export default function DebtScreen() {
           const bs = bsMap.get(String(p.bill_share_id));
           if (!bs || String(bs.user_id) !== String(userId)) continue; // ensure debtor is current user
           const creditor = billToCreditor.get(bs.bill_id);
-          if (!creditor) continue;
+          if (!creditor || creditor === String(userId)) continue; // ข้ามของตัวเอง
           const amt = Number(p.amount || 0);
           proofCreditorIds.add(creditor);
           if (p.status === 'pending') aggPending.set(creditor, (aggPending.get(creditor) || 0) + amt);
@@ -181,6 +186,39 @@ export default function DebtScreen() {
     setPendingConfirms(pendings);
     setConfirmedPays(confirmeds);
   };
+
+  // subscribe realtime: เมื่อสถานะ bill_share เปลี่ยน หรือมีการอัปเดต payment_proof ของผู้ใช้นี้ ให้รีเฟรช
+  useEffect(() => {
+    if (!currentUserId) return;
+    const channel = supabase
+      .channel(`debts-realtime-${currentUserId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'bill_share', filter: `user_id=eq.${currentUserId}` },
+        () => {
+          fetchDebts();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'payment_proof', filter: `debtor_user_id=eq.${currentUserId}` },
+        () => {
+          fetchDebts();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'payment_proof', filter: `debtor_user_id=eq.${currentUserId}` },
+        () => {
+          fetchDebts();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      try { supabase.removeChannel(channel); } catch {}
+    };
+  }, [currentUserId]);
 
   const renderDebtCard = (debt: DebtItem) => (
     <View key={debt.creditor_id} style={styles.card}>
