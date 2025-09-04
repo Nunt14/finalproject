@@ -302,7 +302,7 @@ export default function AddTripScreen() {
                 style={styles.memberScrollView}
                 contentContainerStyle={styles.memberScrollContent}
               >
-                {members.slice(0, 4).map((member, index) => {
+                {members.map((member, index) => {
                   const isSelected = selectedMembers.includes(member.user_id);
                   const colors = ['#5DADE2', '#F39C12', '#F5B7B1', '#E74C3C'];
                   return (
@@ -325,11 +325,6 @@ export default function AddTripScreen() {
                     </TouchableOpacity>
                   );
                 })}
-                {members.length > 4 && (
-                  <View style={[styles.memberAvatar, styles.moreIndicator]}>
-                    <Text style={styles.moreText}>+{members.length - 4}</Text>
-                  </View>
-                )}
               </ScrollView>
 
               {/* Everyone checkbox */}
@@ -348,7 +343,7 @@ export default function AddTripScreen() {
       </ScrollView>
 
       {/* Bottom buttons */}
-      <View style={styles.buttonContainer}>
+      <View style={styles.buttonContainer} pointerEvents="box-none">
         <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm} disabled={loading}>
           <Text style={styles.confirmText}>{loading ? 'Saving...' : 'Confirm'}</Text>
         </TouchableOpacity>
@@ -368,7 +363,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   headerTitle: { fontSize: 18, fontWeight: 'bold', marginLeft: 10 },
   scrollView: { flex: 1 },
-  scrollContent: { paddingVertical: 20 },
+  scrollContent: { paddingVertical: 20, paddingBottom: 140 },
   imageBox: {
     alignSelf: 'center',
     backgroundColor: '#9EC4C2',
@@ -451,7 +446,7 @@ const styles = StyleSheet.create({
     borderColor: '#1A3C6B',
   },
   everyoneLabel: { fontSize: 14, color: '#888' },
-  buttonContainer: { paddingVertical: 20, paddingHorizontal: 20 },
+  buttonContainer: { position: 'absolute', left: 20, right: 20, bottom: 20 },
   confirmBtn: { backgroundColor: '#1A3C6B', padding: 15, borderRadius: 10, marginBottom: 10, width: '100%' },
   confirmText: { color: '#fff', textAlign: 'center', fontWeight: 'bold' },
   backBtn: { backgroundColor: '#333', padding: 15, borderRadius: 10, width: '100%' },

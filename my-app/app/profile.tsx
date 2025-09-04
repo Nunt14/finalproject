@@ -209,6 +209,7 @@ export default function ProfileScreen() {
 </View>
 
 
+      <View style={styles.sectionCard}>
       <View style={styles.infoSection}>
         {/* PHONE */}
         <View style={styles.infoRow}>
@@ -256,7 +257,14 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.qrBox}>
-          {qrImage && <Image source={{ uri: qrImage }} style={styles.qrImage} />}
+          <TouchableOpacity style={styles.qrEditIcon} onPress={() => handleImagePick('qr')}>
+            <Ionicons name="create-outline" size={16} color="#777" />
+          </TouchableOpacity>
+          {qrImage ? (
+            <Image source={{ uri: qrImage }} style={styles.qrImage} resizeMode="contain" />
+          ) : (
+            <Ionicons name="qr-code-outline" size={64} color="#bbb" style={{ marginVertical: 24 }} />
+          )}
           <Text style={styles.qrText}>
             QR ของคุณได้ถูกสร้างขึ้นแล้ว{'\n'}ผู้ใช้งานสามารถสแกนเพื่อชำระเงินได้
           </Text>
@@ -294,6 +302,7 @@ export default function ProfileScreen() {
           )}
         </View>
       </View>
+      </View>
 
       <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
         <Text style={styles.saveButtonText}>Save</Text>
@@ -312,13 +321,14 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   header: { fontSize: 22, fontWeight: 'bold', marginBottom: 10, alignSelf: 'center' },
-  profileSection: { alignItems: 'center', marginBottom: 20 },
-  profileImageWrapper: { position: 'relative', marginBottom: 10 },
-  profileImage: { width: 90, height: 90, borderRadius: 45, backgroundColor: '#eee' },
+  profileSection: { alignItems: 'center', marginBottom: 24 },
+  profileImageWrapper: { position: 'relative', marginBottom: 12 },
+  profileImage: { width: 96, height: 96, borderRadius: 48, backgroundColor: '#eee', borderWidth: 3, borderColor: '#f2f2f2' },
   cameraIcon: { position: 'absolute', bottom: 0, right: 0, backgroundColor: '#fff', borderRadius: 15, padding: 3 },
-  name: { fontSize: 18, fontWeight: 'bold', marginTop: 5 },
-  email: { fontSize: 14, color: '#666' },
-  infoSection: { marginBottom: 20 },
+  name: { fontSize: 20, fontWeight: 'bold', marginTop: 6, color: '#1A3C6B' },
+  email: { fontSize: 13, color: '#7a7a7a', marginTop: 2 },
+  sectionCard: { backgroundColor: '#fff', borderRadius: 16, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#ececec', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  infoSection: { marginBottom: 4 },
   infoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   label: { flex: 1, fontSize: 15, color: '#333' },
   value: { flex: 1, fontSize: 15, color: '#555' },
@@ -334,17 +344,26 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   qrBox: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 25,
-    padding: 12,
+    position: 'relative',
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 16,
     alignItems: 'center',
-    marginTop: 10,
-    width: '60%',
+    marginTop: 12,
+    width: '90%',
     alignSelf: 'center',
-    marginBottom: 25,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#ECECEC',
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
-  qrImage: { width: 180, borderRadius: 25, height: 115, marginBottom: 10 },
-  qrText: { fontSize: 12, color: '#666', textAlign: 'center', marginBottom: 16 },
+  qrEditIcon: { position: 'absolute', top: 10, right: 10, padding: 6, backgroundColor: '#f7f7f7', borderRadius: 12 },
+  qrImage: { width: 240, height: 240, borderRadius: 12, marginBottom: 10 },
+  qrText: { fontSize: 12, color: '#666', textAlign: 'center', marginTop: 2, marginBottom: 6 },
   saveButton: {
     backgroundColor: '#3f5b78',
     padding: 12,

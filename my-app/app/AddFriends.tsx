@@ -645,7 +645,14 @@ export default function AddFriendsScreen() {
         )
       )}
 
-      <TouchableOpacity style={styles.bottomButton}>
+      <TouchableOpacity
+        style={styles.bottomButton}
+        onPress={() => {
+          if (selectedTab === 'group') {
+            router.push('/AddTrip');
+          }
+        }}
+      >
         <Text style={styles.bottomButtonText}>
           {selectedTab === 'friends' ? 'Add Friends' : 'New Group'}
         </Text>
