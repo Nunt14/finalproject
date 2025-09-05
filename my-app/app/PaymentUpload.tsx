@@ -5,6 +5,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRoute } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { supabase } from '../constants/supabase';
+import * as FileSystem from 'expo-file-system';
+import { decode as decodeBase64 } from 'base64-arraybuffer';
 
 type RouteParams = {
   billId: string;
@@ -64,16 +66,18 @@ export default function PaymentUploadScreen() {
         billShareId = (bs as any)?.bill_share_id ?? null;
       } catch {}
       
-      // อัปโหลดสลิปไปยัง Supabase Storage
+      // อัปโหลดสลิปไปยัง Supabase Storage (RN-safe via Base64 -> ArrayBuffer)
       let publicImageUrl: string | null = null;
       try {
-        const response = await fetch(imageUri);
-        const blob = await response.blob();
-        const extension = 'jpg';
-        const filePath = `slips/${uid}/${billId}-${Date.now()}.${extension}`;
+        const match = imageUri.match(/\.([a-zA-Z0-9]+)(?:\?|$)/);
+        const ext = (match?.[1] || 'jpg').toLowerCase();
+        const contentType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+        const base64 = await FileSystem.readAsStringAsync(imageUri, { encoding: FileSystem.EncodingType.Base64 });
+        const arrayBuffer = decodeBase64(base64);
+        const filePath = `slips/${uid}/${billId}-${Date.now()}.${ext}`;
         const { error: uploadError } = await supabase.storage
           .from('payment-proofs')
-          .upload(filePath, blob, { contentType: 'image/jpeg', upsert: true });
+          .upload(filePath, arrayBuffer, { contentType, upsert: true });
         if (!uploadError) {
           const { data: pub } = await supabase.storage
             .from('payment-proofs')

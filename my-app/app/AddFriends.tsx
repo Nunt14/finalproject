@@ -645,11 +645,7 @@ export default function AddFriendsScreen() {
         )
       )}
 
-      <TouchableOpacity style={styles.bottomButton}>
-        <Text style={styles.bottomButtonText}>
-          {selectedTab === 'friends' ? 'Add Friends' : 'New Group'}
-        </Text>
-      </TouchableOpacity>
+      {/* bottom button removed per request */}
 
       <Image
         source={require('../assets/images/bg.png')}

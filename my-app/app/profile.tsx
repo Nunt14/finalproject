@@ -8,10 +8,13 @@ import {
   TextInput,
   Alert,
   ScrollView,
+  Modal,
 } from 'react-native';
 import { supabase } from '../constants/supabase';
 import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system';
+import { decode as decodeBase64 } from 'base64-arraybuffer';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -24,6 +27,8 @@ export default function ProfileScreen() {
   const [language, setLanguage] = useState('TH');
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [qrImage, setQRImage] = useState<string | null>(null);
+  const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
+  const currencyOptions = ['THB', 'USD', 'EUR', 'JPY', 'KRW', 'CNY', 'IDR'];
 
   const fetchUser = async () => {
     const { data: sessionData } = await supabase.auth.getSession();
@@ -64,6 +69,46 @@ export default function ProfileScreen() {
     }, [])
   );
 
+  const uploadToStorage = async (localUri: string, keyPrefix: string): Promise<string | null> => {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const uid = sessionData?.session?.user?.id;
+      if (!uid) return null;
+
+      // Detect extension and contentType
+      const match = localUri.match(/\.([a-zA-Z0-9]+)(?:\?|$)/);
+      const ext = (match?.[1] || 'jpg').toLowerCase();
+      const contentType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+
+      // Read the file as Base64 and convert to ArrayBuffer (RN-safe)
+      const base64 = await FileSystem.readAsStringAsync(localUri, { encoding: FileSystem.EncodingType.Base64 });
+      const arrayBuffer = decodeBase64(base64);
+      const filePath = `${keyPrefix}/${uid}/${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from('payment-proofs')
+        .upload(filePath, arrayBuffer, { contentType, upsert: true });
+      if (uploadError) {
+        Alert.alert('Upload Failed', uploadError.message || 'ไม่สามารถอัปโหลดไฟล์ได้');
+        return null;
+      }
+
+      const { data: pub } = await supabase.storage
+        .from('payment-proofs')
+        .getPublicUrl(filePath);
+      let publicUrl = (pub as any)?.publicUrl ?? null;
+      if (!publicUrl) {
+        // Try signed URL fallback if bucket is private
+        const { data: signed } = await supabase.storage
+          .from('payment-proofs')
+          .createSignedUrl(filePath, 60 * 60 * 24);
+        publicUrl = (signed as any)?.signedUrl ?? null;
+      }
+      return publicUrl;
+    } catch {
+      return null;
+    }
+  };
+
   const handleImagePick = async (type: 'profile' | 'qr') => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -76,9 +121,19 @@ export default function ProfileScreen() {
       const imageUri = result.assets[0].uri;
 
       if (type === 'profile') {
-        setProfileImage(imageUri);
+        const publicUrl = await uploadToStorage(imageUri, 'user-profile');
+        if (!publicUrl) return;
+        setProfileImage(publicUrl);
+        if (user?.user_id) {
+          await supabase.from('user').update({ profile_image_url: publicUrl }).eq('user_id', user.user_id);
+        }
       } else if (type === 'qr') {
-        setQRImage(imageUri);
+        const publicUrl = await uploadToStorage(imageUri, 'user-qr');
+        if (!publicUrl) return;
+        setQRImage(publicUrl);
+        if (user?.user_id) {
+          await supabase.from('user').update({ qr_code_img: publicUrl }).eq('user_id', user.user_id);
+        }
       }
     }
   };
@@ -157,6 +212,7 @@ export default function ProfileScreen() {
 </View>
 
 
+      <View style={styles.sectionCard}>
       <View style={styles.infoSection}>
         {/* PHONE */}
         <View style={styles.infoRow}>
@@ -204,7 +260,14 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.qrBox}>
-          {qrImage && <Image source={{ uri: qrImage }} style={styles.qrImage} />}
+          <TouchableOpacity style={styles.qrEditIcon} onPress={() => handleImagePick('qr')}>
+            <Ionicons name="create-outline" size={16} color="#777" />
+          </TouchableOpacity>
+          {qrImage ? (
+            <Image source={{ uri: qrImage }} style={styles.qrImage} resizeMode="contain" />
+          ) : (
+            <Ionicons name="qr-code-outline" size={64} color="#bbb" style={{ marginVertical: 24 }} />
+          )}
           <Text style={styles.qrText}>
             QR ของคุณได้ถูกสร้างขึ้นแล้ว{'\n'}ผู้ใช้งานสามารถสแกนเพื่อชำระเงินได้
           </Text>
@@ -215,12 +278,10 @@ export default function ProfileScreen() {
           <Ionicons name="cash-outline" size={18} color="#3f5b78" style={styles.iconLeft} />
           <Text style={styles.label}>Default currency</Text>
           {editMode ? (
-            <TextInput
-              style={styles.inlineInput}
-              value={currency}
-              onChangeText={setCurrency}
-              placeholder="e.g., THB"
-            />
+            <TouchableOpacity style={styles.currencyPill} onPress={() => setShowCurrencyPicker(true)}>
+              <Text style={styles.currencyPillText}>{currency}</Text>
+              <Ionicons name="chevron-down" size={16} color="#fff" />
+            </TouchableOpacity>
           ) : (
             <Text style={styles.value}>{currency}</Text>
           )}
@@ -242,6 +303,7 @@ export default function ProfileScreen() {
           )}
         </View>
       </View>
+      </View>
 
       <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
         <Text style={styles.saveButtonText}>Save</Text>
@@ -250,6 +312,24 @@ export default function ProfileScreen() {
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Text style={styles.logoutButtonText}>Log out</Text>
       </TouchableOpacity>
+
+      {/* Currency picker modal */}
+      <Modal transparent visible={showCurrencyPicker} animationType="fade" onRequestClose={() => setShowCurrencyPicker(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.pickerCard}>
+            <Text style={{ fontWeight: '600', marginBottom: 10 }}>Select currency</Text>
+            {currencyOptions.map((c) => (
+              <TouchableOpacity key={c} style={styles.pickerRow} onPress={() => { setCurrency(c); setShowCurrencyPicker(false); }}>
+                <Text style={{ color: '#333' }}>{c}</Text>
+                {currency === c ? <Ionicons name="checkmark" size={18} color="#1A3C6B" /> : null}
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={[styles.pickerRow, { justifyContent: 'center' }]} onPress={() => setShowCurrencyPicker(false)}>
+              <Text style={{ color: '#1A3C6B', fontWeight: '600' }}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -260,13 +340,14 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   header: { fontSize: 22, fontWeight: 'bold', marginBottom: 10, alignSelf: 'center' },
-  profileSection: { alignItems: 'center', marginBottom: 20 },
-  profileImageWrapper: { position: 'relative', marginBottom: 10 },
-  profileImage: { width: 90, height: 90, borderRadius: 45, backgroundColor: '#eee' },
+  profileSection: { alignItems: 'center', marginBottom: 24 },
+  profileImageWrapper: { position: 'relative', marginBottom: 12 },
+  profileImage: { width: 96, height: 96, borderRadius: 48, backgroundColor: '#eee', borderWidth: 3, borderColor: '#f2f2f2' },
   cameraIcon: { position: 'absolute', bottom: 0, right: 0, backgroundColor: '#fff', borderRadius: 15, padding: 3 },
-  name: { fontSize: 18, fontWeight: 'bold', marginTop: 5 },
-  email: { fontSize: 14, color: '#666' },
-  infoSection: { marginBottom: 20 },
+  name: { fontSize: 20, fontWeight: 'bold', marginTop: 6, color: '#1A3C6B' },
+  email: { fontSize: 13, color: '#7a7a7a', marginTop: 2 },
+  sectionCard: { backgroundColor: '#fff', borderRadius: 16, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#ececec', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  infoSection: { marginBottom: 4 },
   infoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   label: { flex: 1, fontSize: 15, color: '#333' },
   value: { flex: 1, fontSize: 15, color: '#555' },
@@ -281,18 +362,45 @@ const styles = StyleSheet.create({
     marginRight: 10,
     color: '#333',
   },
-  qrBox: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 25,
-    padding: 12,
-    alignItems: 'center',
-    marginTop: 10,
-    width: '60%',
-    alignSelf: 'center',
-    marginBottom: 25,
+  inlineInputTouchable: {
+    flex: 1,
+    fontSize: 15,
+    borderBottomWidth: 1,
+    borderColor: '#ccc',
+    paddingVertical: 8,
+    marginRight: 10,
   },
-  qrImage: { width: 180, borderRadius: 25, height: 115, marginBottom: 10 },
-  qrText: { fontSize: 12, color: '#666', textAlign: 'center', marginBottom: 16 },
+  currencyPill: {
+    backgroundColor: '#1A3C6B',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  currencyPillText: { color: '#fff', fontWeight: '700' },
+  qrBox: {
+    position: 'relative',
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 12,
+    width: '90%',
+    alignSelf: 'center',
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#ECECEC',
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  qrEditIcon: { position: 'absolute', top: 10, right: 10, padding: 6, backgroundColor: '#f7f7f7', borderRadius: 12 },
+  qrImage: { width: 240, height: 240, borderRadius: 12, marginBottom: 10 },
+  qrText: { fontSize: 12, color: '#666', textAlign: 'center', marginTop: 2, marginBottom: 6 },
   saveButton: {
     backgroundColor: '#3f5b78',
     padding: 12,
@@ -308,4 +416,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoutButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center' },
+  pickerCard: { backgroundColor: '#fff', width: '80%', borderRadius: 12, padding: 16 },
+  pickerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#eee' },
 });

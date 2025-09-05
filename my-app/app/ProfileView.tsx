@@ -44,7 +44,7 @@ export default function ProfileViewScreen() {
       <Text style={styles.header}>Account</Text>
       <View style={styles.profileSection}>
         <Image
-          source={user.profile_image ? { uri: user.profile_image } : require('../assets/images/logo.png')}
+          source={user.profile_image_url ? { uri: user.profile_image_url } : require('../assets/images/logo.png')}
           style={styles.profileImage}
         />
         <Text style={styles.name}>{user.full_name || 'User'}</Text>
