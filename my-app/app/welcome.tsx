@@ -65,20 +65,87 @@ export default function WelcomeScreen() {
             style: 'destructive',
             onPress: async () => {
               try {
+                // 0. เตรียมลบข้อมูลที่อ้างอิงถึงทริปนี้ก่อน เพื่อลดปัญหา FK constraints
+                // 0.1 ค้นหาบิลทั้งหมดในทริปนี้
+                const { data: billRows, error: billFetchError } = await supabase
+                  .from('bill')
+                  .select('bill_id')
+                  .eq('trip_id', tripId);
+                if (billFetchError) throw billFetchError;
+
+                const billIds = (billRows || []).map((b: any) => b.bill_id);
+
+                if (billIds.length > 0) {
+                  // 0.2 ค้นหา bill_share ที่เกี่ยวข้อง เพื่อลบ payment ก่อน
+                  const { data: bsRows, error: bsFetchError } = await supabase
+                    .from('bill_share')
+                    .select('bill_share_id')
+                    .in('bill_id', billIds);
+                  if (bsFetchError) throw bsFetchError;
+
+                  const billShareIds = (bsRows || []).map((r: any) => r.bill_share_id);
+
+                  // 0.3 ลบ payment ที่อ้างถึง bill_share เหล่านี้
+                  if (billShareIds.length > 0) {
+                    const { error: payErr } = await supabase
+                      .from('payment')
+                      .delete()
+                      .in('bill_share_id', billShareIds);
+                    if (payErr) throw payErr;
+                  }
+
+                  // 0.4 ลบ payment_proof ที่อ้างถึง bill เหล่านี้ (ถ้ามี)
+                  try {
+                    const { error: ppErr } = await supabase
+                      .from('payment_proof')
+                      .delete()
+                      .in('bill_id', billIds);
+                    if (ppErr) throw ppErr;
+                  } catch {}
+
+                  // 0.5 ลบ bill_share ที่อ้างถึง bill เหล่านี้
+                  const { error: bsDelErr } = await supabase
+                    .from('bill_share')
+                    .delete()
+                    .in('bill_id', billIds);
+                  if (bsDelErr) throw bsDelErr;
+
+                  // 0.6 ลบ bill ทั้งหมดในทริปนี้
+                  const { error: billDelErr } = await supabase
+                    .from('bill')
+                    .delete()
+                    .in('bill_id', billIds);
+                  if (billDelErr) throw billDelErr;
+                }
+
+                // 0.7 ลบสรุปหนี้ (debt_summary) ของทริปนี้ หากมี
+                try {
+                  await supabase
+                    .from('debt_summary')
+                    .delete()
+                    .eq('trip_id', tripId);
+                } catch {}
+
+                // 0.8 ลบการแจ้งเตือนที่อ้างถึงทริปนี้ (ถ้ามี)
+                try {
+                  await supabase
+                    .from('notification')
+                    .delete()
+                    .eq('trip_id', tripId);
+                } catch {}
+
                 // 1. ลบข้อมูลจากตาราง trip_member ก่อน (เนื่องจากมี foreign key constraint)
                 const { error: memberError } = await supabase
                   .from('trip_member')
                   .delete()
                   .eq('trip_id', tripId);
-
                 if (memberError) throw memberError;
 
-                // 2. ลบข้อมูลจากตาราง trip
+                // 2. ลบข้อมูลจากตาราง trip หลังจากล้างข้อมูลที่อ้างอิงครบแล้ว
                 const { error: tripError } = await supabase
                   .from('trip')
                   .delete()
                   .eq('trip_id', tripId);
-
                 if (tripError) throw tripError;
 
                 // 3. อัพเดท state เพื่อลบทริปออกจากรายการ
