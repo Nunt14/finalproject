@@ -253,7 +253,9 @@ export default function DebttripScreen() {
   const renderHeader = () => (
     <View style={styles.summaryContainer}>
       <Text style={styles.waitingText}>Waiting for pay</Text>
-      <Text style={styles.totalAmount}>{totalUnpaidDebt.toLocaleString()}.00 ฿</Text>
+      <Text style={styles.totalAmount}>
+  {totalUnpaidDebt.toLocaleString(undefined, { minimumFractionDigits: 2})} ฿
+</Text>
     </View>
   );
 
@@ -272,7 +274,9 @@ export default function DebttripScreen() {
     return (
       <View style={styles.debtCard}>
         <View style={styles.debtHeader}>
-          <Text style={styles.debtAmount}>{remainingAmount.toLocaleString()}.00 ฿</Text>
+          <Text style={styles.debtAmount}>
+            {remainingAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ฿
+          </Text>
           <View style={styles.creditorInfo}>
             {creditor?.profile_image_url ? (
               <Image source={{ uri: creditor.profile_image_url }} style={styles.avatar} />
