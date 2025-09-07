@@ -8,6 +8,7 @@ type BillDetail = {
   bill_id: string;
   trip_name?: string;
   category_id?: string | null;
+  note?: string | null;
   amount_share: number;
   status: string;
   bill_created_at?: string;
@@ -40,6 +41,7 @@ export default function TripDebtDetailScreen() {
             created_at,
             trip_id,
             category_id,
+            note,
             trip:trip_id (
               trip_name
             ),
@@ -77,6 +79,7 @@ export default function TripDebtDetailScreen() {
           bill_id: row.bill_id,
           trip_name: row.bill?.trip?.trip_name || '-',
           category_id: row.bill?.category_id == null ? null : String(row.bill.category_id),
+          note: row.bill?.note ?? null,
           amount_share: row.amount_share,
           status: row.status,
           bill_created_at: row.bill?.created_at,
@@ -134,6 +137,9 @@ export default function TripDebtDetailScreen() {
 
           {bills.map((bill) => {
             const category = bill.category_id ? CATEGORY_ICON[bill.category_id] : undefined;
+            const label = (bill.note && String(bill.note).trim().length > 0)
+              ? String(bill.note)
+              : (category?.label || '-');
             return (
               <View key={bill.bill_id} style={styles.rowItem}>
                 <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
@@ -142,7 +148,7 @@ export default function TripDebtDetailScreen() {
                   ) : (
                     <Ionicons name="ellipse" size={10} color="#BFC9D9" style={{ marginRight: 10 }} />
                   )}
-                  <Text style={styles.itemLabel}>{category?.label || 'ค่าใช้จ่าย'}</Text>
+                  <Text style={styles.itemLabel}>{label}</Text>
                 </View>
                 <Text style={styles.itemPrice}>{Number(bill.amount_share || 0).toLocaleString(undefined, { minimumFractionDigits: 0 })} ฿</Text>
               </View>

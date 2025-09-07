@@ -364,10 +364,10 @@ export default function TripScreen() {
             <View style={{ width: 24 }} />
           </View>
           
-          {/* หมวดหมู่ค่าใช้จ่าย */}
+          {/* หมวดหมู่/โน้ตของบิล: แสดงโน้ตของบิลแทนข้อความคงที่ */}
           <View style={styles.expenseCategory}>
-            <Ionicons name="bed" size={20} color="#000" />
-            <Text style={styles.expenseCategoryText}>Accommodation</Text>
+            <Ionicons name="document-text" size={20} color="#000" />
+            <Text style={styles.expenseCategoryText}>{selectedBill?.note || '-'}</Text>
           </View>
           
           {/* การ์ดยอดรวมทั้งหมด */}
@@ -378,7 +378,9 @@ export default function TripScreen() {
                 maximumFractionDigits: 2 
               })} ฿
             </Text>
-            <Text style={styles.noteText}>Note : ค่าห้องพัก</Text>
+            {selectedBill?.note ? (
+              <Text style={styles.noteText}>Note : {selectedBill.note}</Text>
+            ) : null}
           </View>
           
           {/* ส่วนที่ชำระแล้ว (Paid) */}
