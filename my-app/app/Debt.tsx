@@ -46,28 +46,78 @@ export default function DebtScreen() {
     if (!userId) return;
     setCurrentUserId(userId);
 
-    // 1) ดึงรายการ bill_share ที่ผู้ใช้เป็นลูกหนี้ (unpaid)
+    // 0) ดึงทริปที่ผู้ใช้เห็นในหน้าแรก (อ้างอิงตรรกะเดียวกับหน้า Welcome: เป็นสมาชิกและ active)
+    const { data: memberRows, error: memberErr } = await supabase
+      .from('trip_member')
+      .select('trip_id')
+      .eq('user_id', userId)
+      .eq('is_active', true);
+    if (memberErr) {
+      console.error(memberErr);
+      return;
+    }
+    const tripIds = (memberRows || []).map((m: any) => String(m.trip_id));
+    if (tripIds.length === 0) {
+      setDebts([]);
+      setPendingConfirms([]);
+      setConfirmedPays([]);
+      return;
+    }
+
+    // ตรวจว่าทริปเหล่านี้ยังมีอยู่จริงในตาราง trip (กันกรณีแถว trip ถูกลบไปแล้ว)
+    const { data: existingTrips, error: tripErr } = await supabase
+      .from('trip')
+      .select('trip_id')
+      .in('trip_id', tripIds);
+    if (tripErr) {
+      console.error(tripErr);
+      return;
+    }
+    const existingTripIds = (existingTrips || []).map((t: any) => String(t.trip_id));
+    if (existingTripIds.length === 0) {
+      setDebts([]);
+      setPendingConfirms([]);
+      setConfirmedPays([]);
+      return;
+    }
+
+    // 1) ดึง bill ทั้งหมดของทริปที่ผู้ใช้มีสิทธิ์เห็น
+    const { data: billRows, error: billErr } = await supabase
+      .from('bill')
+      .select('bill_id, trip_id, paid_by_user_id, created_at')
+      .in('trip_id', existingTripIds);
+    if (billErr) {
+      console.error(billErr);
+      return;
+    }
+    const allowedBillIds = new Set<string>((billRows || []).map((b: any) => String(b.bill_id)));
+    const billInfoById = new Map<string, { trip_id: string; paid_by_user_id: string; created_at: string }>(
+      (billRows || []).map((b: any) => [String(b.bill_id), { trip_id: String(b.trip_id), paid_by_user_id: String(b.paid_by_user_id), created_at: String(b.created_at) }])
+    );
+
+    // 2) ดึงรายการ bill_share ที่ผู้ใช้เป็นลูกหนี้ (unpaid) และอยู่ในทริปที่อนุญาต
     const { data: billShares, error: billShareErr } = await supabase
       .from('bill_share')
-      .select(`bill_share_id, bill_id, amount_share, status, bill:bill_id (trip_id, paid_by_user_id, created_at)`)
+      .select('bill_share_id, bill_id, amount_share, status')
       .eq('user_id', userId)
-      .eq('status', 'unpaid');
+      .eq('status', 'unpaid')
+      .in('bill_id', Array.from(allowedBillIds));
 
     if (billShareErr) {
       console.error(billShareErr);
       return;
     }
 
-    const shares = billShares || [];
+    const shares = (billShares || []).filter((s: any) => allowedBillIds.has(String(s.bill_id)));
 
-    // 2) รวมยอดตามผู้ให้เครดิต (paid_by_user_id) และนับจำนวนทริป
+    // 3) รวมยอดตามผู้ให้เครดิต (paid_by_user_id) และนับจำนวนทริป
     type Acc = { total: number; tripIds: Set<string>; lastCreated: number };
     const byCreditor = new Map<string, Acc>();
     const creditorIds = new Set<string>();
 
     if (shares.length > 0) {
       for (const s of shares as any[]) {
-        const bill = s.bill;
+        const bill = billInfoById.get(String(s.bill_id));
         if (!bill) continue;
         const creditorId = String(bill.paid_by_user_id);
         // อย่าแสดงหนี้ที่ผู้ให้เครดิตเป็นตัวเราเอง
@@ -85,10 +135,10 @@ export default function DebtScreen() {
       }
     }
 
-    // 3) อ่านสถานะการชำระจาก payment_proof ของผู้ใช้นี้
+    // 4) อ่านสถานะการชำระจาก payment_proof ของผู้ใช้นี้ (จำกัดเฉพาะบิลในทริปที่อนุญาต)
     const { data: proofs } = await supabase
       .from('payment_proof')
-      .select('creditor_id, amount, status')
+      .select('creditor_id, amount, status, bill_id')
       .eq('debtor_user_id', userId)
       .in('status', ['pending', 'approved']);
 
@@ -96,6 +146,7 @@ export default function DebtScreen() {
     const aggConfirmed = new Map<string, number>();
     const proofCreditorIds = new Set<string>();
     (proofs || []).forEach((p: any) => {
+      if (p.bill_id && !allowedBillIds.has(String(p.bill_id))) return; // ข้ามบิลที่ไม่อยู่ในทริปที่อนุญาต
       const cid = String(p.creditor_id);
       if (cid === String(userId)) return; // ข้ามของตัวเอง
       const amt = Number(p.amount || 0);
@@ -104,12 +155,14 @@ export default function DebtScreen() {
       if (p.status === 'approved') aggConfirmed.set(cid, (aggConfirmed.get(cid) || 0) + amt);
     });
 
-    // 3.1) Fallback: อ่านจากตาราง payment (กรณีไม่ได้เขียน payment_proof)
+    // 4.1) Fallback: อ่านจากตาราง payment (กรณีไม่ได้เขียน payment_proof) จำกัดเฉพาะ bill_share ของบิลที่อนุญาต
     try {
+      const bsIds = shares.map((s: any) => String(s.bill_share_id));
       const { data: payRows } = await supabase
         .from('payment')
         .select('payment_id, bill_share_id, amount, status')
-        .in('status', ['pending', 'approved']);
+        .in('status', ['pending', 'approved'])
+        .in('bill_share_id', bsIds);
       const payments = (payRows || []) as any[];
       if (payments.length > 0) {
         const bsIds = Array.from(new Set(payments.map((p) => String(p.bill_share_id)).filter(Boolean)));
@@ -134,6 +187,7 @@ export default function DebtScreen() {
         for (const p of payments) {
           const bs = bsMap.get(String(p.bill_share_id));
           if (!bs || String(bs.user_id) !== String(userId)) continue; // ensure debtor is current user
+          if (!allowedBillIds.has(String(bs.bill_id))) continue; // จำกัดเฉพาะบิลที่อนุญาต
           const creditor = billToCreditor.get(bs.bill_id);
           if (!creditor || creditor === String(userId)) continue; // ข้ามของตัวเอง
           const amt = Number(p.amount || 0);
@@ -144,7 +198,7 @@ export default function DebtScreen() {
       }
     } catch {}
 
-    // 4) ดึงข้อมูลผู้ให้เครดิตทั้งหมด (รวมจาก unpaid และ proofs)
+    // 5) ดึงข้อมูลผู้ให้เครดิตทั้งหมด (รวมจาก unpaid และ proofs)
     const ids = Array.from(new Set<string>([...Array.from(creditorIds), ...Array.from(proofCreditorIds)]));
     let userMap = new Map<string, { full_name: string | null; profile_image_url: string | null }>();
     if (ids.length > 0) {
@@ -155,7 +209,7 @@ export default function DebtScreen() {
       userMap = new Map((users || []).map((u: any) => [String(u.user_id), { full_name: u.full_name ?? null, profile_image_url: u.profile_image_url ?? null }]));
     }
 
-    // 4) แปลงเป็นรายการการ์ด (Waiting for pay)
+    // 6) แปลงเป็นรายการการ์ด (Waiting for pay)
     const items: DebtItem[] = Array.from(byCreditor.entries()).map(([cid, acc]) => ({
       creditor_id: cid,
       creditor_name: userMap.get(cid)?.full_name || 'Unknown',
@@ -165,7 +219,7 @@ export default function DebtScreen() {
       last_created_ts: acc.lastCreated,
     }));
 
-    // 5) เรียงตามยอดรวมมากไปน้อย หรือเวลาล่าสุด
+    // 7) เรียงตามยอดรวมมากไปน้อย หรือเวลาล่าสุด
     items.sort((a, b) => b.total_amount - a.total_amount || (b.last_created_ts || 0) - (a.last_created_ts || 0));
 
     setDebts(items);
