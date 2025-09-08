@@ -198,11 +198,16 @@ export default function ProfileScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-        <Ionicons name="chevron-back" size={24} color="#000" />
-      </TouchableOpacity>
+   
 
-      <Text style={styles.header}>Account</Text>
+      <View style={styles.headerRow}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="chevron-back" size={24} color="#000" />
+          </TouchableOpacity>
+           <Text style={styles.header}>Account</Text> 
+           
+           </View>
+
 
       <View style={styles.profileSection}>
   <View style={styles.profileImageWrapper}>
@@ -349,9 +354,26 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff', padding: 20 },
-  backButton: {
-    marginBottom: 10,
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: -0,
+    paddingVertical: 12,
+    marginBottom:  -3,
+    marginTop: 40,  
   },
+
+  backButton: {
+    padding: 8,
+  },
+  
+  header: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    alignSelf: 'flex-end', // ให้ชิดขวา
+  },
+  
   header: { fontSize: 22, fontWeight: 'bold', marginBottom: 10, alignSelf: 'center' },
   profileSection: { alignItems: 'center', marginBottom: 24 },
   profileImageWrapper: { position: 'relative', marginBottom: 12 },
