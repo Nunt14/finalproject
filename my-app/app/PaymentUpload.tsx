@@ -255,7 +255,6 @@ export default function PaymentUploadScreen() {
         <Text style={styles.secondaryButtonText}>Back</Text>
       </TouchableOpacity>
 
-      <Image source={require('../assets/images/bg.png')} style={styles.bgImage} />
     </View>
   );
 }
