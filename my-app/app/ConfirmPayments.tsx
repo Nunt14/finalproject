@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert, Ref
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { supabase } from '../constants/supabase';
+import { runOcrOnImage } from '../utils/ocr';
+import * as FileSystem from 'expo-file-system';
 import { useFocusEffect } from '@react-navigation/native';
 
 type Proof = {
@@ -26,6 +28,7 @@ export default function ConfirmPaymentsScreen() {
   const [proofs, setProofs] = useState<Proof[]>([]);
   const [userMap, setUserMap] = useState<Map<string, UserLite>>(new Map());
   const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [ocrMap, setOcrMap] = useState<Map<string, { loading: boolean; amount: number | null; status: 'pending' | 'matched' | 'mismatch' | 'error' }>>(new Map());
 
   useEffect(() => {
     const run = async () => {
@@ -298,6 +301,69 @@ export default function ConfirmPaymentsScreen() {
     }
   };
 
+  // Helper: construct full public URL from stored path (reuse getImageUrl but allow direct call)
+  const toPublicUrl = (imageUri: string | null | undefined): string | null => {
+    if (!imageUri) return null;
+    if (imageUri.startsWith('http')) return imageUri;
+    try {
+      const cleaned = imageUri.replace('payment-proofs/', '').replace('slips/', '');
+      const { data } = supabase.storage.from('payment-proofs').getPublicUrl(cleaned);
+      return data.publicUrl;
+    } catch {
+      return null;
+    }
+  };
+
+  const amountsClose = (a: number, b: number): boolean => {
+    const tol = 1; // THB tolerance
+    return Math.abs(a - b) <= tol;
+  };
+
+  // Download remote image to a temporary local path for OCR
+  const downloadToLocal = async (remoteUrl: string): Promise<string | null> => {
+    try {
+      const filename = `ocr_${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
+      const target = FileSystem.cacheDirectory + filename;
+      const res = await FileSystem.downloadAsync(remoteUrl, target);
+      return res.uri;
+    } catch {
+      return null;
+    }
+  };
+
+  // Ensure OCR runs once per proof; auto-approve if matches
+  const ensureOcrForProof = async (p: Proof): Promise<void> => {
+    const key = p.id;
+    if (!key) return;
+    if (ocrMap.has(key)) return; // already processed/processing
+    const imageUri = p.slip_qr || p.image_uri_local;
+    const publicUrl = toPublicUrl(imageUri);
+    if (!publicUrl || p.amount == null) return;
+    setOcrMap(prev => new Map(prev).set(key, { loading: true, amount: null, status: 'pending' }));
+    try {
+      const local = await downloadToLocal(publicUrl);
+      if (!local) throw new Error('dl');
+      const result = await runOcrOnImage({ localUri: local });
+      const readAmount = result.amount ?? null;
+      const matched = readAmount != null && amountsClose(Number(p.amount), readAmount);
+      setOcrMap(prev => new Map(prev).set(key, { loading: false, amount: readAmount, status: matched ? 'matched' : 'mismatch' }));
+      if (matched) {
+        try { await onApprove(p); } catch {}
+      }
+    } catch {
+      setOcrMap(prev => new Map(prev).set(key, { loading: false, amount: null, status: 'error' }));
+    }
+  };
+
+  // Trigger OCR for each item when list changes
+  useEffect(() => {
+    proofs.forEach((p) => {
+      const imageUri = p.slip_qr || p.image_uri_local;
+      if (imageUri) ensureOcrForProof(p);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proofs]);
+
   // Helper function to get proper image URL from Supabase storage
   const getImageUrl = (imageUri: string | null | undefined): string | null => {
     if (!imageUri) return null;
@@ -464,6 +530,7 @@ export default function ConfirmPaymentsScreen() {
         ) : proofs.map((p) => {
           const debtor = userMap.get(p.debtor_user_id);
           const imageUri = p.slip_qr || p.image_uri_local; // ใช้ slip_qr เป็นหลัก แล้วค่อย fallback ไป image_uri_local
+          const ocr = ocrMap.get(p.id);
           return (
             <View key={p.id} style={styles.card}>
               {!imageUri ? (
@@ -483,6 +550,11 @@ export default function ConfirmPaymentsScreen() {
               )}
               <View style={{ flex: 1 }}>
                 <Text style={styles.amountText}>{(p.amount ?? 0).toLocaleString()} ฿</Text>
+                {ocr ? (
+                  <Text style={{ marginTop: 2, fontSize: 12, color: ocr.status === 'matched' ? '#2e7d32' : ocr.status === 'mismatch' ? '#c0392b' : '#666' }}>
+                    {ocr.loading ? 'OCR: กำลังตรวจ…' : ocr.status === 'matched' ? `OCR: ตรงกัน (${(ocr.amount ?? 0).toLocaleString()} ฿)` : ocr.status === 'mismatch' ? `OCR: ไม่ตรง (${ocr.amount != null ? ocr.amount.toLocaleString() + ' ฿' : '-'})` : 'OCR: ผิดพลาด'}
+                  </Text>
+                ) : null}
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
                   {debtor?.profile_image_url ? (
                     <Image source={{ uri: debtor.profile_image_url }} style={styles.avatar} />
