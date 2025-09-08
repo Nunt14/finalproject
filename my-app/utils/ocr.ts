@@ -77,19 +77,44 @@ export async function runOcrOnImage(params: { base64?: string; localUri?: string
     }
     if (!base64) return { text: null, amount: null, dateString: null };
 
-    const apiKey = process.env.EXPO_PUBLIC_OCR_SPACE_KEY || '';
+    // ใช้คีย์จาก env หรือคีย์ตัวอย่างของ OCR.space สำหรับทดสอบ (มี rate limit สูง)
+    const apiKey = process.env.EXPO_PUBLIC_OCR_SPACE_KEY || 'helloworld';
     const body = new FormData();
     body.append('base64Image', `data:image/jpeg;base64,${base64}`);
     body.append('language', 'tha,eng');
     body.append('isTable', 'true');
     body.append('scale', 'true');
-    if (apiKey) body.append('apikey', apiKey);
+    body.append('apikey', apiKey);
 
-    const resp = await fetch('https://api.ocr.space/parse/image', {
-      method: 'POST',
-      body,
-    });
-    const json = await resp.json();
+    // ตั้ง timeout กันค้าง
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    let json: any = null;
+    try {
+      const resp = await fetch('https://api.ocr.space/parse/image', {
+        method: 'POST',
+        body,
+        signal: controller.signal as any,
+      });
+      clearTimeout(timeout);
+      try { json = await resp.json(); } catch { json = null; }
+      if (!resp.ok) {
+        console.warn('[OCR] HTTP error', resp.status, json);
+        return { text: null, amount: null, dateString: null, raw: json };
+      }
+    } catch (e) {
+      clearTimeout(timeout);
+      console.warn('[OCR] network/timeout error', String(e));
+      return { text: null, amount: null, dateString: null };
+    }
+
+    // ตรวจผลจาก OCR.space
+    const isError = json?.IsErroredOnProcessing || (typeof json?.OCRExitCode === 'number' && json.OCRExitCode !== 1);
+    if (isError) {
+      console.warn('[OCR] api error', json?.ErrorMessage || json);
+      return { text: null, amount: null, dateString: null, raw: json };
+    }
+
     const parsedText: string | null = json?.ParsedResults?.[0]?.ParsedText ?? null;
     const { amount, dateString } = parsedText ? parsePaymentInfoFromText(parsedText) : { amount: null, dateString: null };
     return { text: parsedText, amount, dateString, raw: json };

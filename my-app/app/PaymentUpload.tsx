@@ -45,11 +45,13 @@ export default function PaymentUploadScreen() {
   }, [imageUri, submitting, ocrLoading, expectedAmount, ocrAmount, matchOk]);
 
   const runOcr = async (uri: string) => {
+    try { console.log('[OCR] runOcr called with uri:', uri); } catch {}
     setOcrLoading(true);
     setOcrText(null);
     setOcrAmount(null);
     try {
       const result = await runOcrOnImage({ localUri: uri });
+      try { console.log('[OCR] result received. amount=', result.amount, 'text.len=', result.text?.length || 0); } catch {}
       setOcrText(result.text ?? null);
       setOcrAmount(result.amount ?? null);
       if (expectedAmount != null && result.amount != null && !amountsClose(expectedAmount, result.amount)) {
@@ -69,11 +71,12 @@ export default function PaymentUploadScreen() {
   const pickImage = async () => {
     await ImagePicker.requestMediaLibraryPermissionsAsync();
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       quality: 0.8,
     });
     if (!result.canceled && result.assets?.length) {
+      try { console.log('[OCR] picked image from library:', result.assets[0].uri); } catch {}
       setImageUri(result.assets[0].uri);
       runOcr(result.assets[0].uri);
     }
@@ -86,6 +89,7 @@ export default function PaymentUploadScreen() {
       quality: 0.8,
     });
     if (!result.canceled && result.assets?.length) {
+      try { console.log('[OCR] captured photo:', result.assets[0].uri); } catch {}
       setImageUri(result.assets[0].uri);
       runOcr(result.assets[0].uri);
     }
