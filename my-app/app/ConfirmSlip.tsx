@@ -57,13 +57,21 @@ export default function ConfirmSlipScreen() {
       </View>
 
       <View style={styles.previewBox}>
-        {imageUri ? (
-          <Image source={{ uri: getImageUrl(imageUri) }} style={styles.preview} resizeMode="contain" />
-        ) : (
+        {!imageUri ? (
           <View style={styles.noImageContainer}>
             <Ionicons name="image-outline" size={48} color="#ccc" />
             <Text style={styles.noImageText}>No image available</Text>
           </View>
+        ) : (
+          <Image 
+            source={{ uri: getImageUrl(imageUri) || '' }} 
+            style={styles.preview} 
+            resizeMode="contain"
+            onError={() => {
+              console.error('Failed to load image:', imageUri);
+              setImageUri(null);
+            }}
+          />
         )}
       </View>
 

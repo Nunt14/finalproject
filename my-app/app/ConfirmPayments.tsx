@@ -466,12 +466,20 @@ export default function ConfirmPaymentsScreen() {
           const imageUri = p.slip_qr || p.image_uri_local; // ใช้ slip_qr เป็นหลัก แล้วค่อย fallback ไป image_uri_local
           return (
             <View key={p.id} style={styles.card}>
-              {imageUri ? (
-                <Image source={{ uri: getImageUrl(imageUri) }} style={styles.thumb} />
-              ) : (
+              {!imageUri ? (
                 <View style={styles.thumbPlaceholder}>
                   <Ionicons name="image" size={20} color="#666" />
                 </View>
+              ) : (
+                <Image 
+                  source={{ uri: getImageUrl(imageUri) || '' }} 
+                  style={styles.thumb} 
+                  onError={() => {
+                    console.error('Failed to load thumbnail:', imageUri);
+                    // Don't set imageUri to null here to avoid re-rendering the list
+                    // Just let it show the error state
+                  }}
+                />
               )}
               <View style={{ flex: 1 }}>
                 <Text style={styles.amountText}>{(p.amount ?? 0).toLocaleString()} ฿</Text>
