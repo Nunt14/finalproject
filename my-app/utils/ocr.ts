@@ -42,10 +42,29 @@ export function parsePaymentInfoFromText(text: string): { amount: number | null;
   }
 
   if (candidate == null) {
-    // Fallback: scan all numbers and pick the max with 2 decimals or thousands grouping
-    const nums = Array.from(normalized.matchAll(/\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|\d+\.\d{1,2}/g)).map((m) =>
-      Number(m[0].replace(/,/g, ''))
-    );
+    // Fallback 1: any "number + currency" anywhere
+    const curMatches = Array.from(normalized.matchAll(new RegExp(`(${numberPattern})\\s*(?:บาท|THB|฿)`, 'gi')))
+      .map((m: any) => Number(String(m[1]).replace(/,/g, ''))) // map to numeric
+      .filter((n: number) => !Number.isNaN(n) && n > 0);
+    if (curMatches.length > 0) {
+      candidate = Math.max(...curMatches);
+    }
+  }
+
+  if (candidate == null) {
+    // Fallback 2: choose the largest decimal number with boundaries (avoid substrings in long IDs)
+    const decRe = /\d{1,3}(?:,\d{3})*\.\d{1,2}|\d+\.\d{1,2}/g;
+    const decMatches = Array.from(normalized.matchAll(decRe)) as Array<RegExpMatchArray & { index: number }>;
+    const nums: number[] = [];
+    for (const m of decMatches) {
+      const val = Number(m[0].replace(/,/g, ''));
+      const start = (m as any).index ?? normalized.indexOf(m[0]);
+      const end = start + m[0].length;
+      const before = normalized[start - 1] ?? ' ';
+      const after = normalized[end] ?? ' ';
+      const isBoundary = !/\d/.test(before) && !/\d/.test(after);
+      if (!Number.isNaN(val) && val > 0 && val < 1e7 && isBoundary) nums.push(val);
+    }
     if (nums.length > 0) candidate = Math.max(...nums);
   }
 
