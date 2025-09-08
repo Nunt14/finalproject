@@ -16,7 +16,7 @@ export function parsePaymentInfoFromText(text: string): { amount: number | null;
     .replace(/[,，]/g, ',')
     .trim();
 
-  // Amount heuristics: prefer lines with keywords, fallback to largest currency-like number
+  // Amount heuristics: prefer numbers near Thai/EN keywords; then numbers with currency; then decimals; then any number
   const lines = normalized.split(/\n|\r/).map((l) => l.trim()).filter(Boolean);
   const numberPattern = '(?:\\d{1,3}(?:,\\d{3})*(?:\\.\\d{1,2})?|\\d+(?:\\.\\d{1,2})?)';
   const amountRegex = new RegExp(
@@ -26,28 +26,33 @@ export function parsePaymentInfoFromText(text: string): { amount: number | null;
   const bahtRegex = new RegExp(`(${numberPattern})\\s*(?:บาท|THB|฿)`, 'i');
   let candidate: number | null = null;
 
+  const keywordCandidates: number[] = [];
   for (const line of lines) {
-    // 1) look for keyword + number
     const m1 = line.match(amountRegex);
     if (m1 && m1[1]) {
       const num = Number(m1[1].replace(/,/g, ''));
-      if (!Number.isNaN(num)) { candidate = num; break; }
+      if (!Number.isNaN(num)) keywordCandidates.push(num);
     }
-    // 2) look for number followed by currency word
     const m2 = line.match(bahtRegex);
     if (m2 && m2[1]) {
       const num = Number(m2[1].replace(/,/g, ''));
-      if (!Number.isNaN(num)) { candidate = num; /* keep searching in case keyword line appears later */ }
+      if (!Number.isNaN(num)) keywordCandidates.push(num);
     }
+  }
+  // ถ้ามีผู้สมัครจากบรรทัดที่มีคีย์เวิร์ด: ให้เลือกค่าที่เป็นทศนิยมก่อน ถ้าไม่มีทศนิยมให้เลือกค่าสูงสุด
+  if (keywordCandidates.length > 0) {
+    const decimalFirst = keywordCandidates.filter((n) => Number.isFinite(n) && Math.abs(n % 1) > 0);
+    candidate = (decimalFirst.length > 0 ? Math.max(...decimalFirst) : Math.max(...keywordCandidates));
   }
 
   if (candidate == null) {
-    // Fallback 1: any "number + currency" anywhere
+    // Fallback 1: any "number + currency" anywhere; prefer decimals
     const curMatches = Array.from(normalized.matchAll(new RegExp(`(${numberPattern})\\s*(?:บาท|THB|฿)`, 'gi')))
-      .map((m: any) => Number(String(m[1]).replace(/,/g, ''))) // map to numeric
+      .map((m: any) => Number(String(m[1]).replace(/,/g, '')))
       .filter((n: number) => !Number.isNaN(n) && n > 0);
     if (curMatches.length > 0) {
-      candidate = Math.max(...curMatches);
+      const dec = curMatches.filter((n) => Math.abs(n % 1) > 0);
+      candidate = dec.length > 0 ? Math.max(...dec) : Math.max(...curMatches);
     }
   }
 
