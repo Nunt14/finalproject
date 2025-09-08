@@ -197,7 +197,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 80 }}>
    
 
       <View style={styles.headerRow}>
@@ -353,28 +353,30 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', padding: 20 },
+  container: { flex: 1, backgroundColor: '#fff', padding: 20, paddingBottom: 40 },
   headerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: -0,
     paddingVertical: 12,
-    marginBottom:  -3,
-    marginTop: 40,  
+    marginBottom: -3,
+    marginTop: 40,
+    position: 'relative',
+    width: '100%',
   },
 
   backButton: {
     padding: 8,
+    position: 'absolute',
+    left: -8,
+    zIndex: 1,
   },
   
   header: {
     fontSize: 22,
     fontWeight: 'bold',
-    alignSelf: 'flex-end', // ให้ชิดขวา
+    textAlign: 'center',
+    width: '100%',
   },
-  
-  header: { fontSize: 22, fontWeight: 'bold', marginBottom: 10, alignSelf: 'center' },
   profileSection: { alignItems: 'center', marginBottom: 24 },
   profileImageWrapper: { position: 'relative', marginBottom: 12 },
   profileImage: { width: 96, height: 96, borderRadius: 48, backgroundColor: '#eee', borderWidth: 3, borderColor: '#f2f2f2' },
