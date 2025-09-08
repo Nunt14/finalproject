@@ -18,17 +18,26 @@ export function parsePaymentInfoFromText(text: string): { amount: number | null;
 
   // Amount heuristics: prefer lines with keywords, fallback to largest currency-like number
   const lines = normalized.split(/\n|\r/).map((l) => l.trim()).filter(Boolean);
-  const amountRegex = /(?:(?:รวม|ยอด|Amount|Total|ชำระ)\s*[:=]?\s*)(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)/i;
+  const numberPattern = '(?:\\d{1,3}(?:,\\d{3})*(?:\\.\\d{1,2})?|\\d+(?:\\.\\d{1,2})?)';
+  const amountRegex = new RegExp(
+    `(?:(?:รวมทั้งสิ้น|รวม|ยอดรวม|ยอดเงิน|ยอด|จำนวน|Amount|Total|Paid|Grand\\s*Total|ชำระ)\\s*[:=]?\\s*)(${numberPattern})`,
+    'i'
+  );
+  const bahtRegex = new RegExp(`(${numberPattern})\\s*(?:บาท|THB|฿)`, 'i');
   let candidate: number | null = null;
 
   for (const line of lines) {
-    const m = line.match(amountRegex);
-    if (m && m[1]) {
-      const num = Number(m[1].replace(/,/g, ''));
-      if (!Number.isNaN(num)) {
-        candidate = num;
-        break;
-      }
+    // 1) look for keyword + number
+    const m1 = line.match(amountRegex);
+    if (m1 && m1[1]) {
+      const num = Number(m1[1].replace(/,/g, ''));
+      if (!Number.isNaN(num)) { candidate = num; break; }
+    }
+    // 2) look for number followed by currency word
+    const m2 = line.match(bahtRegex);
+    if (m2 && m2[1]) {
+      const num = Number(m2[1].replace(/,/g, ''));
+      if (!Number.isNaN(num)) { candidate = num; /* keep searching in case keyword line appears later */ }
     }
   }
 
