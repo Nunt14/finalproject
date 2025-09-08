@@ -5,6 +5,7 @@ import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 // นำเข้าฟังก์ชันสำหรับอ่านพารามิเตอร์จาก URL และการนำทาง
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '../constants/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ชนิดข้อมูลของส่วนแบ่งบิลของผู้ใช้แต่ละคน
 type BillShare = {
@@ -41,6 +42,32 @@ export default function TripScreen() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [selectedBill, setSelectedBill] = useState<BillItem | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
+  const [currencySymbol, setCurrencySymbol] = useState("฿");
+
+  useEffect(() => {
+    const getCurrency = async () => {
+      const currencyCode = await AsyncStorage.getItem("user_currency");
+      switch (currencyCode) {
+        case "USD":
+          setCurrencySymbol("$");
+          break;
+        case "EUR":
+          setCurrencySymbol("€");
+          break;
+        case "JPY":
+          setCurrencySymbol("¥");
+          break;
+        case "GBP":
+          setCurrencySymbol("£");
+          break;
+        case "THB":
+        default:
+          setCurrencySymbol("฿");
+          break;
+      }
+    };
+    getCurrency();
+  }, []);
 
   // ฟังก์ชันสุ่มสีแบบคงที่จาก userId เพื่อใช้แสดงสีของ Avatar ให้คงเดิม
   const getRandomColor = (userId: string) => {
@@ -232,7 +259,7 @@ export default function TripScreen() {
       {/* สรุปข้อมูลทริป */}
       <View style={{ paddingHorizontal: 4 }}>
         <Text style={styles.tripName}>{trip?.trip_name || 'Trip'}</Text>
-        <Text style={styles.totalText}>Total {totalAmount.toLocaleString()} ฿</Text>
+        <Text style={styles.totalText}>Total {totalAmount.toLocaleString()} {currencySymbol}</Text>
       </View>
 
       {/* รายการบิลทั้งหมด */}
@@ -258,7 +285,7 @@ export default function TripScreen() {
                   )}
                   <View style={[styles.billCard, styles.bubbleCard]}>
                     <View style={styles.rowBetween}>
-                      <Text style={styles.amount}>{bill.total_amount.toLocaleString()} ฿</Text>
+                      <Text style={styles.amount}>{bill.total_amount.toLocaleString()} {currencySymbol}</Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         {bill.payer_profile_image_url ? (
                           <Image source={{ uri: bill.payer_profile_image_url }} style={{ width: 20, height: 20, borderRadius: 10 }} />
@@ -285,7 +312,7 @@ export default function TripScreen() {
                             )}
                             <Text style={styles.shareName}>{s.full_name || 'User'}</Text>
                           </View>
-                          <Text style={styles.shareAmount}>{s.amount_share.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ฿</Text>
+                          <Text style={styles.shareAmount}>{s.amount_share.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currencySymbol}</Text>
                         </View>
                       ))}
                     </View>
@@ -376,7 +403,7 @@ export default function TripScreen() {
               {selectedBill?.total_amount?.toLocaleString(undefined, { 
                 minimumFractionDigits: 2, 
                 maximumFractionDigits: 2 
-              })} ฿
+              })} {currencySymbol}
             </Text>
             {selectedBill?.note ? (
               <Text style={styles.noteText}>Note : {selectedBill.note}</Text>
@@ -406,7 +433,7 @@ export default function TripScreen() {
                     {Number(selectedBill?.total_amount ?? 0).toLocaleString(undefined, {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2
-                    })} ฿
+                    })} {currencySymbol}
                   </Text>
                 </View>
               </View>
@@ -432,7 +459,7 @@ export default function TripScreen() {
                   {Number(share.amount_share ?? 0).toLocaleString(undefined, {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2
-                  })} ฿
+                  })} {currencySymbol}
                 </Text>
               </View>
             </View>
@@ -459,7 +486,7 @@ export default function TripScreen() {
                     {Number(share.amount_share ?? 0).toLocaleString(undefined, {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2
-                    })} ฿
+                    })} {currencySymbol}
                   </Text>
                 </View>
               </View>

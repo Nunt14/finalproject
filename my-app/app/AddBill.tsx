@@ -13,6 +13,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { supabase } from "../constants/supabase";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type Friend = {
   id: string;
@@ -35,6 +36,7 @@ export default function AddBillScreen() {
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [saving, setSaving] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currencySymbol, setCurrencySymbol] = useState("฿");
   const categories = useMemo(
     () => [
       { key: "stay", icon: "bed-outline" as const },
@@ -50,6 +52,31 @@ export default function AddBillScreen() {
   const [totalLocked, setTotalLocked] = useState(false);
 
   const avatarColors = ["#5DADE2", "#F39C12", "#F5B7B1", "#E74C3C"]; // blue, orange, pink, red
+
+  useEffect(() => {
+    const getCurrency = async () => {
+      const currencyCode = await AsyncStorage.getItem("user_currency");
+      switch (currencyCode) {
+        case "USD":
+          setCurrencySymbol("$");
+          break;
+        case "EUR":
+          setCurrencySymbol("€");
+          break;
+        case "JPY":
+          setCurrencySymbol("¥");
+          break;
+        case "GBP":
+          setCurrencySymbol("£");
+          break;
+        case "THB":
+        default:
+          setCurrencySymbol("฿");
+          break;
+      }
+    };
+    getCurrency();
+  }, []);
 
   // Fetch trip members from Supabase
   useEffect(() => {
@@ -337,7 +364,7 @@ export default function AddBillScreen() {
           const notifications = recipients.map((uid) => ({
             user_id: uid,
             title: "บิลใหม่ในทริป",
-            message: `มีบิลใหม่จำนวน ${Number(total).toLocaleString()} ฿`,
+            message: `มีบิลใหม่จำนวน ${Number(total).toLocaleString()} ${currencySymbol}`,
             trip_id: String(tripId),
             is_read: false,
           }));
@@ -381,7 +408,7 @@ export default function AddBillScreen() {
               value={total ? total.toString() : ""}
               onChangeText={handleTotalChange}
             />
-            <Text style={styles.currency}>฿</Text>
+            <Text style={styles.currency}>{currencySymbol}</Text>
           </View>
           <View style={styles.noteContainer}>
             <Text style={styles.noteLabel}>Note :</Text>
@@ -407,7 +434,7 @@ export default function AddBillScreen() {
               value={basePerPerson ? basePerPerson.toString() : ""}
               onChangeText={handleBaseChange}
             />
-            <Text style={{ marginLeft: 6, color: '#2ecc71', fontSize: 20, fontWeight: 'bold' }}>฿</Text>
+            <Text style={{ marginLeft: 6, color: '#2ecc71', fontSize: 20, fontWeight: 'bold' }}>{currencySymbol}</Text>
           </View>
         </View>
 
@@ -443,7 +470,7 @@ export default function AddBillScreen() {
                 <Text style={styles.friendName}>{item.name}</Text>
 
                 <View style={styles.amountPill}>
-                  <Text style={styles.amountText}>{item.amount} ฿</Text>
+                  <Text style={styles.amountText}>{item.amount} {currencySymbol}</Text>
                   <TouchableOpacity onPress={() => handleToggleExpand(item.id)}>
                     <Ionicons
                       name={item.expanded ? "chevron-up" : "chevron-down"}
@@ -459,7 +486,7 @@ export default function AddBillScreen() {
                   <View style={styles.breakdownRow}>
                     <Ionicons name="people" size={16} color="#888" style={{ marginRight: 8 }} />
                     <Text style={{ flex: 1, color: '#666', fontSize: 16 }}>per person</Text>
-                    <Text style={[styles.green, { fontSize: 16 }]}>{basePerPerson.toFixed(2)} ฿</Text>
+                    <Text style={[styles.green, { fontSize: 16 }]}>{basePerPerson.toFixed(2)} {currencySymbol}</Text>
                   </View>
                   <View style={[styles.breakdownRow, { borderTopWidth: 1, borderTopColor: '#eee', marginTop: 6, paddingTop: 6 }]}>
                     <Ionicons name="person" size={16} color="#888" style={{ marginRight: 8 }} />
@@ -471,7 +498,7 @@ export default function AddBillScreen() {
                       value={item.extraAmount ?? ''}
                       onChangeText={(val) => handleCustomChange(item.id, val)}
                     />
-                    <Text style={{ marginLeft: 6, color: '#2ecc71', fontSize: 16 }}>฿</Text>
+                    <Text style={{ marginLeft: 6, color: '#2ecc71', fontSize: 16 }}>{currencySymbol}</Text>
                   </View>
                 </View>
               )}

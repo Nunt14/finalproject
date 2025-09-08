@@ -3,6 +3,17 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } fr
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useLocalSearchParams, router } from 'expo-router';
 import { supabase } from '../constants/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Hardcoded exchange rates (as of the knowledge cutoff date)
+// In a real app, you should fetch these from a reliable exchange rate API
+const EXCHANGE_RATES: Record<string, number> = {
+  USD: 36.5,  // 1 USD = 36.5 THB
+  EUR: 39.5,  // 1 EUR = 39.5 THB
+  JPY: 0.25,  // 1 JPY = 0.25 THB
+  GBP: 46.0,  // 1 GBP = 46.0 THB
+  THB: 1.0,   // 1 THB = 1 THB
+};
 
 type BillDetail = {
   bill_id: string;
@@ -19,8 +30,35 @@ export default function TripDebtDetailScreen() {
   const [bills, setBills] = useState<BillDetail[]>([]);
   const [creditor, setCreditor] = useState<{ full_name: string; profile_image?: string | null } | null>(null);
   const [total, setTotal] = useState(0);
+  const [currencySymbol, setCurrencySymbol] = useState("฿");
+  const [currencyCode, setCurrencyCode] = useState("THB");
 
   useEffect(() => {
+    const getCurrency = async () => {
+      const code = await AsyncStorage.getItem("user_currency") || "THB";
+      setCurrencyCode(code);
+      
+      // Set the currency symbol based on the currency code
+      switch (code) {
+        case "USD":
+          setCurrencySymbol("$");
+          break;
+        case "EUR":
+          setCurrencySymbol("€");
+          break;
+        case "JPY":
+          setCurrencySymbol("¥");
+          break;
+        case "GBP":
+          setCurrencySymbol("£");
+          break;
+        case "THB":
+        default:
+          setCurrencySymbol("฿");
+          break;
+      }
+    };
+    getCurrency();
     fetchPayDetail();
   }, [creditorId, tripId]);
 
@@ -99,6 +137,12 @@ export default function TripDebtDetailScreen() {
     '3': { icon: 'car', color: '#45647C', label: 'ค่าเดินทาง' },
   } as any;
 
+  // Function to convert amount to THB
+  const convertToTHB = (amount: number): number => {
+    const rate = EXCHANGE_RATES[currencyCode] || 1;
+    return amount * rate;
+  };
+
   const tripName = useMemo(() => bills[0]?.trip_name || '-', [bills]);
 
   return (
@@ -120,7 +164,17 @@ export default function TripDebtDetailScreen() {
           <Text style={styles.creditorName}>{creditor?.full_name || '-'}</Text>
           <Text style={styles.unpaidText}>Unpaid</Text>
         </View>
-        <Text style={styles.totalAmount}>{Number(total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿</Text>
+        <View style={{ alignItems: 'flex-end' }}>
+          <Text style={styles.totalAmount}>
+            {Number(total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} {currencySymbol}
+          </Text>
+          {currencyCode !== 'THB' && (
+            <Text style={styles.thbEquivalent}>
+              = {convertToTHB(Number(total || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿
+              {' '}({currencyCode} 1 = ฿{EXCHANGE_RATES[currencyCode]?.toFixed(2) || 'N/A'})
+            </Text>
+          )}
+        </View>
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 20 }}>
@@ -150,14 +204,34 @@ export default function TripDebtDetailScreen() {
                   )}
                   <Text style={styles.itemLabel}>{label}</Text>
                 </View>
-                <Text style={styles.itemPrice}>{Number(bill.amount_share || 0).toLocaleString(undefined, { minimumFractionDigits: 0 })} ฿</Text>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={styles.itemPrice}>
+                    {Number(bill.amount_share || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} {currencySymbol}
+                  </Text>
+                  {currencyCode !== 'THB' && (
+                    <Text style={styles.thbEquivalent}>
+                      = {convertToTHB(Number(bill.amount_share || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿
+                      {' '}({currencyCode} 1 = ฿{EXCHANGE_RATES[currencyCode]?.toFixed(2) || 'N/A'})
+                    </Text>
+                  )}
+                </View>
               </View>
             );
           })}
 
           <View style={styles.totalBar}>
             <Text style={styles.totalLabel}>รวม</Text>
-            <Text style={styles.totalValue}>{Number(total || 0).toLocaleString(undefined, { minimumFractionDigits: 0 })} ฿</Text>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={styles.totalValue}>
+                {Number(total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} {currencySymbol}
+              </Text>
+              {currencyCode !== 'THB' && (
+                <Text style={styles.thbTotal}>
+                  = {convertToTHB(Number(total || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿
+                  {' '}({currencyCode} 1 = ฿{EXCHANGE_RATES[currencyCode]?.toFixed(2) || 'N/A'})
+                </Text>
+              )}
+            </View>
           </View>
 
           <TouchableOpacity
@@ -197,7 +271,23 @@ const styles = StyleSheet.create({
   avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#eee' },
   creditorName: { fontSize: 18, fontWeight: 'bold' },
   unpaidText: { color: 'red', fontWeight: 'bold', fontSize: 15 },
-  totalAmount: { marginLeft: 'auto', color: 'red', fontWeight: 'bold', fontSize: 20 },
+  totalAmount: { 
+    marginLeft: 'auto', 
+    color: 'red', 
+    fontWeight: 'bold', 
+    fontSize: 20,
+    textAlign: 'right'
+  },
+  thbEquivalent: {
+    color: '#666',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  thbTotal: {
+    color: '#666',
+    fontSize: 14,
+    fontWeight: '500',
+  },
   allListTitle: { fontSize: 16, color: '#666', marginVertical: 10 },
   billCard: {
     flexDirection: 'row',

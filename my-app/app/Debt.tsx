@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'rea
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../constants/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ประเภทข้อมูลสำหรับการ์ดแบบรวมต่อผู้ให้เครดิต (หนึ่งการ์ดต่อหนึ่งผู้ให้เครดิต)
 type DebtItem = {
@@ -28,8 +29,31 @@ export default function DebtScreen() {
   const [pendingConfirms, setPendingConfirms] = useState<Array<{ creditor_id: string; creditor_name: string; creditor_profile_image?: string | null; total_amount: number }>>([]);
   const [confirmedPays, setConfirmedPays] = useState<Array<{ creditor_id: string; creditor_name: string; creditor_profile_image?: string | null; total_amount: number }>>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currencySymbol, setCurrencySymbol] = useState("฿");
 
   useEffect(() => {
+    const getCurrency = async () => {
+      const currencyCode = await AsyncStorage.getItem("user_currency");
+      switch (currencyCode) {
+        case "USD":
+          setCurrencySymbol("$");
+          break;
+        case "EUR":
+          setCurrencySymbol("€");
+          break;
+        case "JPY":
+          setCurrencySymbol("¥");
+          break;
+        case "GBP":
+          setCurrencySymbol("£");
+          break;
+        case "THB":
+        default:
+          setCurrencySymbol("฿");
+          break;
+      }
+    };
+    getCurrency();
     fetchDebts();
   }, []);
 
@@ -278,7 +302,7 @@ export default function DebtScreen() {
     <View key={debt.creditor_id} style={styles.card}>
       <View style={styles.rowBetween}>
         <Text style={styles.amount}>
-          {Number(debt.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿
+          {Number(debt.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} {currencySymbol}
         </Text>
         {debt.creditor_profile_image ? (
           <Image source={{ uri: debt.creditor_profile_image }} style={styles.avatar} />
@@ -322,7 +346,7 @@ export default function DebtScreen() {
             {pendingConfirms.map((p) => (
               <View key={`p-${p.creditor_id}`} style={[styles.card, { borderColor: '#FFE7A2' }]}> 
                 <View style={styles.rowBetween}>
-                  <Text style={[styles.amount, { color: '#F4B400' }]}>{Number(p.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿</Text>
+                  <Text style={[styles.amount, { color: '#F4B400' }]}>{Number(p.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} {currencySymbol}</Text>
                   {p.creditor_profile_image ? (
                     <Image source={{ uri: p.creditor_profile_image }} style={styles.avatar} />
                   ) : (
@@ -340,7 +364,7 @@ export default function DebtScreen() {
             {confirmedPays.map((c) => (
               <View key={`c-${c.creditor_id}`} style={[styles.card, { borderColor: '#B7EAC8' }]}> 
                 <View style={styles.rowBetween}>
-                  <Text style={[styles.amount, { color: '#2FBF71' }]}>{Number(c.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿</Text>
+                  <Text style={[styles.amount, { color: '#2FBF71' }]}>{Number(c.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} {currencySymbol}</Text>
                   {c.creditor_profile_image ? (
                     <Image source={{ uri: c.creditor_profile_image }} style={styles.avatar} />
                   ) : (

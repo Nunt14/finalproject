@@ -28,7 +28,7 @@ export default function ProfileScreen() {
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [qrImage, setQRImage] = useState<string | null>(null);
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
-  const currencyOptions = ['THB', 'USD', 'EUR', 'JPY', 'KRW', 'CNY', 'IDR'];
+  const currencyOptions = ['THB', 'USD', 'EUR', 'JPY', 'GBP'];
 
   const fetchUser = async () => {
     const { data: sessionData } = await supabase.auth.getSession();
@@ -52,6 +52,7 @@ export default function ProfileScreen() {
         setUser(data);
         setPhone(data.phone_number || '');
         setCurrency(data.currency_preference || 'THB');
+        AsyncStorage.setItem('user_currency', data.currency_preference || 'THB');
         setLanguage(data.language_preference || 'TH');
         setProfileImage(data.profile_image_url || null);
         setQRImage(data.qr_code_img || null);
@@ -138,6 +139,23 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleCurrencyUpdate = async (newCurrency: string) => {
+    setCurrency(newCurrency);
+    setShowCurrencyPicker(false);
+    AsyncStorage.setItem('user_currency', newCurrency);
+
+    if (!user || !user.user_id) return;
+
+    const { error } = await supabase
+      .from('user')
+      .update({ currency_preference: newCurrency })
+      .eq('user_id', user.user_id);
+
+    if (error) {
+      Alert.alert('Currency Update Failed', error.message);
+    }
+  };
+
   const handleSave = async () => {
     if (!user || !user.user_id) return;
 
@@ -146,7 +164,6 @@ export default function ProfileScreen() {
       .from('user')
       .update({
         phone_number: phone,
-        currency_preference: currency,
         language_preference: language,
         profile_image_url: profileImage,
         qr_code_img: qrImage,
@@ -277,14 +294,10 @@ export default function ProfileScreen() {
         <View style={styles.infoRow}>
           <Ionicons name="cash-outline" size={18} color="#3f5b78" style={styles.iconLeft} />
           <Text style={styles.label}>Default currency</Text>
-          {editMode ? (
-            <TouchableOpacity style={styles.currencyPill} onPress={() => setShowCurrencyPicker(true)}>
-              <Text style={styles.currencyPillText}>{currency}</Text>
-              <Ionicons name="chevron-down" size={16} color="#fff" />
-            </TouchableOpacity>
-          ) : (
-            <Text style={styles.value}>{currency}</Text>
-          )}
+          <TouchableOpacity style={styles.currencyPill} onPress={() => setShowCurrencyPicker(true)}>
+            <Text style={styles.currencyPillText}>{currency}</Text>
+            <Ionicons name="chevron-down" size={16} color="#fff" />
+          </TouchableOpacity>
         </View>
 
         {/* LANGUAGE */}
@@ -319,7 +332,7 @@ export default function ProfileScreen() {
           <View style={styles.pickerCard}>
             <Text style={{ fontWeight: '600', marginBottom: 10 }}>Select currency</Text>
             {currencyOptions.map((c) => (
-              <TouchableOpacity key={c} style={styles.pickerRow} onPress={() => { setCurrency(c); setShowCurrencyPicker(false); }}>
+              <TouchableOpacity key={c} style={styles.pickerRow} onPress={() => handleCurrencyUpdate(c)}>
                 <Text style={{ color: '#333' }}>{c}</Text>
                 {currency === c ? <Ionicons name="checkmark" size={18} color="#1A3C6B" /> : null}
               </TouchableOpacity>

@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { supabase } from '../constants/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type TripAggregate = {
   trip_id: string | null;
@@ -19,10 +20,34 @@ export default function PayDetailScreen() {
   const [trips, setTrips] = useState<TripAggregate[]>([]);
   const [creditor, setCreditor] = useState<{ full_name: string; profile_image?: string | null } | null>(null);
   const [total, setTotal] = useState(0);
+  const [currencySymbol, setCurrencySymbol] = useState("฿");
 
   useEffect(() => {
     fetchPayDetail();
+    getCurrency();
   }, []);
+
+  const getCurrency = async () => {
+    const currencyCode = await AsyncStorage.getItem("user_currency");
+    switch (currencyCode) {
+      case "USD":
+        setCurrencySymbol("$");
+        break;
+      case "EUR":
+        setCurrencySymbol("€");
+        break;
+      case "JPY":
+        setCurrencySymbol("¥");
+        break;
+      case "GBP":
+        setCurrencySymbol("£");
+        break;
+      case "THB":
+      default:
+        setCurrencySymbol("฿");
+        break;
+    }
+  };
 
   const fetchPayDetail = async () => {
     const { data: sessionData } = await supabase.auth.getSession();
@@ -115,7 +140,7 @@ export default function PayDetailScreen() {
           <Text style={styles.creditorName}>{creditor?.full_name || '-'}</Text>
           <Text style={styles.unpaidText}>Unpaid</Text>
         </View>
-        <Text style={styles.totalAmount}>{total.toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿</Text>
+        <Text style={styles.totalAmount}>{total.toLocaleString(undefined, { minimumFractionDigits: 2 })} {currencySymbol}</Text>
       </View>
 
       <Text style={styles.allListTitle}>All List</Text>
@@ -124,7 +149,7 @@ export default function PayDetailScreen() {
           <View key={(t.trip_id ?? 'unknown') + '-' + idx} style={styles.billCard}>
             <View style={{ flex: 1 }}>
               <Text style={styles.tripName}>{t.trip_name}</Text>
-              <Text style={styles.billAmount}>{Number(t.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿</Text>
+              <Text style={styles.billAmount}>{Number(t.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} {currencySymbol}</Text>
             </View>
             {t.rep_bill_id ? (
               <TouchableOpacity
