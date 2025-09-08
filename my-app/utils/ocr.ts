@@ -81,7 +81,8 @@ export async function runOcrOnImage(params: { base64?: string; localUri?: string
     const apiKey = process.env.EXPO_PUBLIC_OCR_SPACE_KEY || 'helloworld';
     const body = new FormData();
     body.append('base64Image', `data:image/jpeg;base64,${base64}`);
-    body.append('language', 'tha,eng');
+    // OCR.space ไม่รองรับการส่งหลายภาษาแบบคอมมา ใช้ 'eng' เพื่ออ่านตัวเลข/คำอังกฤษบนสลิป
+    body.append('language', 'eng');
     body.append('isTable', 'true');
     body.append('scale', 'true');
     body.append('apikey', apiKey);
