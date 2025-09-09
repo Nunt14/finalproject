@@ -29,6 +29,28 @@ export default function ConfirmPaymentsScreen() {
   const [userMap, setUserMap] = useState<Map<string, UserLite>>(new Map());
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [ocrMap, setOcrMap] = useState<Map<string, { loading: boolean; amount: number | null; status: 'pending' | 'matched' | 'mismatch' | 'error' }>>(new Map());
+  const [totalDebt, setTotalDebt] = useState<number>(0);
+
+  const fetchTotalDebt = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('debt_summary')
+        .select('amount_owed, amount_paid')
+        .eq('creditor_user', userId);
+
+      if (error) throw error;
+
+      const total = data?.reduce((sum, item) => {
+        const owed = Number(item.amount_owed) || 0;
+        const paid = Number(item.amount_paid) || 0;
+        return sum + (owed - paid);
+      }, 0) || 0;
+
+      setTotalDebt(total);
+    } catch (error) {
+      console.error('Error fetching total debt:', error);
+    }
+  };
 
   useEffect(() => {
     const run = async () => {
@@ -37,7 +59,10 @@ export default function ConfirmPaymentsScreen() {
       setCurrentUserId(uid);
       if (!uid) return;
 
-      await fetchProofs(uid);
+      await Promise.all([
+        fetchProofs(uid),
+        fetchTotalDebt(uid)
+      ]);
     };
     run();
   }, []);
@@ -45,7 +70,10 @@ export default function ConfirmPaymentsScreen() {
   useFocusEffect(
     React.useCallback(() => {
       if (currentUserId) {
-        fetchProofs(currentUserId);
+        Promise.all([
+          fetchProofs(currentUserId),
+          fetchTotalDebt(currentUserId)
+        ]);
       }
     }, [currentUserId])
   );
@@ -301,7 +329,6 @@ export default function ConfirmPaymentsScreen() {
     }
   };
 
-  // Helper: construct full public URL from stored path (reuse getImageUrl but allow direct call)
   const toPublicUrl = (imageUri: string | null | undefined): string | null => {
     if (!imageUri) return null;
     if (imageUri.startsWith('http')) return imageUri;
@@ -319,7 +346,6 @@ export default function ConfirmPaymentsScreen() {
     return Math.abs(a - b) <= tol;
   };
 
-  // Download remote image to a temporary local path for OCR
   const downloadToLocal = async (remoteUrl: string): Promise<string | null> => {
     try {
       const filename = `ocr_${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
@@ -331,7 +357,6 @@ export default function ConfirmPaymentsScreen() {
     }
   };
 
-  // Ensure OCR runs once per proof; auto-approve if matches
   const ensureOcrForProof = async (p: Proof): Promise<void> => {
     const key = p.id;
     if (!key) return;
@@ -355,7 +380,6 @@ export default function ConfirmPaymentsScreen() {
     }
   };
 
-  // Trigger OCR for each item when list changes
   useEffect(() => {
     proofs.forEach((p) => {
       const imageUri = p.slip_qr || p.image_uri_local;
@@ -364,7 +388,6 @@ export default function ConfirmPaymentsScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [proofs]);
 
-  // Helper function to get proper image URL from Supabase storage
   const getImageUrl = (imageUri: string | null | undefined): string | null => {
     if (!imageUri) return null;
     
@@ -464,6 +487,11 @@ export default function ConfirmPaymentsScreen() {
         } catch {}
       }
 
+      // Update the total debt by subtracting the approved amount
+      if (p.amount) {
+        setTotalDebt(prev => Math.max(0, prev - p.amount!));
+      }
+
       setProofs((prev) => prev.filter((x) => x.id !== p.id));
       Alert.alert('Confirmed', 'ยืนยันการชำระเงินเรียบร้อย');
     } catch (e) {
@@ -514,10 +542,33 @@ export default function ConfirmPaymentsScreen() {
         <Text style={styles.headerTitle}>Confirm Payment</Text>
       </View>
 
+      {/* Add Total Debt Card */}
+      <View style={styles.totalDebtCard}>
+        <Text style={styles.totalDebtLabel}>Total Amount Owed to You</Text>
+        <Text style={styles.totalDebtAmount}>
+          -{Math.abs(totalDebt).toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿
+        </Text>
+        <Text style={styles.totalDebtNote}>
+          This amount will decrease as payments are approved
+        </Text>
+      </View>
+
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 24, flexGrow: proofs.length === 0 ? 1 : undefined }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => currentUserId && fetchProofs(currentUserId)} />}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={() => {
+              if (currentUserId) {
+                Promise.all([
+                  fetchProofs(currentUserId),
+                  fetchTotalDebt(currentUserId)
+                ]);
+              }
+            }} 
+          />
+        }
       >
         {proofs.length === 0 ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -583,15 +634,56 @@ export default function ConfirmPaymentsScreen() {
         })}
       </ScrollView>
 
-      <Image source={require('../assets/images/bg.png')} style={styles.bgImage} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', paddingTop: 60, paddingHorizontal: 16 },
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', marginLeft: 10 },
+  container: { 
+    flex: 1, 
+    backgroundColor: '#f8f9fa',
+    paddingTop: 60,
+    paddingHorizontal: 16 
+  },
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginBottom: 16 
+  },
+  headerTitle: { 
+    fontSize: 20, 
+    fontWeight: 'bold', 
+    marginLeft: 12 
+  },
+  totalDebtCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    borderLeftWidth: 4,
+    borderLeftColor: '#0F3176',
+  },
+  totalDebtLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  totalDebtAmount: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#2ecc71',
+    marginBottom: 4,
+  },
+  totalDebtNote: {
+    fontSize: 12,
+    color: '#888',
+    fontStyle: 'italic',
+  },
   card: {
     flexDirection: 'row',
     alignItems: 'center',

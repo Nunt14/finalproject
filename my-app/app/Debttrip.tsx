@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Image, Alert, RefreshControl } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Alert } from 'react-native';
+import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { supabase } from '../constants/supabase';
 
@@ -44,8 +44,13 @@ export default function DebttripScreen() {
     React.useCallback(() => {
       if (currentUserId) {
         setRefreshing(true);
-        fetchDebts(currentUserId);
+        fetchDebts(currentUserId).finally(() => setRefreshing(false));
       }
+      
+      // Cleanup function
+      return () => {
+        setRefreshing(false);
+      };
     }, [currentUserId])
   );
 
@@ -245,83 +250,31 @@ export default function DebttripScreen() {
     }
   };
 
-  const handlePay = (debt: DebtItem) => {
-    // Navigate to payment screen with debt information
-    router.push(`/Payment?debtId=${debt.debt_id}&creditorId=${debt.creditor_user}&amount=${debt.amount_owed - debt.amount_paid}`);
+  const handlePay = async (debt: DebtItem) => {
+    if (!currentUserId) {
+      Alert.alert('Error', 'User not logged in');
+      return;
+    }
+
+    // Update the total unpaid debt immediately for better UX
+    setTotalUnpaidDebt(prev => Math.max(0, prev - debt.amount_owed));
+
+    // Navigate to payment upload screen with debt details
+    router.push({
+      pathname: '/PaymentUpload',
+      params: {
+        billId: debt.debt_id,
+        creditorId: debt.creditor_user,
+        amount: debt.amount_owed.toString(),
+        timestamp: Date.now().toString()
+      }
+    });
   };
 
-  const renderHeader = () => (
-    <View style={styles.summaryContainer}>
-      <Text style={styles.waitingText}>Waiting for pay</Text>
-      <Text style={styles.totalAmount}>
-  {totalUnpaidDebt.toLocaleString(undefined, { minimumFractionDigits: 2})} ฿
-</Text>
-    </View>
-  );
-
-  const renderPaidHeader = () => (
-    <View style={styles.paidHeaderContainer}>
-      <Text style={styles.paidHeaderText}>Already Paid</Text>
-    </View>
-  );
-
-  const renderDebtItem = ({ item }: { item: DebtItem }) => {
-    // For grouped debts, amount_owed already contains the total remaining debt
-    const remainingAmount = item.amount_owed;
-    const creditor = item.creditor_info;
-    const isPaid = item.status === 'settled' || item.status === 'partial';
-
-    return (
-      <View style={styles.debtCard}>
-        <View style={styles.debtHeader}>
-          <Text style={styles.debtAmount}>
-            {remainingAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ฿
-          </Text>
-          <View style={styles.creditorInfo}>
-            {creditor?.profile_image_url ? (
-              <Image source={{ uri: creditor.profile_image_url }} style={styles.avatar} />
-            ) : (
-              <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                <Text style={styles.avatarText}>
-                  {creditor?.full_name?.charAt(0) || '?'}
-                </Text>
-              </View>
-            )}
-            <Text style={styles.creditorName}>{creditor?.full_name || 'Unknown'}</Text>
-          </View>
-        </View>
-        
-        <View style={styles.debtFooter}>
-          <View style={styles.billTypeContainer}>
-            <View style={styles.iconContainer}>
-              <Ionicons name="receipt" size={16} color="#666" />
-            </View>
-            <Text style={styles.billType}>{item.bill_type}</Text>
-          </View>
-          
-          {isPaid ? (
-            <View style={styles.statusContainer}>
-              {item.status === 'settled' ? (
-                <>
-                  <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-                  <Text style={styles.confirmedText}>Confirmed</Text>
-                </>
-              ) : (
-                <>
-                  <View style={styles.waitingIndicator} />
-                  <Text style={styles.waitingConfirmText}>Waiting for confirm</Text>
-                </>
-              )}
-            </View>
-          ) : (
-            <TouchableOpacity style={styles.payButton} onPress={() => handlePay(item)}>
-              <Ionicons name="card" size={16} color="#fff" />
-              <Text style={styles.payButtonText}>Pay</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-    );
+  const refreshDebts = async () => {
+    if (currentUserId) {
+      await fetchDebts(currentUserId);
+    }
   };
 
   return (
@@ -333,141 +286,183 @@ export default function DebttripScreen() {
         <Text style={styles.headerTitle}>Debt</Text>
       </View>
 
-      <FlatList
-        data={[...unpaidDebts, ...(paidDebts.length > 0 ? [{ type: 'paid_header' } as any, ...paidDebts] : [])]}
-        keyExtractor={(item, index) => item.type === 'paid_header' ? 'paid_header' : item.debt_id}
-        renderItem={({ item }) => {
-          if (item.type === 'paid_header') {
-            return renderPaidHeader();
-          }
-          return renderDebtItem({ item });
-        }}
-        ListHeaderComponent={unpaidDebts.length > 0 ? renderHeader : null}
-        contentContainerStyle={{ paddingBottom: 20 }}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        ListEmptyComponent={() => (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="wallet-outline" size={64} color="#ccc" />
-            <Text style={styles.emptyText}>No debts found</Text>
-            <Text style={styles.emptySubtext}>
-              You have no outstanding debts in this trip
-            </Text>
-          </View>
-        )}
-      />
+      {/* Add Total Amount Section */}
+      <View style={styles.totalContainer}>
+        <Text style={styles.totalLabel}>Total Amount to Pay</Text>
+        <Text style={styles.totalAmount}>
+          -{Math.abs(totalUnpaidDebt).toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿
+        </Text>
+      </View>
 
-      <Image source={require('../assets/images/bg.png')} style={styles.bgImage} />
+      <Text style={styles.subHeader}>Waiting for pay</Text>
+      <ScrollView style={styles.scrollContainer}>
+        {unpaidDebts.length === 0 ? (
+          <Text style={{ color: '#888', textAlign: 'center', marginTop: 30 }}>ไม่พบหนี้ที่ต้องชำระ</Text>
+        ) : (
+          unpaidDebts.map((debt) => (
+            <View key={debt.debt_id} style={styles.card}>
+              <View style={styles.rowBetween}>
+                <Text style={styles.amount}>
+                  {debt.amount_owed.toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿
+                </Text>
+                {debt.creditor_info?.profile_image_url ? (
+                  <Image 
+                    source={{ uri: debt.creditor_info.profile_image_url }} 
+                    style={styles.avatar} 
+                  />
+                ) : (
+                  <Ionicons name="person-circle" size={36} color="#bbb" />
+                )}
+              </View>
+
+              <View style={styles.rowBetween}>
+                <View style={styles.row}>
+                  <FontAwesome5 name="globe" size={18} color="#45647C" style={{ marginRight: 6 }} />
+                  <Text style={styles.totalList}>{debt.bill_type || 'Travel expenses'}</Text>
+                </View>
+                <TouchableOpacity 
+                  style={styles.payButton}
+                  onPress={() => handlePay(debt)}
+                >
+                  <Text style={styles.payButtonText}>Pay</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))
+        )}
+
+        {(paidDebts.length > 0) && (
+          <>
+            <Text style={[styles.subHeader, { marginTop: 12 }]}>Already Paid</Text>
+            {paidDebts.map((debt) => (
+              <View key={debt.debt_id} style={[styles.card, { 
+                borderColor: debt.status === 'settled' ? '#B7EAC8' : '#FFE7A2' 
+              }]}>
+                <View style={styles.rowBetween}>
+                  <Text style={[styles.amount, { 
+                    color: debt.status === 'settled' ? '#2FBF71' : '#F4B400' 
+                  }]}>
+                    {debt.amount_owed.toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿
+                  </Text>
+                  {debt.creditor_info?.profile_image_url ? (
+                    <Image 
+                      source={{ uri: debt.creditor_info.profile_image_url }} 
+                      style={styles.avatar} 
+                    />
+                  ) : (
+                    <Ionicons 
+                      name="person-circle" 
+                      size={36} 
+                      color={debt.status === 'settled' ? '#2FBF71' : '#F4B400'} 
+                    />
+                  )}
+                </View>
+                <View style={styles.rowBetween}>
+                  <View style={styles.row}>
+                    <FontAwesome5 
+                      name={debt.status === 'settled' ? 'check-circle' : 'clock'} 
+                      size={18} 
+                      color={debt.status === 'settled' ? '#2FBF71' : '#F4B400'} 
+                      style={{ marginRight: 6 }} 
+                    />
+                    <Text style={styles.totalList}>
+                      {debt.status === 'settled' ? 'Confirmed' : 'Waiting for confirm'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            ))}
+          </>
+        )}
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    paddingTop: 60,
-    paddingHorizontal: 16,
+  container: { 
+    flex: 1, 
+    backgroundColor: '#fff', 
+    paddingTop: 60, 
+    paddingHorizontal: 20 
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginBottom: 10 
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginLeft: 10,
-  },
-  summaryContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  waitingText: {
-    fontSize: 14,
-    color: '#999',
-    fontStyle: 'italic',
-  },
-  totalAmount: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#ff3b30',
-  },
-  debtCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
+  totalContainer: {
+    backgroundColor: '#f8f9fa',
     padding: 16,
+    borderRadius: 12,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  debtHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
   },
-  debtAmount: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#ff3b30',
-  },
-  creditorInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  avatarPlaceholder: {
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#666',
-  },
-  creditorName: {
+  totalLabel: {
     fontSize: 16,
     color: '#666',
-    marginLeft: 8,
+    marginBottom: 4,
   },
-  debtFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  totalAmount: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: 'red',
   },
-  billTypeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  headerTitle: { 
+    fontSize: 20, 
+    fontWeight: 'bold', 
+    marginLeft: 15 
   },
-  iconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
+  subHeader: { 
+    fontSize: 16, 
+    color: '#666', 
+    marginVertical: 10 
   },
-  billType: {
-    fontSize: 14,
-    color: '#666',
+  scrollContainer: { 
+    paddingVertical: 10 
+  },
+  card: {
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 15,
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#ECECEC',
+  },
+  rowBetween: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    marginBottom: 10 
+  },
+  row: { 
+    flexDirection: 'row', 
+    alignItems: 'center' 
+  },
+  amount: { 
+    fontSize: 20, 
+    fontWeight: 'bold', 
+    color: 'red' 
+  },
+  totalList: { 
+    color: '#45647C', 
+    fontWeight: '600' 
+  },
+  avatar: { 
+    width: 36, 
+    height: 36, 
+    borderRadius: 18, 
+    backgroundColor: '#eee' 
   },
   payButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#007AFF',
+    backgroundColor: '#0F3176',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
@@ -475,63 +470,6 @@ const styles = StyleSheet.create({
   payButtonText: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 100,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#666',
-    marginTop: 16,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#999',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  bgImage: {
-    width: '111%',
-    height: 235,
-    position: 'absolute',
-    bottom: -4,
-    left: 0,
-  },
-  paidHeaderContainer: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#f7f7f7',
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
-  },
-  paidHeaderText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#666',
-  },
-  statusContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  waitingIndicator: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#ff9800',
-    marginRight: 8,
-  },
-  waitingConfirmText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  confirmedText: {
-    fontSize: 14,
-    color: '#4CAF50',
+    fontWeight: '500',
   },
 });

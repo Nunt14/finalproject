@@ -183,127 +183,308 @@ export default function PaymentUploadScreen() {
             if ((router as any).canGoBack && (router as any).canGoBack()) router.back();
             else router.replace('/');
           }}
+          style={styles.backButton}
         >
-          <Ionicons name="chevron-back" size={24} color="black" />
+          <Ionicons name="chevron-back" size={24} color="#0F3176" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Payment</Text>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Upload Payment Slip</Text>
+        </View>
+        <View style={{ width: 24 }} />
       </View>
 
-      <Text style={styles.sectionTitle}>Upload Photo</Text>
+      <View style={styles.uploadContainer}>
+        <Text style={styles.sectionTitle}>Upload Payment Slip</Text>
+        <Text style={styles.sectionSubtitle}>Please upload a clear photo of your payment slip</Text>
+        
+        <TouchableOpacity
+          style={styles.uploadBox}
+          activeOpacity={0.9}
+          onPress={pickImage}
+          onLongPress={takePhoto}
+        >
+          {imageUri ? (
+            <View style={styles.previewContainer}>
+              <Image source={{ uri: imageUri }} style={styles.preview} resizeMode="contain" />
+              <View style={styles.overlay}>
+                <Ionicons name="camera" size={32} color="#fff" />
+                <Text style={styles.overlayText}>Tap to change photo</Text>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.uploadContent}>
+              <View style={styles.uploadIcon}>
+                <Ionicons name="cloud-upload" size={42} color="#0F3176" />
+              </View>
+              <Text style={styles.uploadTitle}>Upload Slip</Text>
+              <Text style={styles.uploadSubtitle}>Tap to select from gallery or long press to take a photo</Text>
+            </View>
+          )}
+        </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.uploadBox}
-        activeOpacity={0.8}
-        onPress={pickImage}
-        onLongPress={takePhoto}
-      >
-        {imageUri ? (
-          <Image source={{ uri: imageUri }} style={styles.preview} resizeMode="contain" />
-        ) : (
-          <View style={{ alignItems: 'center' }}>
-            <Ionicons name="images-outline" size={42} color="#999" />
-            <Text style={{ color: '#777', marginTop: 8 }}>Photo Library / Take Photo</Text>
+        {imageUri && (
+          <View style={styles.ocrCard}>
+            <View style={styles.ocrHeader}>
+              <View style={styles.ocrTitleContainer}>
+                <Ionicons name="document-text" size={20} color="#0F3176" />
+                <Text style={styles.ocrTitle}>Payment Details</Text>
+              </View>
+              {ocrLoading && <ActivityIndicator size="small" color="#0F3176" />}
+            </View>
+            
+            <View style={styles.ocrDetails}>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Amount in Slip:</Text>
+                <Text style={[styles.detailValue, { color: ocrAmount ? '#2e7d32' : '#666' }]}>
+                  {ocrAmount != null ? `${ocrAmount.toLocaleString()} ฿` : 'Scanning...'}
+                </Text>
+              </View>
+              
+              {expectedAmount != null && (
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Expected Amount:</Text>
+                  <Text style={[styles.detailValue, { color: matchOk === false ? '#e74c3c' : '#2e7d32' }]}>
+                    {expectedAmount.toLocaleString()} ฿
+                    {matchOk === true && ' ✓'}
+                    {matchOk === false && ' ✗'}
+                  </Text>
+                </View>
+              )}
+              
+              <TouchableOpacity 
+                style={styles.scanAgainButton} 
+                onPress={() => imageUri && runOcr(imageUri)}
+                disabled={ocrLoading}
+              >
+                <Ionicons name="refresh" size={16} color="#0F3176" style={{ marginRight: 6 }} />
+                <Text style={styles.scanAgainText}>Scan Again</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
-      </TouchableOpacity>
+      </View>
 
-      {imageUri ? (
-        <View style={styles.ocrCard}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Ionicons name="document-text" size={18} color="#234080" />
-            <Text style={{ marginLeft: 6, fontWeight: 'bold' }}>OCR</Text>
-            {ocrLoading ? <ActivityIndicator size="small" color="#234080" style={{ marginLeft: 8 }} /> : null}
+      <View style={styles.footer}>
+        {imageUri && expectedAmount != null && matchOk === false && (
+          <View style={styles.warningBox}>
+            <Ionicons name="warning" size={18} color="#e74c3c" />
+            <Text style={styles.warningText}>Amount doesn't match the expected payment</Text>
           </View>
-          <View style={{ marginTop: 8 }}>
-            <Text style={{ color: '#555' }}>ยอดในสลิป: {ocrAmount != null ? `${ocrAmount.toLocaleString()} ฿` : '-'}</Text>
-            {expectedAmount != null ? (
-              <Text style={{ color: matchOk === false ? '#c0392b' : '#2e7d32', marginTop: 4 }}>
-                เทียบยอดที่ต้องจ่าย: {expectedAmount.toLocaleString()} ฿ {matchOk == null ? '' : matchOk ? '(ตรงกัน)' : '(ไม่ตรง)'}
-              </Text>
-            ) : null}
-          </View>
-          <TouchableOpacity style={[styles.secondaryButton, { marginTop: 10 }]} onPress={() => imageUri && runOcr(imageUri)}>
-            <Text style={styles.secondaryButtonText}>สแกนใหม่</Text>
-          </TouchableOpacity>
-        </View>
-      ) : null}
-
-
-      <TouchableOpacity
-        disabled={!isConfirmEnabled}
-        style={[styles.primaryButton, { opacity: isConfirmEnabled ? 1 : 0.5, marginTop: 10 }]}
-        onPress={onConfirm}
-      >
-        <Text style={styles.primaryButtonText}>{imageUri ? 'Confirm Payment' : 'Next'}</Text>
-      </TouchableOpacity>
-
-      {imageUri && expectedAmount != null ? (
-        matchOk === false ? (
-          <Text style={{ color: '#c0392b', marginTop: 6 }}>ยอดไม่ตรงกับที่ต้องจ่าย จึงยังยืนยันไม่ได้</Text>
-        ) : ocrAmount == null ? (
-          <Text style={{ color: '#8a6d3b', marginTop: 6 }}>กำลังอ่านยอดจากสลิป หรืออ่านไม่สำเร็จ</Text>
-        ) : null
-      ) : null}
-
-      <TouchableOpacity
-        style={styles.secondaryButton}
-        onPress={() => {
-          if ((router as any).canGoBack && (router as any).canGoBack()) router.back();
-          else router.replace('/');
-        }}
-      >
-        <Text style={styles.secondaryButtonText}>Back</Text>
-      </TouchableOpacity>
-
+        )}
+        
+        <TouchableOpacity
+          disabled={!isConfirmEnabled}
+          style={[styles.confirmButton, { opacity: isConfirmEnabled ? 1 : 0.6 }]}
+          onPress={onConfirm}
+        >
+          {submitting ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.confirmButtonText}>
+              {imageUri ? 'Confirm Payment' : 'Upload Slip'}
+            </Text>
+          )}
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', paddingTop: 60, paddingHorizontal: 20 },
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', marginLeft: 15 },
-  sectionTitle: { fontSize: 14, color: '#666', marginVertical: 10 },
-  uploadBox: {
+  container: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+    paddingTop: 55, // Added padding to move content down from the status bar
+  },
+  header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
     backgroundColor: '#fff',
-    borderRadius: 15,
-    paddingVertical: 18,
-    height: 220,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerContent: {
+    flex: 1,
+    alignItems: 'flex-end',
+    marginRight: -30,  // Move content more to the right
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginRight: 20,  // Add right margin to the title
+  },
+  uploadContainer: {
+    flex: 1,
+    padding: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginBottom: 4,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#666',
     marginBottom: 20,
+  },
+  uploadBox: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    height: 240,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderStyle: 'dashed',
+    overflow: 'hidden',
+  },
+  uploadContent: {
+    alignItems: 'center',
+    padding: 20,
+  },
+  uploadIcon: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: 'rgba(15, 49, 118, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  uploadTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginBottom: 8,
+  },
+  uploadSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  previewContainer: {
+    width: '100%',
+    height: '100%',
+    position: 'relative',
+  },
+  preview: {
+    width: '100%',
+    height: '100%',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    opacity: 0,
+  },
+  overlayText: {
+    color: '#fff',
+    marginTop: 8,
+    fontWeight: '500',
+  },
+  ocrCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 20,
     shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
     elevation: 2,
   },
-  preview: { width: '90%', height: '100%', borderRadius: 10 },
-  primaryButton: {
-    backgroundColor: '#234080',
+  ocrHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  ocrTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  ocrTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginLeft: 8,
+  },
+  ocrDetails: {
+    marginTop: 8,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  detailLabel: {
+    fontSize: 14,
+    color: '#666',
+  },
+  detailValue: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  scanAgainButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    marginTop: 8,
+  },
+  scanAgainText: {
+    color: '#0F3176',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  footer: {
+    padding: 20,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  warningBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef2f2',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  warningText: {
+    color: '#e74c3c',
+    marginLeft: 8,
+    fontSize: 14,
+  },
+  confirmButton: {
+    backgroundColor: '#0F3176',
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
-    marginBottom: 10,
+    justifyContent: 'center',
+    shadowColor: '#0F3176',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  primaryButtonText: { color: '#fff', fontWeight: 'bold' },
-  secondaryButton: {
-    backgroundColor: '#3a3a3a',
-    padding: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 6,
+  confirmButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
-  secondaryButtonText: { color: '#fff', fontWeight: 'bold' },
-  ocrCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  bgImage: { width: '111%', height: 235, position: 'absolute', bottom: -4, left: 0 },
 });

@@ -25,6 +25,12 @@ export default function ProfileScreen() {
   const [password, setPassword] = useState('');
   const [currency, setCurrency] = useState('THB');
   const [language, setLanguage] = useState('TH');
+  const [showLanguagePicker, setShowLanguagePicker] = useState(false);
+  const languageOptions = ['TH', 'EN'];
+  const languageNames = {
+    'TH': 'ไทย',
+    'EN': 'English'
+  };
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [qrImage, setQRImage] = useState<string | null>(null);
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
@@ -309,16 +315,15 @@ export default function ProfileScreen() {
         <View style={styles.infoRow}>
           <Ionicons name="language-outline" size={18} color="#3f5b78" style={styles.iconLeft} />
           <Text style={styles.label}>Language</Text>
-          {editMode ? (
-            <TextInput
-              style={styles.inlineInput}
-              value={language}
-              onChangeText={setLanguage}
-              placeholder="TH / EN"
-            />
-          ) : (
-            <Text style={styles.value}>{language}</Text>
-          )}
+          <TouchableOpacity 
+            style={styles.currencyPill} 
+            onPress={() => setShowLanguagePicker(true)}
+          >
+            <Text style={styles.currencyPillText}>
+              {language}
+            </Text>
+            <Ionicons name="chevron-down" size={16} color="#fff" />
+          </TouchableOpacity>
         </View>
       </View>
       </View>
@@ -330,6 +335,40 @@ export default function ProfileScreen() {
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Text style={styles.logoutButtonText}>Log out</Text>
       </TouchableOpacity>
+
+      {/* Language picker modal */}
+      <Modal transparent visible={showLanguagePicker} animationType="fade" onRequestClose={() => setShowLanguagePicker(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.pickerCard}>
+            <Text style={{ fontWeight: '600', marginBottom: 10 }}>Select Language</Text>
+            {languageOptions.map((lang) => (
+              <TouchableOpacity 
+                key={lang}
+                style={styles.pickerRow}
+                onPress={() => {
+                  setLanguage(lang);
+                  setShowLanguagePicker(false);
+                  if (user?.user_id) {
+                    supabase
+                      .from('user')
+                      .update({ language_preference: lang })
+                      .eq('user_id', user.user_id);
+                  }
+                }}
+              >
+                <Text style={{ color: '#333' }}>{languageNames[lang as keyof typeof languageNames]}</Text>
+                {language === lang && <Ionicons name="checkmark" size={18} color="#1A3C6B" />}
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity 
+              style={[styles.pickerRow, { justifyContent: 'center' }]} 
+              onPress={() => setShowLanguagePicker(false)}
+            >
+              <Text style={{ color: '#1A3C6B', fontWeight: '600' }}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Currency picker modal */}
       <Modal transparent visible={showCurrencyPicker} animationType="fade" onRequestClose={() => setShowCurrencyPicker(false)}>
@@ -348,6 +387,7 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
+
     </ScrollView>
   );
 }
