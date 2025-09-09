@@ -17,6 +17,8 @@ type DebtItem = {
     profile_image_url?: string;
   };
   bill_type?: string;
+  bill_id?: string; // bill id ที่จะใช้ไปหน้า Payment
+  bill_share_id?: string; // อ้างอิงเดิม ถ้าจำเป็น
 };
 
 export default function DebttripScreen() {
@@ -117,8 +119,8 @@ export default function DebttripScreen() {
       paymentData?.forEach(payment => {
         const existing = paymentMap.get(payment.bill_share_id) || 0;
         paymentMap.set(payment.bill_share_id, existing + payment.amount);
-        // Track if payment is confirmed (assuming there's a confirmed field)
-        paymentStatusMap.set(payment.bill_share_id, payment.status === 'confirmed');
+        // Track if payment is confirmed (use 'approved' per current schema)
+        paymentStatusMap.set(payment.bill_share_id, payment.status === 'approved');
       });
 
       // Get unique bill payers (creditors)
@@ -156,13 +158,15 @@ export default function DebttripScreen() {
         const creditorInfo = userMap.get(creditorId);
 
         const debtInfo = {
-          debt_id: billShare.bill_share_id,
+          debt_id: bill.bill_id, // ใช้ bill_id เป็นหลักสำหรับ flow ชำระเงิน
           trip_id: bill.trip_id,
           amount_owed: amountOwed,
           amount_paid: amountPaid,
           bill_type: bill.note || 'Travel expenses',
-          is_confirmed: isConfirmed
-        };
+          is_confirmed: isConfirmed,
+          bill_id: bill.bill_id,
+          bill_share_id: billShare.bill_share_id,
+        } as any;
 
         if (isFullyPaid || amountPaid > 0) {
           // Add to paid debts
@@ -214,6 +218,8 @@ export default function DebttripScreen() {
         bill_type: creditorDebt.bill_count > 1 
           ? `${creditorDebt.bill_count} bills` 
           : creditorDebt.bills[0]?.bill_type || 'Travel expenses',
+        bill_id: creditorDebt.bills[0]?.bill_id,
+        bill_share_id: creditorDebt.bills[0]?.bill_share_id,
       }));
 
       const paidProcessedDebts: DebtItem[] = Array.from(paidCreditorDebtMap.values()).map(creditorDebt => ({
@@ -260,10 +266,15 @@ export default function DebttripScreen() {
     setTotalUnpaidDebt(prev => Math.max(0, prev - debt.amount_owed));
 
     // Navigate to payment upload screen with debt details
+    const targetBillId = debt.bill_id || debt.debt_id; // ต้องเป็น bill_id
+    if (!targetBillId) {
+      Alert.alert('Error', 'Cannot find bill id to pay');
+      return;
+    }
     router.push({
       pathname: '/PaymentUpload',
       params: {
-        billId: debt.debt_id,
+        billId: String(targetBillId),
         creditorId: debt.creditor_user,
         amount: debt.amount_owed.toString(),
         timestamp: Date.now().toString()

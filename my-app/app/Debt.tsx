@@ -169,8 +169,9 @@ export default function DebtScreen() {
     const aggPending = new Map<string, number>();
     const aggConfirmed = new Map<string, number>();
     const proofCreditorIds = new Set<string>();
+    const dsCreditorIds = new Set<string>();
     (proofs || []).forEach((p: any) => {
-      if (p.bill_id && !allowedBillIds.has(String(p.bill_id))) return; // ข้ามบิลที่ไม่อยู่ในทริปที่อนุญาต
+      // แสดงทุกรายการที่เกี่ยวกับผู้ใช้นี้ ไม่จำกัดเฉพาะบิลในทริปที่อนุญาต
       const cid = String(p.creditor_id);
       if (cid === String(userId)) return; // ข้ามของตัวเอง
       const amt = Number(p.amount || 0);
@@ -179,23 +180,23 @@ export default function DebtScreen() {
       if (p.status === 'approved') aggConfirmed.set(cid, (aggConfirmed.get(cid) || 0) + amt);
     });
 
-    // 4.1) Fallback: อ่านจากตาราง payment (กรณีไม่ได้เขียน payment_proof) จำกัดเฉพาะ bill_share ของบิลที่อนุญาต
+    // 4.1) Fallback: อ่านจากตาราง payment (กรณีไม่ได้เขียน payment_proof)
+    // เดิมกรองเฉพาะ bill_share ที่ยังเป็น unpaid ทำให้เมื่ออนุมัติแล้ว (bill_share = paid) การ์ด Confirmed ไม่ขึ้น
+    // ปรับใหม่: ดึง payment ทั้งหมด (pending/approved) แล้ว join หา bill_share ที่เป็นของผู้ใช้ ไม่จำกัดสถานะ
     try {
-      const bsIds = shares.map((s: any) => String(s.bill_share_id));
       const { data: payRows } = await supabase
         .from('payment')
         .select('payment_id, bill_share_id, amount, status')
-        .in('status', ['pending', 'approved'])
-        .in('bill_share_id', bsIds);
+        .in('status', ['pending', 'approved']);
       const payments = (payRows || []) as any[];
       if (payments.length > 0) {
-        const bsIds = Array.from(new Set(payments.map((p) => String(p.bill_share_id)).filter(Boolean)));
+        const bsIdsAll = Array.from(new Set(payments.map((p) => String(p.bill_share_id)).filter(Boolean)));
         let bsMap = new Map<string, { user_id: string; bill_id: string }>();
-        if (bsIds.length > 0) {
+        if (bsIdsAll.length > 0) {
           const { data: bsRows } = await supabase
             .from('bill_share')
             .select('bill_share_id, user_id, bill_id')
-            .in('bill_share_id', bsIds);
+            .in('bill_share_id', bsIdsAll);
           (bsRows || []).forEach((bs: any) => bsMap.set(String(bs.bill_share_id), { user_id: String(bs.user_id), bill_id: String(bs.bill_id) }));
         }
         const billIds = Array.from(new Set(Array.from(bsMap.values()).map((v) => v.bill_id)));
@@ -210,8 +211,7 @@ export default function DebtScreen() {
 
         for (const p of payments) {
           const bs = bsMap.get(String(p.bill_share_id));
-          if (!bs || String(bs.user_id) !== String(userId)) continue; // ensure debtor is current user
-          if (!allowedBillIds.has(String(bs.bill_id))) continue; // จำกัดเฉพาะบิลที่อนุญาต
+          if (!bs || String(bs.user_id) !== String(userId)) continue; // ต้องเป็นลูกหนี้คนนี้
           const creditor = billToCreditor.get(bs.bill_id);
           if (!creditor || creditor === String(userId)) continue; // ข้ามของตัวเอง
           const amt = Number(p.amount || 0);
@@ -222,8 +222,23 @@ export default function DebtScreen() {
       }
     } catch {}
 
-    // 5) ดึงข้อมูลผู้ให้เครดิตทั้งหมด (รวมจาก unpaid และ proofs)
-    const ids = Array.from(new Set<string>([...Array.from(creditorIds), ...Array.from(proofCreditorIds)]));
+    // 4.2) เติมข้อมูลจาก debt_summary (สำหรับยอดที่ยืนยันแล้วแน่นอน)
+    try {
+      const { data: dsRows } = await supabase
+        .from('debt_summary')
+        .select('creditor_user, amount_paid')
+        .eq('debtor_user', userId)
+        .gt('amount_paid', 0);
+      (dsRows || []).forEach((r: any) => {
+        const cid = String(r.creditor_user);
+        const amt = Number(r.amount_paid || 0);
+        dsCreditorIds.add(cid);
+        aggConfirmed.set(cid, (aggConfirmed.get(cid) || 0) + amt);
+      });
+    } catch {}
+
+    // 5) ดึงข้อมูลผู้ให้เครดิตทั้งหมด (รวมจาก unpaid, proofs/payments และ debt_summary)
+    const ids = Array.from(new Set<string>([...Array.from(creditorIds), ...Array.from(proofCreditorIds), ...Array.from(dsCreditorIds)]));
     let userMap = new Map<string, { full_name: string | null; profile_image_url: string | null }>();
     if (ids.length > 0) {
       const { data: users } = await supabase
