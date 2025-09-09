@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../constants/supabase';
 import { runOcrOnImage } from '../utils/ocr';
 import * as FileSystem from 'expo-file-system';
@@ -24,6 +24,7 @@ type Proof = {
 type UserLite = { user_id: string; full_name: string | null; profile_image_url: string | null };
 
 export default function ConfirmPaymentsScreen() {
+  const { tripId } = useLocalSearchParams<{ tripId?: string }>();
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [proofs, setProofs] = useState<Proof[]>([]);
   const [userMap, setUserMap] = useState<Map<string, UserLite>>(new Map());
@@ -33,19 +34,59 @@ export default function ConfirmPaymentsScreen() {
 
   const fetchTotalDebt = async (userId: string) => {
     try {
+      // If tripId is provided, compute outstanding from base tables for accuracy
+      if (tripId) {
+        const { data: bills, error: billsErr } = await supabase
+          .from('bill')
+          .select('bill_id')
+          .eq('trip_id', tripId)
+          .eq('paid_by_user_id', userId);
+        if (billsErr) throw billsErr;
+        const billIds = (bills || []).map((b: any) => String(b.bill_id));
+        if (billIds.length === 0) {
+          setTotalDebt(0);
+          return;
+        }
+
+        const { data: shares, error: sharesErr } = await supabase
+          .from('bill_share')
+          .select('bill_share_id, amount_share, bill_id, user_id')
+          .in('bill_id', billIds)
+          .neq('user_id', userId);
+        if (sharesErr) throw sharesErr;
+        const shareIds = (shares || []).map((s: any) => String(s.bill_share_id));
+
+        let approvedByShare = new Map<string, number>();
+        if (shareIds.length > 0) {
+          const { data: pays } = await supabase
+            .from('payment')
+            .select('bill_share_id, amount, status')
+            .eq('status', 'approved')
+            .in('bill_share_id', shareIds);
+          (pays || []).forEach((p: any) => {
+            const id = String(p.bill_share_id);
+            const prev = approvedByShare.get(id) || 0;
+            approvedByShare.set(id, prev + Number(p.amount || 0));
+          });
+        }
+
+        const totalOutstanding = (shares || []).reduce((sum: number, s: any) => {
+          const owed = Number(s.amount_share || 0);
+          const approved = approvedByShare.get(String(s.bill_share_id)) || 0;
+          const remain = Math.max(0, owed - approved);
+          return sum + remain;
+        }, 0);
+        setTotalDebt(totalOutstanding);
+        return;
+      }
+
+      // Fallback: sum across all trips from debt_summary
       const { data, error } = await supabase
         .from('debt_summary')
         .select('amount_owed, amount_paid')
         .eq('creditor_user', userId);
-
       if (error) throw error;
-
-      const total = data?.reduce((sum, item) => {
-        const owed = Number(item.amount_owed) || 0;
-        const paid = Number(item.amount_paid) || 0;
-        return sum + (owed - paid);
-      }, 0) || 0;
-
+      const total = data?.reduce((sum, item) => sum + ((Number(item.amount_owed) || 0) - (Number(item.amount_paid) || 0)), 0) || 0;
       setTotalDebt(total);
     } catch (error) {
       console.error('Error fetching total debt:', error);
@@ -203,12 +244,17 @@ export default function ConfirmPaymentsScreen() {
   const fetchProofs = async (uid: string) => {
     setRefreshing(true);
     try {
-      const { data } = await supabase
+      let base = supabase
         .from('payment_proof')
         .select('id, bill_id, creditor_id, debtor_user_id, amount, image_uri_local, slip_qr, status, created_at')
         .eq('creditor_id', uid)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
+        .eq('status', 'pending');
+      if (tripId) {
+        const { data: billsInTrip } = await supabase.from('bill').select('bill_id').eq('trip_id', tripId);
+        const ids = (billsInTrip || []).map((b: any) => b.bill_id);
+        base = base.in('bill_id', ids);
+      }
+      const { data } = await base.order('created_at', { ascending: false });
 
       const proofRows: Proof[] = (data || []).map((p: any) => ({
         id: String(p.id),
@@ -228,11 +274,25 @@ export default function ConfirmPaymentsScreen() {
 
       // เพิ่มเติม: ดึงจากตาราง payment (pending) แล้ว map เข้ามาเป็นคำขอยืนยัน
       try {
-        const { data: pay } = await supabase
+        let payQuery = supabase
           .from('payment')
           .select('payment_id, bill_share_id, amount, status, created_at, slip_qr')
-          .eq('status', 'pending')
-          .order('created_at', { ascending: false });
+          .eq('status', 'pending');
+        if (tripId) {
+          const { data: bsBills } = await supabase
+            .from('bill_share')
+            .select('bill_share_id, bill_id');
+          const { data: billRows } = await supabase
+            .from('bill')
+            .select('bill_id')
+            .eq('trip_id', tripId);
+          const billIdSet = new Set((billRows || []).map((b: any) => String(b.bill_id)));
+          const billShareIds = (bsBills || [])
+            .filter((x: any) => billIdSet.has(String(x.bill_id)))
+            .map((x: any) => String(x.bill_share_id));
+          payQuery = payQuery.in('bill_share_id', billShareIds);
+        }
+        const { data: pay } = await payQuery.order('created_at', { ascending: false });
 
         const payments = (pay || []) as any[];
         paymentsDebugCount = payments.length;
@@ -546,7 +606,7 @@ export default function ConfirmPaymentsScreen() {
       <View style={styles.totalDebtCard}>
         <Text style={styles.totalDebtLabel}>Total Amount Owed to You</Text>
         <Text style={styles.totalDebtAmount}>
-          -{Math.abs(totalDebt).toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿
+          {Math.max(0, totalDebt).toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿
         </Text>
         <Text style={styles.totalDebtNote}>
           This amount will decrease as payments are approved

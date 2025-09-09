@@ -363,7 +363,7 @@ export default function TripScreen() {
           <Ionicons name="add" size={30} color="#fff" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.circleBtn} onPress={() => router.push('/ConfirmPayments')}>
+        <TouchableOpacity style={styles.circleBtn} onPress={() => router.push(`/ConfirmPayments?tripId=${tripId}`)}>
           <FontAwesome5 name="dollar-sign" size={26} color="#fff" />
         </TouchableOpacity>
       </View>
