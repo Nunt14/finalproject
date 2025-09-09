@@ -235,7 +235,11 @@ export default function WelcomeScreen() {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={{ paddingBottom: 140 }}>
         {/* Title */}
-        <Text style={styles.title}>{t('welcome.title')} {'\n'}{userFullName}!</Text>
+        <Text style={styles.title}>
+          Welcome {'\n'}
+          to Harnty, {'\n'}
+          {userFullName}!
+        </Text>
 
         <Image
           source={require('../assets/images/img.png')}
