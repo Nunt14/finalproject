@@ -121,6 +121,14 @@ export default function ForgotPasswordScreen() {
           >
             <Text style={styles.backButtonText}>{t('forgot.back_to_login')}</Text>
           </TouchableOpacity>
+
+          <View style={styles.imageContainer}>
+            <Image 
+              source={require('../assets/images/bg3.png')} 
+              style={styles.backgroundImage}
+              resizeMode="contain"
+            />
+          </View>
         </ScrollView>
       </View>
     </View>
@@ -141,6 +149,8 @@ interface Styles {
   buttonText: TextStyle;
   backButton: ViewStyle;
   backButtonText: TextStyle;
+  imageContainer: ViewStyle;
+  backgroundImage: ImageStyle;
 }
 
 const styles = StyleSheet.create<Styles>({
@@ -216,20 +226,36 @@ const styles = StyleSheet.create<Styles>({
   },
   buttonText: {
     color: 'white',
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '600',
     letterSpacing: 0.5,
   },
   backButton: {
     backgroundColor: '#3f5b78',
-    paddingVertical: 14,
-    borderRadius: 10,
+    padding: 18,
+    borderRadius: 14,
     alignItems: 'center',
-    marginTop: 24,
+    justifyContent: 'center',
+    marginTop: 15,
+    shadowColor: '#3f5b78',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 5,
   },
   backButtonText: { 
-    color: '#fff', 
-    fontWeight: 'bold', 
-    fontSize: 16 
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  imageContainer: {
+    alignItems: 'center',
+    marginTop: 30,
+    marginBottom: 20,
+  },
+  backgroundImage: {
+    width: 300,
+    height: 250,
   }
 });
