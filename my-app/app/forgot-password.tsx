@@ -1,37 +1,56 @@
 import { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, Image, ScrollView, ViewStyle, TextStyle, ImageStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '../constants/supabase';
+import { supabase, SUPABASE_ANON_KEY } from '../constants/supabase';
 import { router } from 'expo-router';
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
-  const handleResetPassword = async () => {
+  const handleUpdatePassword = async () => {
+    if (!newPassword || !confirmPassword) {
+      Alert.alert('Error', 'Please enter your new password in both fields');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+    if (newPassword.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
+      return;
+    }
+
     if (!email) {
-      Alert.alert('Please enter your email');
+      Alert.alert('Error', 'Please enter your email');
       return;
     }
 
     setIsLoading(true);
-    
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'exp://your-app-url/reset-password',
+      const fnUrl = 'https://kiwketmokykkyotpwdmm.functions.supabase.co/reset-password';
+      const res = await fetch(fnUrl, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ email, newPassword }),
       });
 
-      if (error) {
-        throw error;
+      const body = await res.json().catch(() => ({} as any));
+      if (!res.ok) {
+        const message = (body && body.error) || 'Failed to reset password';
+        throw new Error(message);
       }
 
-      Alert.alert(
-        'Check your email',
-        'We have sent you an email with instructions to reset your password.'
-      );
-      router.back();
+      Alert.alert('Success', 'Password updated. Please log in.');
+      router.replace('/login');
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'An error occurred while sending reset email');
+      Alert.alert('Error', error.message || 'Failed to reset password');
     } finally {
       setIsLoading(false);
     }
@@ -42,9 +61,8 @@ export default function ForgotPasswordScreen() {
       <View style={styles.contentContainer}>
         <ScrollView contentContainerStyle={styles.scrollContainer}>
           <Text style={styles.title}>Reset Password</Text>
-          
           <Text style={styles.subtitle}>
-            Enter your email address and we'll send you a link to reset your password.
+            Enter your registered email and set a new password.
           </Text>
 
           <View style={styles.inputContainer}>
@@ -61,13 +79,39 @@ export default function ForgotPasswordScreen() {
             />
           </View>
 
+          <View style={styles.inputContainer}>
+            <Ionicons name="lock-closed-outline" size={20} color="#888" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="New password"
+              placeholderTextColor="#888"
+              autoCapitalize="none"
+              secureTextEntry
+              onChangeText={setNewPassword}
+              value={newPassword}
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Ionicons name="lock-closed-outline" size={20} color="#888" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Confirm new password"
+              placeholderTextColor="#888"
+              autoCapitalize="none"
+              secureTextEntry
+              onChangeText={setConfirmPassword}
+              value={confirmPassword}
+            />
+          </View>
+
           <TouchableOpacity 
             style={[styles.button, isLoading && styles.buttonDisabled]} 
-            onPress={handleResetPassword}
+            onPress={handleUpdatePassword}
             disabled={isLoading}
           >
             <Text style={styles.buttonText}>
-              {isLoading ? 'Sending...' : 'Send Reset Link'}
+              {isLoading ? 'Updating...' : 'Reset Password'}
             </Text>
           </TouchableOpacity>
 

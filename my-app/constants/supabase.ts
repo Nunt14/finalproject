@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const SUPABASE_URL = 'https://kiwketmokykkyotpwdmm.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtpd2tldG1va3lra3lvdHB3ZG1tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM2OTI0MTMsImV4cCI6MjA2OTI2ODQxM30.meC3vFGhBDCj4DF66ITDNNEUlsRIt4d1UOldBpiwGyw';
+export const SUPABASE_URL = 'https://kiwketmokykkyotpwdmm.supabase.co';
+export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtpd2tldG1va3lra3lvdHB3ZG1tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM2OTI0MTMsImV4cCI6MjA2OTI2ODQxM30.meC3vFGhBDCj4DF66ITDNNEUlsRIt4d1UOldBpiwGyw';
 
 // ใช้ storageKey คงที่ ผูกกับ project-ref เพื่อกันชนกับโปรเจกต์อื่น
 const STORAGE_KEY = 'sb-kiwketmokykkyotpwdmm-auth-token';
