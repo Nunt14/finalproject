@@ -55,15 +55,15 @@ export default function WelcomeScreen() {
     try {
       // แสดงกล่องยืนยันการลบ
       Alert.alert(
-        'ยืนยันการลบทริป',
-        `คุณแน่ใจหรือไม่ว่าต้องการลบทริป "${tripName}"?`,
+        'Confirm Trip Deletion',
+        `Are you sure you want to delete the trip "${tripName}"?`,
         [
           {
-            text: 'ยกเลิก',
+            text: 'Cancel',
             style: 'cancel',
           },
           {
-            text: 'ลบ',
+            text: 'Delete',
             style: 'destructive',
             onPress: async () => {
               try {
@@ -154,10 +154,10 @@ export default function WelcomeScreen() {
                 setTrips(prevTrips => prevTrips.filter(trip => trip.trip_id !== tripId));
                 setFilteredTrips(prevTrips => prevTrips.filter(trip => trip.trip_id !== tripId));
 
-                Alert.alert('สำเร็จ', 'ลบทริปเรียบร้อยแล้ว');
+                Alert.alert('Success', 'Trip deleted successfully');
               } catch (error) {
                 console.error('Error deleting trip:', error);
-                Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถลบทริปได้ในขณะนี้');
+                Alert.alert('Error', 'Unable to delete trip at this time');
               }
             },
           },

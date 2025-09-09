@@ -529,13 +529,15 @@ export default function AddFriendsScreen() {
           style={[styles.tab, selectedTab === 'friends' && styles.activeTab]}
           onPress={() => setSelectedTab('friends')}
         >
-          <Text style={selectedTab === 'friends' ? styles.activeTabText : styles.tabText}>{t('friends.tab.friends')}</Text>
+          <Ionicons name="people" size={20} color={selectedTab === 'friends' ? '#fff' : '#666'} />
+          <Text style={[styles.tabText, selectedTab === 'friends' && styles.activeTabText]}>{t('friends.tab.friends')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, selectedTab === 'group' && styles.activeTab]}
           onPress={() => setSelectedTab('group')}
         >
-          <Text style={selectedTab === 'group' ? styles.activeTabText : styles.tabText}>{t('friends.tab.group')}</Text>
+          <Ionicons name="folder" size={20} color={selectedTab === 'group' ? '#fff' : '#666'} />
+          <Text style={[styles.tabText, selectedTab === 'group' && styles.activeTabText]}>{t('friends.tab.group')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -686,26 +688,31 @@ const styles = StyleSheet.create({
   tabs: {
     flexDirection: 'row',
     justifyContent: 'center',
-    backgroundColor: '#e0e0e0',
-    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 25,
+    padding: 5,
     marginBottom: 20,
   },
   tab: {
     flex: 1,
-    paddingVertical: 10,
+    flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 20,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 22,
   },
   activeTab: {
-    backgroundColor: '#45647C',
+    backgroundColor: '#1A3C6B',
   },
   tabText: {
-    color: '#555',
-    fontWeight: '500',
+    marginLeft: 6,
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '600',
   },
   activeTabText: {
     color: '#fff',
-    fontWeight: 'bold',
   },
   searchInputContainer: {
     flexDirection: 'row',

@@ -35,7 +35,7 @@ export default function AddTripScreen() {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError || !session?.user) {
-          Alert.alert('ข้อผิดพลาด', 'กรุณาเข้าสู่ระบบก่อนเพิ่มทริป');
+          Alert.alert('Error', 'Please sign in before creating a trip');
           router.replace('/login');
           return;
         }
@@ -75,7 +75,7 @@ export default function AddTripScreen() {
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
         console.error('Fetch data error:', err);
-        Alert.alert('ข้อผิดพลาด', 'ไม่สามารถโหลดข้อมูลเพื่อนได้: ' + message);
+        Alert.alert('Error', 'Failed to load friends: ' + message);
       } finally {
         setLoading(false);
       }
@@ -87,7 +87,7 @@ export default function AddTripScreen() {
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission required', 'กรุณาอนุญาตการเข้าถึงคลังรูปภาพเพื่อเลือกรูปภาพ');
+      Alert.alert('Permission required', 'Please allow photo library access to pick an image');
       return;
     }
 
@@ -140,7 +140,7 @@ export default function AddTripScreen() {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       console.error('Image upload error:', err);
-      Alert.alert('ข้อผิดพลาด', 'ไม่สามารถอัปโหลดรูปภาพได้: ' + message);
+      Alert.alert('Error', 'Unable to upload image: ' + message);
       return null;
     }
   };
@@ -170,11 +170,11 @@ export default function AddTripScreen() {
 
   const handleConfirm = async () => {
     if (!tripName.trim()) {
-      Alert.alert('ข้อผิดพลาด', 'กรุณาใส่ชื่อทริป');
+      Alert.alert('Error', 'Please enter a trip name');
       return;
     }
     if (!selectedImage) {
-      Alert.alert('ข้อผิดพลาด', 'กรุณาเลือกรูปภาพสำหรับทริป');
+      Alert.alert('Error', 'Please select a cover image for the trip');
       return;
     }
 
@@ -243,13 +243,13 @@ export default function AddTripScreen() {
         console.warn('Notify trip members failed', notifyErr);
       }
       
-      Alert.alert('สำเร็จ', 'เพิ่มทริปเรียบร้อยแล้ว!');
+      Alert.alert('Success', 'Trip created successfully!');
       router.replace('/welcome');
 
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       console.error('Confirm error:', err);
-      Alert.alert('ข้อผิดพลาด', 'ไม่สามารถสร้างทริปได้: ' + message);
+      Alert.alert('Error', 'Failed to create trip: ' + message);
     } finally {
       setLoading(false);
     }
@@ -266,17 +266,18 @@ export default function AddTripScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <View style={styles.scrollView}>
         {/* Camera Icon or Selected Image */}
         <TouchableOpacity style={styles.imageBox} onPress={pickImage}>
           {selectedImage ? (
             <Image source={{ uri: selectedImage }} style={styles.tripImage} />
           ) : (
             <View style={styles.cameraIconContainer}>
-              <MaterialIcons name="photo-camera" size={48} color="#fff" />
+              <MaterialIcons name="add-photo-alternate" size={36} color="#6b7280" />
             </View>
           )}
         </TouchableOpacity>
+        <Text style={styles.helperText}>{t('') || 'Tap to add a cover image'}</Text>
 
         {/* Title input */}
         <View style={styles.inputGroup}>
@@ -339,10 +340,16 @@ export default function AddTripScreen() {
                 </View>
                 <Text style={styles.everyoneLabel}>{t('addtrip.everyone')}</Text>
               </TouchableOpacity>
+
+              <Image
+                source={require('../assets/images/bg4.png')}
+                style={styles.bg4Image}
+                resizeMode="contain"
+              />
             </View>
           )}
         </View>
-      </ScrollView>
+      </View>
 
       {/* Bottom buttons */}
       <View style={styles.buttonContainer} pointerEvents="box-none">
@@ -355,44 +362,44 @@ export default function AddTripScreen() {
       </View>
 
       {/* Background images */}
-      <Image source={require('../assets/images/bg.png')} style={styles.bgImage} resizeMode="contain" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 50, paddingHorizontal: 20, backgroundColor: '#fff' },
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', marginLeft: 10 },
-  scrollView: { flex: 1 },
-  scrollContent: { paddingVertical: 20, paddingBottom: 140 },
+  container: { flex: 1, paddingTop: 72, paddingHorizontal: 20, backgroundColor: '#fff' },
+  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+  headerTitle: { fontSize: 18, fontWeight: 'bold', marginLeft: 10, flex: 1, textAlign: 'right' },
+  scrollView: { flex: 1, paddingVertical: 20 },
   imageBox: {
     alignSelf: 'center',
-    backgroundColor: '#9EC4C2',
-    padding: 20,
-    borderRadius: 15,
-    marginBottom: 30,
-    width: 150,
-    height: 150,
+    backgroundColor: '#f5f7f9',
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#d1d5db',
+    borderRadius: 14,
+    marginBottom: 10,
+    width: 160,
+    height: 160,
     justifyContent: 'center',
     alignItems: 'center',
   },
   tripImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 15,
+    borderRadius: 14,
   },
   cameraIconContainer: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#1A3C6B',
     justifyContent: 'center',
     alignItems: 'center',
   },
   inputGroup: { marginBottom: 20 },
   label: { fontWeight: 'bold', marginBottom: 5 },
   input: { borderBottomWidth: 1, borderBottomColor: '#ccc', paddingVertical: 5 },
+  helperText: { color: '#6b7280', fontSize: 12, textAlign: 'center', marginBottom: 18 },
   memberSection: { marginBottom: 20 },
   memberScrollView: { paddingVertical: 10 },
   memberScrollContent: { paddingHorizontal: 10 },
@@ -449,9 +456,9 @@ const styles = StyleSheet.create({
   },
   everyoneLabel: { fontSize: 14, color: '#888' },
   buttonContainer: { position: 'absolute', left: 20, right: 20, bottom: 20 },
-  confirmBtn: { backgroundColor: '#1A3C6B', padding: 15, borderRadius: 10, marginBottom: 10, width: '100%' },
+  confirmBtn: { backgroundColor: '#1A3C6B', padding: 15, borderRadius: 10, marginBottom: 14, width: '100%' },
   confirmText: { color: '#fff', textAlign: 'center', fontWeight: 'bold' },
-  backBtn: { backgroundColor: '#333', padding: 15, borderRadius: 10, width: '100%' },
-  backText: { color: '#fff', textAlign: 'center' },
-  bgImage: { width: '111%', height: 235, bottom: -100, alignSelf: 'center', zIndex: -1 },
+  backBtn: { backgroundColor: '#333', padding: 15, borderRadius: 10, width: '100%' , marginBottom: 30, },
+  backText: { color: '#fff', textAlign: 'center', fontWeight: 'bold' },
+  bg4Image: { alignSelf: 'center', width: 380, height: 135, marginTop: 15 },
 });
