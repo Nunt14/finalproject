@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { supabase } from "../constants/supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useLanguage } from './contexts/LanguageContext';
 
 type Friend = {
   id: string;
@@ -29,6 +30,7 @@ const friendsMock: Friend[] = [];
 
 export default function AddBillScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const { tripId } = useLocalSearchParams<{ tripId: string }>();
   const [total, setTotal] = useState(0);
   const [friends, setFriends] = useState<Friend[]>(friendsMock);
@@ -394,27 +396,27 @@ export default function AddBillScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={22} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.header}>Add new Bill</Text>
+        <Text style={styles.header}>{t('addbill.header')}</Text>
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.sectionTitle}>How much?</Text>
+        <Text style={styles.sectionTitle}>{t('addbill.how_much')}</Text>
         <View style={styles.card}>
           <View style={styles.amountRow}>
             <TextInput
               style={styles.amountInput}
               keyboardType="numeric"
-              placeholder="0.00"
+              placeholder={t('addbill.placeholder_amount')}
               value={total ? total.toString() : ""}
               onChangeText={handleTotalChange}
             />
             <Text style={styles.currency}>{currencySymbol}</Text>
           </View>
           <View style={styles.noteContainer}>
-            <Text style={styles.noteLabel}>Note :</Text>
+            <Text style={styles.noteLabel}>{t('addbill.note_label')}</Text>
             <TextInput
               style={styles.noteInput}
-              placeholder="..."
+              placeholder={t('addbill.note_placeholder')}
               value={note}
               onChangeText={setNote}
               multiline
@@ -425,12 +427,12 @@ export default function AddBillScreen() {
         <View style={styles.divider} />
 
         <View style={styles.splitRow}>
-          <Text style={styles.splitText}>Split per person :</Text>
+          <Text style={styles.splitText}>{t('addbill.split_per_person')}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <TextInput
               style={styles.splitAmountInput}
               keyboardType="numeric"
-              placeholder="0.00"
+              placeholder={t('addbill.placeholder_amount')}
               value={basePerPerson ? basePerPerson.toString() : ""}
               onChangeText={handleBaseChange}
             />
@@ -440,7 +442,7 @@ export default function AddBillScreen() {
 
         <View style={styles.divider} />
 
-        <Text style={styles.sectionTitle}>Who has to divide?</Text>
+        <Text style={styles.sectionTitle}>{t('addbill.who_divide')}</Text>
         <FlatList
           data={calculatedFriends}
           keyExtractor={(item) => item.id.toString()}
@@ -485,15 +487,15 @@ export default function AddBillScreen() {
                 <View style={styles.dropdown}>
                   <View style={styles.breakdownRow}>
                     <Ionicons name="people" size={16} color="#888" style={{ marginRight: 8 }} />
-                    <Text style={{ flex: 1, color: '#666', fontSize: 16 }}>per person</Text>
+                    <Text style={{ flex: 1, color: '#666', fontSize: 16 }}>{t('addbill.per_person')}</Text>
                     <Text style={[styles.green, { fontSize: 16 }]}>{basePerPerson.toFixed(2)} {currencySymbol}</Text>
                   </View>
                   <View style={[styles.breakdownRow, { borderTopWidth: 1, borderTopColor: '#eee', marginTop: 6, paddingTop: 6 }]}>
                     <Ionicons name="person" size={16} color="#888" style={{ marginRight: 8 }} />
-                    <Text style={{ flex: 1, color: '#666', fontSize: 16 }}>Extra</Text>
+                    <Text style={{ flex: 1, color: '#666', fontSize: 16 }}>{t('addbill.extra')}</Text>
                     <TextInput
                       style={[styles.customInput, { minWidth: 90, textAlign: 'right' }]}
-                      placeholder="0.00"
+                      placeholder={t('addbill.placeholder_amount')}
                       keyboardType="numeric"
                       value={item.extraAmount ?? ''}
                       onChangeText={(val) => handleCustomChange(item.id, val)}
@@ -517,12 +519,12 @@ export default function AddBillScreen() {
           >
             {selectAll && <Ionicons name="checkmark" size={14} color="#fff" />}
           </TouchableOpacity>
-          <Text style={styles.everyoneText}>everyone</Text>
+          <Text style={styles.everyoneText}>{t('addbill.everyone')}</Text>
         </View>
 
         <View style={styles.divider} />
 
-        <Text style={styles.sectionTitle}>category</Text>
+        <Text style={styles.sectionTitle}>{t('addbill.category')}</Text>
         <View style={styles.categoryBar}>
           <Ionicons name="chevron-back" size={18} color="#7f8c8d" />
           <View style={styles.categoryRow}>
@@ -548,10 +550,10 @@ export default function AddBillScreen() {
 
         <View style={styles.buttonContainer}>
           <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm} disabled={saving}>
-            <Text style={styles.confirmText}>{saving ? "Saving..." : "Confirm"}</Text>
+            <Text style={styles.confirmText}>{saving ? t('addbill.saving') : t('addbill.confirm')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Text style={styles.backText}>Back</Text>
+            <Text style={styles.backText}>{t('addbill.back')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

@@ -1,7 +1,9 @@
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { router } from 'expo-router';
+import { useLanguage } from './contexts/LanguageContext';
 
 export default function LoginScreen() {
+  const { t } = useLanguage();
   const goToWelcome = () => {
     router.replace('/welcome');
   };
@@ -16,11 +18,11 @@ export default function LoginScreen() {
       />
 
       <TouchableOpacity style={styles.button} onPress={() => router.replace('/signup')}>
-        <Text style={styles.buttonText}>Sign up</Text>
+        <Text style={styles.buttonText}>{t('register.signup')}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity style={[styles.button, { backgroundColor: '#333' }]} onPress={() => router.replace('/login')}>
-        <Text style={styles.buttonText}>Log in</Text>
+        <Text style={styles.buttonText}>{t('register.login')}</Text>
       </TouchableOpacity>
 
       <Image

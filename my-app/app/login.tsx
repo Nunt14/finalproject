@@ -3,10 +3,12 @@ import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert } from 'reac
 import { supabase } from '../constants/supabase';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useLanguage } from './contexts/LanguageContext';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const { t } = useLanguage();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -59,11 +61,11 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Log in</Text>
+      <Text style={styles.header}>{t('login.title')}</Text>
 
       <TextInput
         style={styles.input}
-        placeholder="Email address"
+        placeholder={t('login.email_placeholder')}
         keyboardType="email-address"
         autoCapitalize="none"
         onChangeText={setEmail}
@@ -72,24 +74,24 @@ export default function LoginScreen() {
 
       <TextInput
         style={styles.input}
-        placeholder="Password"
+        placeholder={t('login.password_placeholder')}
         secureTextEntry
         onChangeText={setPassword}
         value={password}
       />
 
       <Text style={styles.hint}>
-        Minimum 8 characters   
+        {t('login.min_chars_hint')}   
         <Text 
           style={styles.link}
           onPress={() => router.push('/forgot-password')}
         >
-          Forgot password
+          {t('login.forgot_password')}
         </Text>
       </Text>
 
       <TouchableOpacity style={styles.button} onPress={handleLogin}>
-        <Text style={styles.buttonText}>Next</Text>
+        <Text style={styles.buttonText}>{t('login.next')}</Text>
       </TouchableOpacity>
     </View>
   );

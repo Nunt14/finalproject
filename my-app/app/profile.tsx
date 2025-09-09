@@ -17,6 +17,7 @@ import * as FileSystem from 'expo-file-system';
 import { decode as decodeBase64 } from 'base64-arraybuffer';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import { useLanguage } from './contexts/LanguageContext';
 
 export default function ProfileScreen() {
   const [user, setUser] = useState<any>(null);
@@ -24,7 +25,7 @@ export default function ProfileScreen() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [currency, setCurrency] = useState('THB');
-  const [language, setLanguage] = useState('TH');
+  const { language, setLanguage, t } = useLanguage();
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const languageOptions = ['TH', 'EN'];
   const languageNames = {
@@ -59,7 +60,10 @@ export default function ProfileScreen() {
         setPhone(data.phone_number || '');
         setCurrency(data.currency_preference || 'THB');
         AsyncStorage.setItem('user_currency', data.currency_preference || 'THB');
-        setLanguage(data.language_preference || 'TH');
+        // Sync global language only if different
+        if ((data.language_preference === 'TH' || data.language_preference === 'EN') && data.language_preference !== language) {
+          setLanguage(data.language_preference);
+        }
         setProfileImage(data.profile_image_url || null);
         setQRImage(data.qr_code_img || null);
       }
@@ -210,7 +214,7 @@ export default function ProfileScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={24} color="#000" />
           </TouchableOpacity>
-           <Text style={styles.header}>Account</Text> 
+           <Text style={styles.header}>{t('profile.title')}</Text> 
            
            </View>
 
@@ -245,16 +249,16 @@ export default function ProfileScreen() {
         {/* PHONE */}
         <View style={styles.infoRow}>
           <Ionicons name="call-outline" size={18} color="#3f5b78" style={styles.iconLeft} />
-          <Text style={styles.label}>Phone number</Text>
+          <Text style={styles.label}>{t('profile.phone')}</Text>
           {editMode ? (
             <TextInput
               style={styles.inlineInput}
               value={phone}
               onChangeText={setPhone}
-              placeholder="089-xxx-xxxx"
+              placeholder={t('profile.default_phone_placeholder')}
             />
           ) : (
-            <Text style={[styles.value, { color: '#3366cc' }]}>{phone || '089-xxx-xxxx'}</Text>
+            <Text style={[styles.value, { color: '#3366cc' }]}>{phone || t('profile.default_phone_placeholder')}</Text>
           )}
           <TouchableOpacity onPress={() => setEditMode(!editMode)}>
             <Ionicons name="create-outline" size={18} color="#3f5b78" />
@@ -264,14 +268,14 @@ export default function ProfileScreen() {
         {/* PASSWORD */}
         <View style={styles.infoRow}>
           <Ionicons name="lock-closed-outline" size={18} color="#3f5b78" style={styles.iconLeft} />
-          <Text style={styles.label}>Password</Text>
+          <Text style={styles.label}>{t('profile.password')}</Text>
           {editMode ? (
             <TextInput
               style={styles.inlineInput}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
-              placeholder="Enter new password"
+              placeholder={t('profile.new_password_placeholder')}
             />
           ) : (
             <Text style={styles.value}>**********</Text>
@@ -281,7 +285,7 @@ export default function ProfileScreen() {
         {/* PAYMENT */}
         <View style={styles.infoRow}>
           <Ionicons name="qr-code-outline" size={18} color="#3f5b78" style={styles.iconLeft} />
-          <Text style={styles.label}>Your Payment</Text>
+          <Text style={styles.label}>{t('profile.payment')}</Text>
           <TouchableOpacity onPress={() => handleImagePick('qr')}>
             <Ionicons name="create-outline" size={18} color="#3f5b78" />
           </TouchableOpacity>
@@ -296,15 +300,13 @@ export default function ProfileScreen() {
           ) : (
             <Ionicons name="qr-code-outline" size={64} color="#bbb" style={{ marginVertical: 24 }} />
           )}
-          <Text style={styles.qrText}>
-            QR ของคุณได้ถูกสร้างขึ้นแล้ว{'\n'}ผู้ใช้งานสามารถสแกนเพื่อชำระเงินได้
-          </Text>
+          <Text style={styles.qrText}>{t('profile.qr_text')}</Text>
         </View>
 
         {/* CURRENCY */}
         <View style={styles.infoRow}>
           <Ionicons name="cash-outline" size={18} color="#3f5b78" style={styles.iconLeft} />
-          <Text style={styles.label}>Default currency</Text>
+          <Text style={styles.label}>{t('profile.currency')}</Text>
           <TouchableOpacity style={styles.currencyPill} onPress={() => setShowCurrencyPicker(true)}>
             <Text style={styles.currencyPillText}>{currency}</Text>
             <Ionicons name="chevron-down" size={16} color="#fff" />
@@ -314,7 +316,7 @@ export default function ProfileScreen() {
         {/* LANGUAGE */}
         <View style={styles.infoRow}>
           <Ionicons name="language-outline" size={18} color="#3f5b78" style={styles.iconLeft} />
-          <Text style={styles.label}>Language</Text>
+          <Text style={styles.label}>{t('profile.language')}</Text>
           <TouchableOpacity 
             style={styles.currencyPill} 
             onPress={() => setShowLanguagePicker(true)}
@@ -329,24 +331,24 @@ export default function ProfileScreen() {
       </View>
 
       <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-        <Text style={styles.saveButtonText}>Save</Text>
+        <Text style={styles.saveButtonText}>{t('common.save')}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutButtonText}>Log out</Text>
+        <Text style={styles.logoutButtonText}>{t('common.logout')}</Text>
       </TouchableOpacity>
 
       {/* Language picker modal */}
       <Modal transparent visible={showLanguagePicker} animationType="fade" onRequestClose={() => setShowLanguagePicker(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.pickerCard}>
-            <Text style={{ fontWeight: '600', marginBottom: 10 }}>Select Language</Text>
+            <Text style={{ fontWeight: '600', marginBottom: 10 }}>{t('common.select_language')}</Text>
             {languageOptions.map((lang) => (
               <TouchableOpacity 
                 key={lang}
                 style={styles.pickerRow}
                 onPress={() => {
-                  setLanguage(lang);
+                  setLanguage(lang as any);
                   setShowLanguagePicker(false);
                   if (user?.user_id) {
                     supabase
@@ -364,7 +366,7 @@ export default function ProfileScreen() {
               style={[styles.pickerRow, { justifyContent: 'center' }]} 
               onPress={() => setShowLanguagePicker(false)}
             >
-              <Text style={{ color: '#1A3C6B', fontWeight: '600' }}>Close</Text>
+              <Text style={{ color: '#1A3C6B', fontWeight: '600' }}>{t('common.close')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -374,7 +376,7 @@ export default function ProfileScreen() {
       <Modal transparent visible={showCurrencyPicker} animationType="fade" onRequestClose={() => setShowCurrencyPicker(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.pickerCard}>
-            <Text style={{ fontWeight: '600', marginBottom: 10 }}>Select currency</Text>
+            <Text style={{ fontWeight: '600', marginBottom: 10 }}>{t('common.select_currency')}</Text>
             {currencyOptions.map((c) => (
               <TouchableOpacity key={c} style={styles.pickerRow} onPress={() => handleCurrencyUpdate(c)}>
                 <Text style={{ color: '#333' }}>{c}</Text>
@@ -382,7 +384,7 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             ))}
             <TouchableOpacity style={[styles.pickerRow, { justifyContent: 'center' }]} onPress={() => setShowCurrencyPicker(false)}>
-              <Text style={{ color: '#1A3C6B', fontWeight: '600' }}>Close</Text>
+              <Text style={{ color: '#1A3C6B', fontWeight: '600' }}>{t('common.close')}</Text>
             </TouchableOpacity>
           </View>
         </View>

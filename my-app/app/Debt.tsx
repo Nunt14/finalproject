@@ -4,6 +4,7 @@ import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../constants/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useLanguage } from './contexts/LanguageContext';
 
 // ประเภทข้อมูลสำหรับการ์ดแบบรวมต่อผู้ให้เครดิต (หนึ่งการ์ดต่อหนึ่งผู้ให้เครดิต)
 type DebtItem = {
@@ -25,6 +26,7 @@ const CATEGORY_ICON: Record<string, { icon: string; color: string }> = {
 
 export default function DebtScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [debts, setDebts] = useState<DebtItem[]>([]);
   const [pendingConfirms, setPendingConfirms] = useState<Array<{ creditor_id: string; creditor_name: string; creditor_profile_image?: string | null; total_amount: number }>>([]);
   const [confirmedPays, setConfirmedPays] = useState<Array<{ creditor_id: string; creditor_name: string; creditor_profile_image?: string | null; total_amount: number }>>([]);
@@ -344,20 +346,20 @@ export default function DebtScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={24} color="black" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Debt</Text>
+        <Text style={styles.headerTitle}>{t('debt.title')}</Text>
       </View>
 
-      <Text style={styles.subHeader}>Waiting for pay</Text>
+      <Text style={styles.subHeader}>{t('debt.waiting_for_pay')}</Text>
       <ScrollView style={styles.scrollContainer}>
         {debts.length === 0 ? (
-          <Text style={{ color: '#888', textAlign: 'center', marginTop: 30 }}>ไม่พบหนี้ที่ต้องชำระ</Text>
+          <Text style={{ color: '#888', textAlign: 'center', marginTop: 30 }}>{t('debt.no_debts')}</Text>
         ) : (
           debts.map(renderDebtCard)
         )}
 
         {(pendingConfirms.length > 0 || confirmedPays.length > 0) && (
           <>
-            <Text style={[styles.subHeader, { marginTop: 12 }]}>Already Paid</Text>
+            <Text style={[styles.subHeader, { marginTop: 12 }]}>{t('debt.already_paid')}</Text>
             {pendingConfirms.map((p) => (
               <View key={`p-${p.creditor_id}`} style={[styles.card, { borderColor: '#FFE7A2' }]}> 
                 <View style={styles.rowBetween}>
@@ -371,7 +373,7 @@ export default function DebtScreen() {
                 <View style={styles.rowBetween}>
                   <View style={styles.row}>
                     <FontAwesome5 name="clock" size={18} color="#F4B400" style={{ marginRight: 6 }} />
-                    <Text style={styles.totalList}>Waiting for confirm</Text>
+                    <Text style={styles.totalList}>{t('debt.waiting_for_confirm')}</Text>
                   </View>
                 </View>
               </View>
@@ -389,7 +391,7 @@ export default function DebtScreen() {
                 <View style={styles.rowBetween}>
                   <View style={styles.row}>
                     <FontAwesome5 name="check-circle" size={18} color="#2FBF71" style={{ marginRight: 6 }} />
-                    <Text style={styles.totalList}>Confirmed</Text>
+                    <Text style={styles.totalList}>{t('debt.confirmed')}</Text>
                   </View>
                 </View>
               </View>

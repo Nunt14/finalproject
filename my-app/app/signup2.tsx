@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { supabase } from '../constants/supabase';
+import { useLanguage } from './contexts/LanguageContext';
 
 export default function SignUpStep2() {
   const { email, password } = useLocalSearchParams();
+  const { t } = useLanguage();
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
 
@@ -69,25 +71,25 @@ export default function SignUpStep2() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Sign up</Text>
+      <Text style={styles.header}>{t('signup2.title')}</Text>
       <TextInput
-        placeholder="Full name"
+        placeholder={t('signup2.fullname')}
         style={styles.input}
         onChangeText={setFullName}
         value={fullName}
       />
       <TextInput
-        placeholder="Phone number"
+        placeholder={t('signup2.phone')}
         keyboardType="phone-pad"
         style={styles.input}
         onChangeText={setPhone}
         value={phone}
       />
       <Text style={styles.hint}>
-        I use <Text style={{ fontWeight: 'bold' }}>THB (฿)</Text> as my currency. <Text style={styles.link}>Change</Text>
+        {t('signup2.currency_hint')} <Text style={{ fontWeight: 'bold' }}>THB (฿)</Text> {t('signup2.currency_change') ? t('signup2.currency_change') : ''}
       </Text>
       <TouchableOpacity style={styles.button} onPress={handleSignUp}>
-        <Text style={styles.buttonText}>Next</Text>
+        <Text style={styles.buttonText}>{t('signup2.next')}</Text>
       </TouchableOpacity>
     </View>
   );

@@ -3,12 +3,14 @@ import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, Image, Scro
 import { Ionicons } from '@expo/vector-icons';
 import { supabase, SUPABASE_ANON_KEY } from '../constants/supabase';
 import { router } from 'expo-router';
+import { useLanguage } from './contexts/LanguageContext';
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const { t } = useLanguage();
 
   const handleUpdatePassword = async () => {
     if (!newPassword || !confirmPassword) {
@@ -60,16 +62,14 @@ export default function ForgotPasswordScreen() {
     <View style={styles.container}>
       <View style={styles.contentContainer}>
         <ScrollView contentContainerStyle={styles.scrollContainer}>
-          <Text style={styles.title}>Reset Password</Text>
-          <Text style={styles.subtitle}>
-            Enter your registered email and set a new password.
-          </Text>
+          <Text style={styles.title}>{t('forgot.title')}</Text>
+          <Text style={styles.subtitle}>{t('forgot.subtitle')}</Text>
 
           <View style={styles.inputContainer}>
             <Ionicons name="mail-outline" size={20} color="#888" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="Email address"
+              placeholder={t('forgot.email')}
               placeholderTextColor="#888"
               keyboardType="email-address"
               autoCapitalize="none"
@@ -83,7 +83,7 @@ export default function ForgotPasswordScreen() {
             <Ionicons name="lock-closed-outline" size={20} color="#888" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="New password"
+              placeholder={t('forgot.new_password')}
               placeholderTextColor="#888"
               autoCapitalize="none"
               secureTextEntry
@@ -96,7 +96,7 @@ export default function ForgotPasswordScreen() {
             <Ionicons name="lock-closed-outline" size={20} color="#888" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="Confirm new password"
+              placeholder={t('forgot.confirm_password')}
               placeholderTextColor="#888"
               autoCapitalize="none"
               secureTextEntry
@@ -111,7 +111,7 @@ export default function ForgotPasswordScreen() {
             disabled={isLoading}
           >
             <Text style={styles.buttonText}>
-              {isLoading ? 'Updating...' : 'Reset Password'}
+              {isLoading ? t('forgot.updating') : t('forgot.reset')}
             </Text>
           </TouchableOpacity>
 
@@ -119,7 +119,7 @@ export default function ForgotPasswordScreen() {
             style={styles.backButton}
             onPress={() => router.back()}
           >
-            <Text style={styles.backButtonText}>Back to Login</Text>
+            <Text style={styles.backButtonText}>{t('forgot.back_to_login')}</Text>
           </TouchableOpacity>
         </ScrollView>
       </View>

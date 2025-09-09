@@ -5,9 +5,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { supabase } from '../constants/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useLanguage } from './contexts/LanguageContext';
 
 export default function ProfileViewScreen() {
   const [user, setUser] = useState<any>(null);
+  const { t } = useLanguage();
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -41,25 +43,25 @@ export default function ProfileViewScreen() {
       <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
         <Ionicons name="chevron-back" size={24} color="#000" />
       </TouchableOpacity>
-      <Text style={styles.header}>Account</Text>
+      <Text style={styles.header}>{t('profileview.title')}</Text>
       <View style={styles.profileSection}>
         <Image
           source={user.profile_image_url ? { uri: user.profile_image_url } : require('../assets/images/logo.png')}
           style={styles.profileImage}
         />
-        <Text style={styles.name}>{user.full_name || 'User'}</Text>
+        <Text style={styles.name}>{user.full_name || t('profileview.user_fallback')}</Text>
         <Text style={styles.email}>{user.email}</Text>
       </View>
       <View style={styles.infoSection}>
-        <Text style={styles.label}>Phone number: {user.phone_number || 'N/A'}</Text>
-        <Text style={styles.label}>Currency: {user.currency_preference || 'THB'}</Text>
-        <Text style={styles.label}>Language: {user.language_preference || 'TH'}</Text>
+        <Text style={styles.label}>{t('profileview.phone')}: {user.phone_number || 'N/A'}</Text>
+        <Text style={styles.label}>{t('profileview.currency')}: {user.currency_preference || 'THB'}</Text>
+        <Text style={styles.label}>{t('profileview.language')}: {user.language_preference || 'TH'}</Text>
       </View>
       <TouchableOpacity style={styles.editButton} onPress={() => router.push('/ProfileEdit')}>
-        <Text style={styles.editButtonText}>Edit</Text>
+        <Text style={styles.editButtonText}>{t('profileview.edit')}</Text>
       </TouchableOpacity>
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutButtonText}>Log out</Text>
+        <Text style={styles.logoutButtonText}>{t('profileview.logout')}</Text>
       </TouchableOpacity>
     </ScrollView>
   );

@@ -6,6 +6,7 @@ import { supabase } from '../constants/supabase';
 import { runOcrOnImage } from '../utils/ocr';
 import * as FileSystem from 'expo-file-system';
 import { useFocusEffect } from '@react-navigation/native';
+import { useLanguage } from './contexts/LanguageContext';
 
 type Proof = {
   id: string;
@@ -25,6 +26,7 @@ type UserLite = { user_id: string; full_name: string | null; profile_image_url: 
 
 export default function ConfirmPaymentsScreen() {
   const { tripId } = useLocalSearchParams<{ tripId?: string }>();
+  const { t } = useLanguage();
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [proofs, setProofs] = useState<Proof[]>([]);
   const [userMap, setUserMap] = useState<Map<string, UserLite>>(new Map());
@@ -599,18 +601,16 @@ export default function ConfirmPaymentsScreen() {
         >
           <Ionicons name="chevron-back" size={24} color="black" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Confirm Payment</Text>
+        <Text style={styles.headerTitle}>{t('confirm.title')}</Text>
       </View>
 
       {/* Add Total Debt Card */}
       <View style={styles.totalDebtCard}>
-        <Text style={styles.totalDebtLabel}>Total Amount Owed to You</Text>
+        <Text style={styles.totalDebtLabel}>{t('confirm.total_owed_label')}</Text>
         <Text style={styles.totalDebtAmount}>
           {Math.max(0, totalDebt).toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿
         </Text>
-        <Text style={styles.totalDebtNote}>
-          This amount will decrease as payments are approved
-        </Text>
+        <Text style={styles.totalDebtNote}>{t('confirm.total_note')}</Text>
       </View>
 
       <ScrollView
@@ -633,7 +633,7 @@ export default function ConfirmPaymentsScreen() {
         {proofs.length === 0 ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="document-text-outline" size={48} color="#ccc" />
-            <Text style={{ marginTop: 12, color: '#666' }}>ยังไม่มีคำขอยืนยันการชำระเงิน</Text>
+            <Text style={{ marginTop: 12, color: '#666' }}>{t('confirm.empty')}</Text>
             <TouchableOpacity style={[styles.circle, { backgroundColor: '#234080', marginTop: 14 }]} onPress={() => currentUserId && fetchProofs(currentUserId)}>
               <Ionicons name="refresh" size={18} color="#fff" />
             </TouchableOpacity>
@@ -663,7 +663,7 @@ export default function ConfirmPaymentsScreen() {
                 <Text style={styles.amountText}>{(p.amount ?? 0).toLocaleString()} ฿</Text>
                 {ocr ? (
                   <Text style={{ marginTop: 2, fontSize: 12, color: ocr.status === 'matched' ? '#2e7d32' : ocr.status === 'mismatch' ? '#c0392b' : '#666' }}>
-                    {ocr.loading ? 'OCR: กำลังตรวจ…' : ocr.status === 'matched' ? `OCR: ตรงกัน (${(ocr.amount ?? 0).toLocaleString()} ฿)` : ocr.status === 'mismatch' ? `OCR: ไม่ตรง (${ocr.amount != null ? ocr.amount.toLocaleString() + ' ฿' : '-'})` : 'OCR: ผิดพลาด'}
+                    {ocr.loading ? t('confirm.ocr.loading') : ocr.status === 'matched' ? `${t('confirm.ocr.matched')} (${(ocr.amount ?? 0).toLocaleString()} ฿)` : ocr.status === 'mismatch' ? `${t('confirm.ocr.mismatch')} (${ocr.amount != null ? ocr.amount.toLocaleString() + ' ฿' : '-'})` : t('confirm.ocr.error')}
                   </Text>
                 ) : null}
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>

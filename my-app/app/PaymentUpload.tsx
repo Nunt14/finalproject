@@ -8,6 +8,7 @@ import { supabase } from '../constants/supabase';
 import * as FileSystem from 'expo-file-system';
 import { decode as decodeBase64 } from 'base64-arraybuffer';
 import { runOcrOnImage } from '../utils/ocr';
+import { useLanguage } from './contexts/LanguageContext';
 
 type RouteParams = {
   billId: string;
@@ -18,6 +19,7 @@ type RouteParams = {
 export default function PaymentUploadScreen() {
   const route = useRoute();
   const { billId, creditorId, amount } = route.params as unknown as RouteParams;
+  const { t } = useLanguage();
 
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState<boolean>(false);
@@ -98,11 +100,11 @@ export default function PaymentUploadScreen() {
   const onConfirm = async () => {
     if (!imageUri || submitting) return;
     if (expectedAmount != null && ocrAmount == null) {
-      Alert.alert('ต้องการยอดจากสลิป', 'กรุณาให้ระบบอ่านยอดจากสลิปให้สำเร็จก่อน', [{ text: 'ตกลง' }]);
+      Alert.alert(t('paymentupload.require_ocr'), t('paymentupload.require_ocr_msg'), [{ text: t('paymentupload.ok') }]);
       return;
     }
     if (matchOk !== true) {
-      Alert.alert('ยอดไม่ตรง', 'ยอดเงินในสลิปไม่ตรงกับยอดที่ต้องจ่าย', [{ text: 'ตกลง' }]);
+      Alert.alert(t('paymentupload.mismatch_title'), t('paymentupload.warning_box'), [{ text: t('paymentupload.ok') }]);
       return;
     }
     try {
@@ -165,11 +167,11 @@ export default function PaymentUploadScreen() {
         status: 'pending',
       });
       
-      Alert.alert('Success', 'Payment submitted for review.');
+      Alert.alert(t('paymentupload.success'), t('paymentupload.success_msg'));
       if ((router as any).canGoBack && (router as any).canGoBack()) router.back();
       if ((router as any).canGoBack && (router as any).canGoBack()) router.back();
     } catch (e) {
-      Alert.alert('Error', 'Unable to submit payment.');
+      Alert.alert(t('paymentupload.error'), t('paymentupload.error_msg'));
     } finally {
       setSubmitting(false);
     }
@@ -188,14 +190,14 @@ export default function PaymentUploadScreen() {
           <Ionicons name="chevron-back" size={24} color="#0F3176" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Upload Payment Slip</Text>
+          <Text style={styles.headerTitle}>{t('paymentupload.title')}</Text>
         </View>
         <View style={{ width: 24 }} />
       </View>
 
       <View style={styles.uploadContainer}>
-        <Text style={styles.sectionTitle}>Upload Payment Slip</Text>
-        <Text style={styles.sectionSubtitle}>Please upload a clear photo of your payment slip</Text>
+        <Text style={styles.sectionTitle}>{t('paymentupload.section.title')}</Text>
+        <Text style={styles.sectionSubtitle}>{t('paymentupload.section.subtitle')}</Text>
         
         <TouchableOpacity
           style={styles.uploadBox}
@@ -208,7 +210,7 @@ export default function PaymentUploadScreen() {
               <Image source={{ uri: imageUri }} style={styles.preview} resizeMode="contain" />
               <View style={styles.overlay}>
                 <Ionicons name="camera" size={32} color="#fff" />
-                <Text style={styles.overlayText}>Tap to change photo</Text>
+                <Text style={styles.overlayText}>{t('paymentupload.tap_to_change')}</Text>
               </View>
             </View>
           ) : (
@@ -216,8 +218,8 @@ export default function PaymentUploadScreen() {
               <View style={styles.uploadIcon}>
                 <Ionicons name="cloud-upload" size={42} color="#0F3176" />
               </View>
-              <Text style={styles.uploadTitle}>Upload Slip</Text>
-              <Text style={styles.uploadSubtitle}>Tap to select from gallery or long press to take a photo</Text>
+              <Text style={styles.uploadTitle}>{t('paymentupload.upload_slip')}</Text>
+              <Text style={styles.uploadSubtitle}>{t('paymentupload.tap_or_longpress')}</Text>
             </View>
           )}
         </TouchableOpacity>
@@ -227,22 +229,22 @@ export default function PaymentUploadScreen() {
             <View style={styles.ocrHeader}>
               <View style={styles.ocrTitleContainer}>
                 <Ionicons name="document-text" size={20} color="#0F3176" />
-                <Text style={styles.ocrTitle}>Payment Details</Text>
+                <Text style={styles.ocrTitle}>{t('paymentupload.payment_details')}</Text>
               </View>
               {ocrLoading && <ActivityIndicator size="small" color="#0F3176" />}
             </View>
             
             <View style={styles.ocrDetails}>
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Amount in Slip:</Text>
+                <Text style={styles.detailLabel}>{t('paymentupload.amount_in_slip')}</Text>
                 <Text style={[styles.detailValue, { color: ocrAmount ? '#2e7d32' : '#666' }]}>
-                  {ocrAmount != null ? `${ocrAmount.toLocaleString()} ฿` : 'Scanning...'}
+                  {ocrAmount != null ? `${ocrAmount.toLocaleString()} ฿` : t('paymentupload.scanning')}
                 </Text>
               </View>
               
               {expectedAmount != null && (
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Expected Amount:</Text>
+                  <Text style={styles.detailLabel}>{t('paymentupload.expected_amount')}</Text>
                   <Text style={[styles.detailValue, { color: matchOk === false ? '#e74c3c' : '#2e7d32' }]}>
                     {expectedAmount.toLocaleString()} ฿
                     {matchOk === true && ' ✓'}
@@ -257,7 +259,7 @@ export default function PaymentUploadScreen() {
                 disabled={ocrLoading}
               >
                 <Ionicons name="refresh" size={16} color="#0F3176" style={{ marginRight: 6 }} />
-                <Text style={styles.scanAgainText}>Scan Again</Text>
+                <Text style={styles.scanAgainText}>{t('paymentupload.scan_again')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -268,7 +270,7 @@ export default function PaymentUploadScreen() {
         {imageUri && expectedAmount != null && matchOk === false && (
           <View style={styles.warningBox}>
             <Ionicons name="warning" size={18} color="#e74c3c" />
-            <Text style={styles.warningText}>Amount doesn't match the expected payment</Text>
+            <Text style={styles.warningText}>{t('paymentupload.warning_box')}</Text>
           </View>
         )}
         
@@ -281,7 +283,7 @@ export default function PaymentUploadScreen() {
             <ActivityIndicator color="#fff" />
           ) : (
             <Text style={styles.confirmButtonText}>
-              {imageUri ? 'Confirm Payment' : 'Upload Slip'}
+              {imageUri ? t('paymentupload.confirm_payment') : t('paymentupload.upload_cta')}
             </Text>
           )}
         </TouchableOpacity>

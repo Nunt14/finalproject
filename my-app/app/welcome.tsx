@@ -7,9 +7,11 @@ import { RootStackParamList } from '../constants/types';
 import { supabase, hardResetAuth } from '../constants/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
+import { useLanguage } from './contexts/LanguageContext';
 
 export default function WelcomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'Welcome'>>();
+  const { t } = useLanguage();
 
   const [trips, setTrips] = useState<any[]>([]);
   const [filteredTrips, setFilteredTrips] = useState<any[]>([]);
@@ -233,7 +235,7 @@ export default function WelcomeScreen() {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={{ paddingBottom: 140 }}>
         {/* Title */}
-        <Text style={styles.title}>Welcome {'\n'}to Harnty, {'\n'}{userFullName}!</Text>
+        <Text style={styles.title}>{t('welcome.title')} {'\n'}{userFullName}!</Text>
 
         <Image
           source={require('../assets/images/img.png')}
@@ -266,7 +268,7 @@ export default function WelcomeScreen() {
 
         {/* Section Header */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>All You Trip !</Text>
+          <Text style={styles.sectionTitle}>{t('welcome.all_trips')}</Text>
           <View style={styles.iconsRight}>
             <TouchableOpacity onPress={handleNotificationPress}>
               <Ionicons name="notifications" size={20} color="red" style={{ marginRight: 10 }} />
@@ -279,7 +281,7 @@ export default function WelcomeScreen() {
 
         {/* Trip List */}
         {filteredTrips.length === 0 ? (
-          <Text style={styles.noResultsText}>ไม่พบทริปที่ค้นหา</Text>
+          <Text style={styles.noResultsText}>{t('welcome.no_results')}</Text>
         ) : (
           filteredTrips.map((trip) => (
           <View key={trip.trip_id} style={styles.card}>

@@ -8,6 +8,7 @@ import * as FileSystem from 'expo-file-system';
 import { decode as decodeBase64 } from 'base64-arraybuffer';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
+import { useLanguage } from './contexts/LanguageContext';
 
 type Member = {
   user_id: string;
@@ -17,6 +18,7 @@ type Member = {
 
 export default function AddTripScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [tripName, setTripName] = useState<string>('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -260,7 +262,7 @@ export default function AddTripScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={24} color="black" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Add new trip</Text>
+        <Text style={styles.headerTitle}>{t('addtrip.header')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -278,19 +280,19 @@ export default function AddTripScreen() {
 
         {/* Title input */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>title :</Text>
+          <Text style={styles.label}>{t('addtrip.title_label')}</Text>
           <TextInput
             value={tripName}
             onChangeText={setTripName}
             style={styles.input}
-            placeholder="Enter trip title"
+            placeholder={t('addtrip.title_placeholder')}
             placeholderTextColor="#999"
           />
         </View>
 
         {/* Member section */}
         <View style={styles.memberSection}>
-          <Text style={styles.label}>Member :</Text>
+          <Text style={styles.label}>{t('addtrip.member_label')}</Text>
           {loading ? (
             <ActivityIndicator style={{ marginTop: 20 }} size="large" color="#1A3C6B" />
           ) : (
@@ -335,7 +337,7 @@ export default function AddTripScreen() {
                 <View style={[styles.checkbox, selectAll && styles.checkboxSelected]}>
                   {selectAll && <Ionicons name="checkmark" size={16} color="#fff" />}
                 </View>
-                <Text style={styles.everyoneLabel}>everyone</Text>
+                <Text style={styles.everyoneLabel}>{t('addtrip.everyone')}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -345,10 +347,10 @@ export default function AddTripScreen() {
       {/* Bottom buttons */}
       <View style={styles.buttonContainer} pointerEvents="box-none">
         <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm} disabled={loading}>
-          <Text style={styles.confirmText}>{loading ? 'Saving...' : 'Confirm'}</Text>
+          <Text style={styles.confirmText}>{loading ? t('addtrip.saving') : t('addtrip.confirm')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.replace('/welcome')}>
-          <Text style={styles.backText}>Back</Text>
+          <Text style={styles.backText}>{t('addtrip.back')}</Text>
         </TouchableOpacity>
       </View>
 

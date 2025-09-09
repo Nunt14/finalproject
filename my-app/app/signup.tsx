@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { router } from 'expo-router';
+import { useLanguage } from './contexts/LanguageContext';
 
 export default function SignUpStep1() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const { t } = useLanguage();
 
   const handleNext = () => {
     if (!email || !password) {
-      Alert.alert('Please enter both email and password');
+      Alert.alert(t('signup.alert_fill'));
       return;
     }
 
@@ -21,10 +23,10 @@ export default function SignUpStep1() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Sign up</Text>
+      <Text style={styles.header}>{t('signup.title')}</Text>
 
       <TextInput
-        placeholder="Email address"
+        placeholder={t('signup.email')}
         style={styles.input}
         keyboardType="email-address"
         autoCapitalize="none"
@@ -33,17 +35,17 @@ export default function SignUpStep1() {
       />
 
       <TextInput
-        placeholder="Password"
+        placeholder={t('signup.password')}
         style={styles.input}
         secureTextEntry
         onChangeText={setPassword}
         value={password}
       />
 
-      <Text style={styles.hint}>Minimum 8 characters</Text>
+      <Text style={styles.hint}>{t('signup.min_hint')}</Text>
 
       <TouchableOpacity style={styles.button} onPress={handleNext}>
-        <Text style={styles.buttonText}>Next</Text>
+        <Text style={styles.buttonText}>{t('signup.next')}</Text>
       </TouchableOpacity>
     </View>
   );

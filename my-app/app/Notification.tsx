@@ -9,6 +9,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../constants/types';
 import { supabase } from '../constants/supabase';
+import { useLanguage } from './contexts/LanguageContext';
 
 // Type definitions
 interface Notification {
@@ -28,6 +29,7 @@ interface NotificationGroup {
 
 export default function NotificationScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'Notification'>>();
+  const { t } = useLanguage();
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -183,9 +185,9 @@ export default function NotificationScreen() {
     const yesterdayNotifications = notifications.filter(n => new Date(n.created_at).toDateString() === yesterday.toDateString());
     const olderNotifications = notifications.filter(n => new Date(n.created_at) < yesterday);
     return [
-      { title: 'Today', data: todayNotifications },
-      { title: 'Yesterday', data: yesterdayNotifications },
-      { title: 'Earlier', data: olderNotifications }
+      { title: t('notify.group.today'), data: todayNotifications },
+      { title: t('notify.group.yesterday'), data: yesterdayNotifications },
+      { title: t('notify.group.earlier'), data: olderNotifications }
     ].filter(g => g.data.length > 0);
   };
 
@@ -193,7 +195,7 @@ export default function NotificationScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#45647C" />
-        <Text style={styles.loadingText}>กำลังโหลดการแจ้งเตือน...</Text>
+        <Text style={styles.loadingText}>{t('notify.loading')}</Text>
       </View>
     );
   }
@@ -205,15 +207,15 @@ export default function NotificationScreen() {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="black" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Notification</Text>
+        <Text style={styles.headerTitle}>{t('notify.title')}</Text>
         <View style={styles.headerSpacer} />
       </View>
 
       {notifications.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="notifications-off" size={64} color="#ccc" />
-          <Text style={styles.emptyText}>ไม่มีการแจ้งเตือน</Text>
-          <Text style={styles.emptySubText}>คุณจะเห็นการแจ้งเตือนที่นี่เมื่อมีกิจกรรมใหม่</Text>
+          <Text style={styles.emptyText}>{t('notify.empty.title')}</Text>
+          <Text style={styles.emptySubText}>{t('notify.empty.subtitle')}</Text>
         </View>
       ) : (
         <FlatList

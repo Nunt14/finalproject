@@ -8,8 +8,10 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system';
 import { decode as decodeBase64 } from 'base64-arraybuffer';
+import { useLanguage } from './contexts/LanguageContext';
 
 export default function ProfileEditScreen() {
+  const { t } = useLanguage();
   const [user, setUser] = useState<any>(null);
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
@@ -87,7 +89,7 @@ export default function ProfileEditScreen() {
       if (type === 'profile') {
         const publicUrl = await uploadToStorage(imageUri, 'user-profile');
         if (!publicUrl) {
-          Alert.alert('Upload Failed', 'ไม่สามารถอัปโหลดรูปโปรไฟล์ได้');
+          Alert.alert(t('profileedit.upload_failed'), t('profileedit.upload_profile_fail'));
           return;
         }
         setProfileImage(publicUrl);
@@ -95,7 +97,7 @@ export default function ProfileEditScreen() {
       } else {
         const publicUrl = await uploadToStorage(imageUri, 'user-qr');
         if (!publicUrl) {
-          Alert.alert('Upload Failed', 'ไม่สามารถอัปโหลดรูป QR ได้');
+          Alert.alert(t('profileedit.upload_failed'), t('profileedit.upload_qr_fail'));
           return;
         }
         setQRImage(publicUrl);
@@ -119,7 +121,7 @@ export default function ProfileEditScreen() {
     if (error) {
       Alert.alert('Update Failed', error.message);
     } else {
-      Alert.alert('Profile Updated');
+      Alert.alert(t('profileedit.updated'));
       router.replace('/ProfileView');
     }
   };
@@ -129,7 +131,7 @@ export default function ProfileEditScreen() {
       <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
         <Ionicons name="chevron-back" size={24} color="#000" />
       </TouchableOpacity>
-      <Text style={styles.header}>Edit Profile</Text>
+      <Text style={styles.header}>{t('profileedit.title')}</Text>
 
       <View style={styles.profileSection}>
         <Image
@@ -141,19 +143,19 @@ export default function ProfileEditScreen() {
         </TouchableOpacity>
       </View>
 
-      <TextInput style={styles.input} placeholder="Full Name" value={fullName} onChangeText={setFullName} />
-      <TextInput style={styles.input} placeholder="Phone Number" value={phone} onChangeText={setPhone} />
-      <TextInput style={styles.input} placeholder="Currency (e.g. THB)" value={currency} onChangeText={setCurrency} />
-      <TextInput style={styles.input} placeholder="Language (e.g. TH)" value={language} onChangeText={setLanguage} />
+      <TextInput style={styles.input} placeholder={t('profileedit.fullname')} value={fullName} onChangeText={setFullName} />
+      <TextInput style={styles.input} placeholder={t('profileedit.phone')} value={phone} onChangeText={setPhone} />
+      <TextInput style={styles.input} placeholder={t('profileedit.currency')} value={currency} onChangeText={setCurrency} />
+      <TextInput style={styles.input} placeholder={t('profileedit.language')} value={language} onChangeText={setLanguage} />
 
       <TouchableOpacity onPress={() => handleImagePick('qr')} style={styles.qrButton}>
-        <Text style={styles.qrButtonText}>Change QR Image</Text>
+        <Text style={styles.qrButtonText}>{t('profileedit.change_qr')}</Text>
       </TouchableOpacity>
 
       {qrImage && <Image source={{ uri: qrImage }} style={styles.qrImage} />}
 
       <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-        <Text style={styles.saveButtonText}>Save</Text>
+        <Text style={styles.saveButtonText}>{t('profileedit.save')}</Text>
       </TouchableOpacity>
     </ScrollView>
   );

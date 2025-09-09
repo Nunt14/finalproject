@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, router } from 'expo-router';
 import { supabase } from '../constants/supabase';
+import { useLanguage } from './contexts/LanguageContext';
 
 // Helper function to get proper image URL from Supabase storage
 const getImageUrl = (imageUri: string | null | undefined): string | null => {
@@ -30,6 +31,7 @@ const getImageUrl = (imageUri: string | null | undefined): string | null => {
 export default function ConfirmSlipScreen() {
   const { proofId, imageUri: imageUriParam } = useLocalSearchParams<{ proofId?: string; imageUri?: string }>();
   const [imageUri, setImageUri] = useState<string | null>(imageUriParam ?? null);
+  const { t } = useLanguage();
 
   useEffect(() => {
     const run = async () => {
@@ -53,14 +55,14 @@ export default function ConfirmSlipScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={24} color="black" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Confirm Payment</Text>
+        <Text style={styles.headerTitle}>{t('confirmslip.title')}</Text>
       </View>
 
       <View style={styles.previewBox}>
         {!imageUri ? (
           <View style={styles.noImageContainer}>
             <Ionicons name="image-outline" size={48} color="#ccc" />
-            <Text style={styles.noImageText}>No image available</Text>
+            <Text style={styles.noImageText}>{t('confirmslip.no_image')}</Text>
           </View>
         ) : (
           <Image 

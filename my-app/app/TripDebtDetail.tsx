@@ -4,6 +4,7 @@ import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useLocalSearchParams, router } from 'expo-router';
 import { supabase } from '../constants/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useLanguage } from './contexts/LanguageContext';
 
 // Hardcoded exchange rates (as of the knowledge cutoff date)
 // In a real app, you should fetch these from a reliable exchange rate API
@@ -27,6 +28,7 @@ type BillDetail = {
 
 export default function TripDebtDetailScreen() {
   const { creditorId, tripId } = useLocalSearchParams<{ creditorId: string; tripId: string }>();
+  const { t } = useLanguage();
   const [bills, setBills] = useState<BillDetail[]>([]);
   const [creditor, setCreditor] = useState<{ full_name: string; profile_image?: string | null } | null>(null);
   const [total, setTotal] = useState(0);
@@ -151,7 +153,7 @@ export default function TripDebtDetailScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={24} color="black" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Bill</Text>
+        <Text style={styles.headerTitle}>{t('tripdebt.header')}</Text>
       </View>
 
       <View style={styles.creditorSection}>
@@ -162,7 +164,7 @@ export default function TripDebtDetailScreen() {
         )}
         <View style={{ marginLeft: 10 }}>
           <Text style={styles.creditorName}>{creditor?.full_name || '-'}</Text>
-          <Text style={styles.unpaidText}>Unpaid</Text>
+          <Text style={styles.unpaidText}>{t('tripdebt.unpaid')}</Text>
         </View>
         <View style={{ alignItems: 'flex-end' }}>
           <Text style={styles.totalAmount}>
@@ -181,12 +183,12 @@ export default function TripDebtDetailScreen() {
         <View style={styles.cardContainer}>
           <View style={styles.cardHeader}>
             <Text style={styles.tripTitle}>{tripName}</Text>
-            <Text style={styles.payMethod}>ชำระแบบการ ชำระเงินออนไลน์ :</Text>
+            <Text style={styles.payMethod}>{t('tripdebt.pay_method')}</Text>
           </View>
 
           <View style={styles.tableHeader}>
-            <Text style={[styles.tableText, { flex: 1 }]}>รายละเอียด</Text>
-            <Text style={[styles.tableText, { width: 84, textAlign: 'right' }]}>ราคา</Text>
+            <Text style={[styles.tableText, { flex: 1 }]}>{t('tripdebt.detail')}</Text>
+            <Text style={[styles.tableText, { width: 84, textAlign: 'right' }]}>{t('tripdebt.price')}</Text>
           </View>
 
           {bills.map((bill) => {
@@ -220,7 +222,7 @@ export default function TripDebtDetailScreen() {
           })}
 
           <View style={styles.totalBar}>
-            <Text style={styles.totalLabel}>รวม</Text>
+            <Text style={styles.totalLabel}>{t('tripdebt.total')}</Text>
             <View style={{ alignItems: 'flex-end' }}>
               <Text style={styles.totalValue}>
                 {Number(total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} {currencySymbol}
@@ -243,7 +245,7 @@ export default function TripDebtDetailScreen() {
               }
             }}
           >
-            <Text style={styles.payScanText}>Pay Scan</Text>
+            <Text style={styles.payScanText}>{t('tripdebt.pay_scan')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

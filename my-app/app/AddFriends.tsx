@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../constants/supabase';
+import { useLanguage } from './contexts/LanguageContext';
 
 // Component for rendering a single user item with actions
 interface UserItemProps {
@@ -35,6 +36,7 @@ interface UserItemProps {
 }
 
 const UserItem = React.memo(({ user, type, handleAddFriend, handleAcceptRequest, handleDeclineRequest, handleDeleteFriend, loading, friendsList, pendingRequests, receivedRequests }: UserItemProps) => {
+  const { t } = useLanguage();
   const renderAction = () => {
     // Determine the action button/text based on the user's status
     // แก้ไขโดยใช้ optional chaining (?.) เพื่อป้องกัน TypeError หาก props เป็น undefined
@@ -50,11 +52,11 @@ const UserItem = React.memo(({ user, type, handleAddFriend, handleAcceptRequest,
             onPress={() => handleDeleteFriend(user.user_id)}
             disabled={loading}
           >
-            <Text style={styles.buttonText}>Delete</Text>
+            <Text style={styles.buttonText}>{t('friends.action.delete')}</Text>
           </TouchableOpacity>
         );
       }
-      if (isPending) return <Text style={styles.pendingText}>Pending</Text>;
+      if (isPending) return <Text style={styles.pendingText}>{t('friends.action.pending')}</Text>;
       if (isReceived) {
         return (
           <View style={styles.actionButtons}>
@@ -63,14 +65,14 @@ const UserItem = React.memo(({ user, type, handleAddFriend, handleAcceptRequest,
               onPress={() => handleAcceptRequest(user.user_id)}
               disabled={loading}
             >
-              <Text style={styles.buttonText}>Accept</Text>
+              <Text style={styles.buttonText}>{t('friends.action.accept')}</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.declineButton} 
               onPress={() => handleDeclineRequest(user.user_id)}
               disabled={loading}
             >
-              <Text style={styles.buttonText}>Decline</Text>
+              <Text style={styles.buttonText}>{t('friends.action.decline')}</Text>
             </TouchableOpacity>
           </View>
         );
@@ -81,7 +83,7 @@ const UserItem = React.memo(({ user, type, handleAddFriend, handleAcceptRequest,
           onPress={() => handleAddFriend(user.user_id)}
           disabled={loading}
         >
-          <Text style={styles.buttonText}>Add</Text>
+          <Text style={styles.buttonText}>{t('friends.action.add')}</Text>
         </TouchableOpacity>
       );
     }
@@ -95,12 +97,12 @@ const UserItem = React.memo(({ user, type, handleAddFriend, handleAcceptRequest,
             onPress={() => handleDeleteFriend(user.user_id)}
             disabled={loading}
           >
-            <Text style={styles.buttonText}>Delete</Text>
+            <Text style={styles.buttonText}>{t('friends.action.delete')}</Text>
           </TouchableOpacity>
         </View>
       );
     }
-    if (type === 'pending') return <Text style={styles.pendingText}>Pending</Text>;
+    if (type === 'pending') return <Text style={styles.pendingText}>{t('friends.action.pending')}</Text>;
     if (type === 'received') {
       return (
         <View style={styles.actionButtons}>
@@ -109,14 +111,14 @@ const UserItem = React.memo(({ user, type, handleAddFriend, handleAcceptRequest,
             onPress={() => handleAcceptRequest(user.user_id)}
             disabled={loading}
           >
-            <Text style={styles.buttonText}>Accept</Text>
+            <Text style={styles.buttonText}>{t('friends.action.accept')}</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={styles.declineButton} 
             onPress={() => handleDeclineRequest(user.user_id)}
             disabled={loading}
           >
-            <Text style={styles.buttonText}>Decline</Text>
+            <Text style={styles.buttonText}>{t('friends.action.decline')}</Text>
           </TouchableOpacity>
         </View>
       );
@@ -141,6 +143,7 @@ const UserItem = React.memo(({ user, type, handleAddFriend, handleAcceptRequest,
 
 export default function AddFriendsScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -518,7 +521,7 @@ export default function AddFriendsScreen() {
           <Ionicons name="chevron-back" size={24} />
         </TouchableOpacity>
         <View style={{ flex: 1 }} />
-        <Text style={styles.headerTitle}>Add Friends</Text>
+        <Text style={styles.headerTitle}>{t('friends.title')}</Text>
       </View>
 
       <View style={styles.tabs}>
@@ -526,13 +529,13 @@ export default function AddFriendsScreen() {
           style={[styles.tab, selectedTab === 'friends' && styles.activeTab]}
           onPress={() => setSelectedTab('friends')}
         >
-          <Text style={selectedTab === 'friends' ? styles.activeTabText : styles.tabText}>Friends</Text>
+          <Text style={selectedTab === 'friends' ? styles.activeTabText : styles.tabText}>{t('friends.tab.friends')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, selectedTab === 'group' && styles.activeTab]}
           onPress={() => setSelectedTab('group')}
         >
-          <Text style={selectedTab === 'group' ? styles.activeTabText : styles.tabText}>Group</Text>
+          <Text style={selectedTab === 'group' ? styles.activeTabText : styles.tabText}>{t('friends.tab.group')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -542,7 +545,7 @@ export default function AddFriendsScreen() {
             <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search by full name"
+              placeholder={t('friends.search_placeholder')}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
@@ -570,7 +573,7 @@ export default function AddFriendsScreen() {
               )}
               ListEmptyComponent={() => (
                 <View style={styles.emptyList}>
-                  <Text style={styles.emptyText}>ไม่พบผู้ใช้</Text>
+                  <Text style={styles.emptyText}>{t('friends.empty.users')}</Text>
                 </View>
               )}
             />
@@ -580,7 +583,11 @@ export default function AddFriendsScreen() {
               keyExtractor={(item, index) => item.type === 'header' ? `header-${item.title}` : `${item.user_id}-${item.type}-${index}`}
               renderItem={({ item }) => {
                 if (item.type === 'header') {
-                  return <Text style={styles.sectionHeader}>{item.title}</Text>;
+                  return <Text style={styles.sectionHeader}>{
+                    item.title === 'คำขอเป็นเพื่อนที่ได้รับ' ? t('friends.header.received') :
+                    item.title === 'คำขอที่ส่งออกไป' ? t('friends.header.sent') :
+                    item.title === 'เพื่อนของฉัน' ? t('friends.header.my') : item.title
+                  }</Text>;
                 }
                 return (
                   <UserItem
@@ -599,7 +606,7 @@ export default function AddFriendsScreen() {
               }}
               ListEmptyComponent={() => (
                 <View style={styles.emptyList}>
-                  <Text style={styles.emptyText}>คุณยังไม่มีเพื่อนหรือคำขอเป็นเพื่อน</Text>
+                  <Text style={styles.emptyText}>{t('friends.empty.none')}</Text>
                 </View>
               )}
             />
@@ -613,8 +620,8 @@ export default function AddFriendsScreen() {
         ) : trips.length === 0 ? (
           <View style={styles.emptyList}>
             <Ionicons name="sad-outline" size={48} color="#999" />
-            <Text style={styles.emptyText}>No trips found</Text>
-            <Text style={styles.emptyStateSubtext}>Create a new trip to get started</Text>
+            <Text style={styles.emptyText}>{t('friends.group.empty.title')}</Text>
+            <Text style={styles.emptyStateSubtext}>{t('friends.group.empty.subtitle')}</Text>
           </View>
         ) : (
           <FlatList

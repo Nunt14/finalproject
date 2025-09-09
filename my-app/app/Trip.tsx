@@ -6,6 +6,7 @@ import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '../constants/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useLanguage } from './contexts/LanguageContext';
 
 // ชนิดข้อมูลของส่วนแบ่งบิลของผู้ใช้แต่ละคน
 type BillShare = {
@@ -34,6 +35,7 @@ type BillItem = {
 export default function TripScreen() {
   const router = useRouter();
   const { tripId } = useLocalSearchParams<{ tripId: string }>();
+  const { t } = useLanguage();
 
   // สเตตหลักสำหรับเก็บข้อมูลทริปและบิล
   const [trip, setTrip] = useState<any | null>(null);
@@ -253,20 +255,20 @@ export default function TripScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={24} color="black" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Group Trip</Text>
+        <Text style={styles.headerTitle}>{t('trip.header')}</Text>
       </View>
 
       {/* สรุปข้อมูลทริป */}
       <View style={{ paddingHorizontal: 4 }}>
-        <Text style={styles.tripName}>{trip?.trip_name || 'Trip'}</Text>
-        <Text style={styles.totalText}>Total {totalAmount.toLocaleString()} {currencySymbol}</Text>
+        <Text style={styles.tripName}>{trip?.trip_name || t('trip.trip_fallback')}</Text>
+        <Text style={styles.totalText}>{t('trip.total')} {totalAmount.toLocaleString()} {currencySymbol}</Text>
       </View>
 
       {/* รายการบิลทั้งหมด */}
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingVertical: 8 }}>
         {bills.length === 0 && (
           <View style={styles.emptyBox}>
-            <Text style={{ color: '#666' }}>ยังไม่มีบิลในทริปนี้</Text>
+            <Text style={{ color: '#666' }}>{t('trip.empty')}</Text>
           </View>
         )}
 
@@ -292,13 +294,13 @@ export default function TripScreen() {
                         ) : (
                           <Ionicons name="person-circle" size={20} color="#4C6EF5" />
                         )}
-                        <Text style={{ marginLeft: 6, color: '#4C6EF5', fontWeight: '600' }}>{bill.payer_full_name || 'Payer'}</Text>
+                        <Text style={{ marginLeft: 6, color: '#4C6EF5', fontWeight: '600' }}>{bill.payer_full_name || t('trip.payer')}</Text>
                       </View>
                     </View>
                     
                     {/* แสดงโน๊ต */}
                     {bill.note && (
-                      <Text style={styles.noteText}>Note : {bill.note}</Text>
+                      <Text style={styles.noteText}>{t('trip.note_label')} {bill.note}</Text>
                     )}
 
                     <View style={styles.shareList}>
@@ -310,7 +312,7 @@ export default function TripScreen() {
                             ) : (
                               <Ionicons name="person" size={14} color="#95A5A6" />
                             )}
-                            <Text style={styles.shareName}>{s.full_name || 'User'}</Text>
+                            <Text style={styles.shareName}>{s.full_name || t('trip.user')}</Text>
                           </View>
                           <Text style={styles.shareAmount}>{s.amount_share.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currencySymbol}</Text>
                         </View>
@@ -334,7 +336,7 @@ export default function TripScreen() {
                         }
                       }}
                     >
-                      <Text style={{ color: '#fff', fontWeight: 'bold' }}>{isPayer ? 'Who paid!' : 'Pay'}</Text>
+                      <Text style={{ color: '#fff', fontWeight: 'bold' }}>{isPayer ? t('trip.who_paid_button') : t('trip.pay')}</Text>
                     </TouchableOpacity>
 
                   </View>
@@ -355,7 +357,7 @@ export default function TripScreen() {
         <TouchableOpacity style={styles.circleBtn} onPress={() => router.push(`/Debttrip?tripId=${tripId}`)}>
           <View style={{ alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="bag" size={26} color="#fff" />
-            <Text style={styles.bagText}>DEBT</Text>
+            <Text style={styles.bagText}>{t('trip.debt_button')}</Text>
           </View>
         </TouchableOpacity>
 
@@ -387,7 +389,7 @@ export default function TripScreen() {
             >
               <Ionicons name="arrow-back" size={24} color="#000" />
             </TouchableOpacity>
-            <Text style={styles.modalHeaderTitle}>Who paid</Text>
+            <Text style={styles.modalHeaderTitle}>{t('trip.modal.title_who_paid')}</Text>
             <View style={{ width: 24 }} />
           </View>
           
@@ -406,13 +408,13 @@ export default function TripScreen() {
               })} {currencySymbol}
             </Text>
             {selectedBill?.note ? (
-              <Text style={styles.noteText}>Note : {selectedBill.note}</Text>
+              <Text style={styles.noteText}>{t('trip.note_label')} {selectedBill.note}</Text>
             ) : null}
           </View>
           
           {/* ส่วนที่ชำระแล้ว (Paid) */}
           <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Paid</Text>
+            <Text style={styles.sectionTitle}>{t('trip.section.paid')}</Text>
             <View style={styles.divider} />
             
             {/* ข้อมูลผู้ชำระเงิน (ผู้จ่ายบิล) */}
@@ -425,9 +427,9 @@ export default function TripScreen() {
                 </View>
                 <View style={styles.userInfo}>
                   <View style={styles.nameContainer}>
-                    <Text style={styles.userName}>{selectedBill.payer_full_name || 'Payer'}</Text>
+                    <Text style={styles.userName}>{selectedBill.payer_full_name || t('trip.payer')}</Text>
                     <FontAwesome5 name="crown" size={14} color="#F4C542" style={{ marginRight: 6 }} />
-                    <Text style={styles.ownerInline}>Owner</Text>
+                    <Text style={styles.ownerInline}>{t('trip.owner')}</Text>
                   </View>
                   <Text style={[styles.amount, { color: '#1A3C6B' }]}>
                     {Number(selectedBill?.total_amount ?? 0).toLocaleString(undefined, {
@@ -447,10 +449,10 @@ export default function TripScreen() {
               </View>
               <View style={styles.userInfo}>
                 <View style={styles.nameContainer}>
-                  <Text style={styles.userName}>{share.full_name || 'User'}</Text>
+                  <Text style={styles.userName}>{share.full_name || t('trip.user')}</Text>
                   {share.is_owner && (
                     <View style={styles.ownerBadge}>
-                      <Text style={styles.ownerText}>Owner</Text>
+                      <Text style={styles.ownerText}>{t('trip.owner')}</Text>
                       <Text style={{ fontSize: 14 }}>👑</Text>
                     </View>
                   )}
@@ -468,7 +470,7 @@ export default function TripScreen() {
           
           {/* ส่วนที่ยังไม่ชำระ (Unpaid) */}
           <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Unpaid</Text>
+            <Text style={styles.sectionTitle}>{t('trip.section.unpaid')}</Text>
             <View style={styles.divider} />
             
             {selectedBill?.shares?.filter(share => share.status === 'unpaid' && String(share.user_id) !== String(selectedBill?.payer_user_id || '') && !share.is_owner).map((share, index) => (
@@ -481,7 +483,7 @@ export default function TripScreen() {
                   </View>
                 )}
                 <View style={styles.userInfo}>
-                  <Text style={[styles.userName, { color: '#FF3B30' }]}>{share.full_name || 'User'}</Text>
+                  <Text style={[styles.userName, { color: '#FF3B30' }]}>{share.full_name || t('trip.user')}</Text>
                   <Text style={[styles.amount, { color: '#FF3B30' }]}>
                     {Number(share.amount_share ?? 0).toLocaleString(undefined, {
                       minimumFractionDigits: 2,
@@ -500,7 +502,7 @@ export default function TripScreen() {
               onPress={editBill}
             >
               <Ionicons name="pencil" size={20} color="#fff" style={{ marginRight: 8 }} />
-              <Text style={styles.editButtonText}>Edit Bill</Text>
+              <Text style={styles.editButtonText}>{t('trip.edit_bill')}</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -508,14 +510,14 @@ export default function TripScreen() {
               onPress={confirmDelete}
             >
               <Ionicons name="trash" size={20} color="#fff" style={{ marginRight: 8 }} />
-              <Text style={styles.deleteButtonText}>Delete Bill</Text>
+              <Text style={styles.deleteButtonText}>{t('trip.delete_bill')}</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
               style={styles.backButtonBottom}
               onPress={() => setSelectedBill(null)}
             >
-              <Text style={styles.backButtonText}>Back</Text>
+              <Text style={styles.backButtonText}>{t('trip.back')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -532,9 +534,9 @@ export default function TripScreen() {
           <View style={styles.confirmModalContainer}>
             <View style={styles.confirmModalHeader}>
               <Ionicons name="warning" size={48} color="#FF3B30" />
-              <Text style={styles.confirmModalTitle}>ยืนยันการลบบิล</Text>
+              <Text style={styles.confirmModalTitle}>{t('trip.confirm_delete_title')}</Text>
               <Text style={styles.confirmModalMessage}>
-                คุณต้องการลบบิลนี้ใช่หรือไม่? การดำเนินการนี้ไม่สามารถยกเลิกได้
+                {t('trip.confirm_delete_message')}
               </Text>
             </View>
             
@@ -543,14 +545,14 @@ export default function TripScreen() {
                 style={styles.confirmCancelButton}
                 onPress={() => setShowDeleteConfirm(false)}
               >
-                <Text style={styles.confirmCancelText}>ยกเลิก</Text>
+                <Text style={styles.confirmCancelText}>{t('trip.confirm_delete_cancel')}</Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
                 style={styles.confirmDeleteButton}
                 onPress={() => selectedBill && deleteBill(selectedBill.bill_id)}
               >
-                <Text style={styles.confirmDeleteText}>ลบบิล</Text>
+                <Text style={styles.confirmDeleteText}>{t('trip.confirm_delete_ok')}</Text>
               </TouchableOpacity>
             </View>
           </View>

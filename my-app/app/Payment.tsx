@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRoute } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { supabase } from '../constants/supabase';
+import { useLanguage } from './contexts/LanguageContext';
 
 type RouteParams = {
   billId: string;
@@ -16,6 +17,7 @@ export default function PaymentScreen() {
   const { billId, creditorId, amount } = route.params as unknown as RouteParams;
   const [creditor, setCreditor] = useState<{ full_name: string; profile_image_url?: string | null; qr_code_img?: string | null } | null>(null);
   const [debtor, setDebtor] = useState<{ full_name: string; profile_image_url?: string | null } | null>(null);
+  const { t } = useLanguage();
 
   useEffect(() => {
     const fetchCreditor = async () => {
@@ -112,7 +114,7 @@ export default function PaymentScreen() {
         >
           <Ionicons name="chevron-back" size={24} color="black" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Payment</Text>
+        <Text style={styles.headerTitle}>{t('payment.title')}</Text>
       </View>
 
       <View style={styles.creditorSection}>
@@ -123,14 +125,14 @@ export default function PaymentScreen() {
         )}
         <View style={{ marginLeft: 10 }}>
           <Text style={styles.creditorName}>{creditor?.full_name || '-'}</Text>
-          <Text style={styles.unpaidText}>Unpaid</Text>
+          <Text style={styles.unpaidText}>{t('payment.unpaid')}</Text>
         </View>
         {!!amount && (
           <Text style={styles.totalAmount}>{Number(amount).toLocaleString(undefined, { minimumFractionDigits: 0 })} ฿</Text>
         )}
       </View>
 
-      <Text style={styles.sectionTitle}>Payment Method</Text>
+      <Text style={styles.sectionTitle}>{t('payment.method')}</Text>
       <View style={styles.qrCard}>
         <Image
           source={
@@ -141,14 +143,14 @@ export default function PaymentScreen() {
           resizeMode="contain"
           style={{ width: 240, height: 240 }}
         />
-        <Text style={styles.qrNote}>สแกนเพื่อชำระเงิน</Text>
+        <Text style={styles.qrNote}>{t('payment.scan_to_pay')}</Text>
       </View>
 
       <TouchableOpacity
         style={styles.primaryButton}
         onPress={() => router.push({ pathname: '/PaymentUpload', params: { billId, creditorId, amount } })}
       >
-        <Text style={styles.primaryButtonText}>Upload Photo</Text>
+        <Text style={styles.primaryButtonText}>{t('payment.upload_photo')}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -158,7 +160,7 @@ export default function PaymentScreen() {
           else router.replace('/');
         }}
       >
-        <Text style={styles.secondaryButtonText}>Back</Text>
+        <Text style={styles.secondaryButtonText}>{t('payment.back')}</Text>
       </TouchableOpacity>
 
     </View>

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Alert } fr
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { supabase } from '../constants/supabase';
+import { useLanguage } from './contexts/LanguageContext';
 
 type DebtItem = {
   debt_id: string;
@@ -23,6 +24,7 @@ type DebtItem = {
 
 export default function DebttripScreen() {
   const { tripId } = useLocalSearchParams<{ tripId?: string }>();
+  const { t } = useLanguage();
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [unpaidDebts, setUnpaidDebts] = useState<DebtItem[]>([]);
   const [paidDebts, setPaidDebts] = useState<DebtItem[]>([]);
@@ -294,21 +296,21 @@ export default function DebttripScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={24} color="black" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Debt</Text>
+        <Text style={styles.headerTitle}>{t('debttrip.title')}</Text>
       </View>
 
       {/* Add Total Amount Section */}
       <View style={styles.totalContainer}>
-        <Text style={styles.totalLabel}>Total Amount to Pay</Text>
+        <Text style={styles.totalLabel}>{t('debttrip.total_to_pay')}</Text>
         <Text style={styles.totalAmount}>
           -{Math.abs(totalUnpaidDebt).toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿
         </Text>
       </View>
 
-      <Text style={styles.subHeader}>Waiting for pay</Text>
+      <Text style={styles.subHeader}>{t('debttrip.waiting_for_pay')}</Text>
       <ScrollView style={styles.scrollContainer}>
         {unpaidDebts.length === 0 ? (
-          <Text style={{ color: '#888', textAlign: 'center', marginTop: 30 }}>ไม่พบหนี้ที่ต้องชำระ</Text>
+          <Text style={{ color: '#888', textAlign: 'center', marginTop: 30 }}>{t('debttrip.no_debts')}</Text>
         ) : (
           unpaidDebts.map((debt) => (
             <View key={debt.debt_id} style={styles.card}>
@@ -329,13 +331,13 @@ export default function DebttripScreen() {
               <View style={styles.rowBetween}>
                 <View style={styles.row}>
                   <FontAwesome5 name="globe" size={18} color="#45647C" style={{ marginRight: 6 }} />
-                  <Text style={styles.totalList}>{debt.bill_type || 'Travel expenses'}</Text>
+                  <Text style={styles.totalList}>{debt.bill_type || t('debttrip.travel_expenses')}</Text>
                 </View>
                 <TouchableOpacity 
                   style={styles.payButton}
                   onPress={() => handlePay(debt)}
                 >
-                  <Text style={styles.payButtonText}>Pay</Text>
+                  <Text style={styles.payButtonText}>{t('debttrip.pay')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -344,7 +346,7 @@ export default function DebttripScreen() {
 
         {(paidDebts.length > 0) && (
           <>
-            <Text style={[styles.subHeader, { marginTop: 12 }]}>Already Paid</Text>
+            <Text style={[styles.subHeader, { marginTop: 12 }]}>{t('debttrip.already_paid')}</Text>
             {paidDebts.map((debt) => (
               <View key={debt.debt_id} style={[styles.card, { 
                 borderColor: debt.status === 'settled' ? '#B7EAC8' : '#FFE7A2' 
@@ -376,9 +378,7 @@ export default function DebttripScreen() {
                       color={debt.status === 'settled' ? '#2FBF71' : '#F4B400'} 
                       style={{ marginRight: 6 }} 
                     />
-                    <Text style={styles.totalList}>
-                      {debt.status === 'settled' ? 'Confirmed' : 'Waiting for confirm'}
-                    </Text>
+                    <Text style={styles.totalList}>{debt.status === 'settled' ? t('debttrip.confirmed') : t('debttrip.waiting_confirm')}</Text>
                   </View>
                 </View>
               </View>

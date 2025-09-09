@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { LanguageProvider } from './contexts/LanguageContext';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -19,10 +20,12 @@ export default function RootLayout() {
 
   // เพิ่ม return นี้เพื่อให้แอปแสดงผลหน้าจอ
   return (
-     <Stack
-      screenOptions={{
-        headerShown: false, // ❌ ปิด header ทุกหน้า
-      }}
-    />
+     <LanguageProvider>
+       <Stack
+        screenOptions={{
+          headerShown: false, // ❌ ปิด header ทุกหน้า
+        }}
+      />
+     </LanguageProvider>
   );
 }

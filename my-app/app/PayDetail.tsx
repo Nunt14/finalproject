@@ -5,6 +5,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { supabase } from '../constants/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useLanguage } from './contexts/LanguageContext';
 
 type TripAggregate = {
   trip_id: string | null;
@@ -17,6 +18,7 @@ export default function PayDetailScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { creditorId, tripId } = route.params as { creditorId: string; tripId?: string };
+  const { t } = useLanguage();
   const [trips, setTrips] = useState<TripAggregate[]>([]);
   const [creditor, setCreditor] = useState<{ full_name: string; profile_image?: string | null } | null>(null);
   const [total, setTotal] = useState(0);
@@ -127,7 +129,7 @@ export default function PayDetailScreen() {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={24} color="black" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Waiting for pay</Text>
+        <Text style={styles.headerTitle}>{t('paydetail.header')}</Text>
       </View>
 
       <View style={styles.creditorSection}>
@@ -138,37 +140,37 @@ export default function PayDetailScreen() {
         )}
         <View style={{ marginLeft: 10 }}>
           <Text style={styles.creditorName}>{creditor?.full_name || '-'}</Text>
-          <Text style={styles.unpaidText}>Unpaid</Text>
+          <Text style={styles.unpaidText}>{t('paydetail.unpaid')}</Text>
         </View>
         <Text style={styles.totalAmount}>{total.toLocaleString(undefined, { minimumFractionDigits: 2 })} {currencySymbol}</Text>
       </View>
 
-      <Text style={styles.allListTitle}>All List</Text>
+      <Text style={styles.allListTitle}>{t('paydetail.all_list')}</Text>
       <ScrollView style={{ flex: 1 }}>
-        {trips.map((t, idx) => (
-          <View key={(t.trip_id ?? 'unknown') + '-' + idx} style={styles.billCard}>
+        {trips.map((tripItem, idx) => (
+          <View key={(tripItem.trip_id ?? 'unknown') + '-' + idx} style={styles.billCard}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.tripName}>{t.trip_name}</Text>
-              <Text style={styles.billAmount}>{Number(t.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} {currencySymbol}</Text>
+              <Text style={styles.tripName}>{tripItem.trip_name}</Text>
+              <Text style={styles.billAmount}>{Number(tripItem.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} {currencySymbol}</Text>
             </View>
-            {t.rep_bill_id ? (
+            {tripItem.rep_bill_id ? (
               <TouchableOpacity
                 style={styles.payButton}
                 onPress={() =>
                   router.push({
                     pathname: '/Payment',
                     params: {
-                      billId: t.rep_bill_id,
+                      billId: tripItem.rep_bill_id,
                       creditorId,
-                      amount: String(t.total_amount),
+                      amount: String(tripItem.total_amount),
                     },
                   })
                 }
               >
-                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Pay</Text>
+                <Text style={{ color: '#fff', fontWeight: 'bold' }}>{t('paydetail.pay')}</Text>
               </TouchableOpacity>
             ) : null}
-            <TouchableOpacity onPress={() => router.push(`/TripDebtDetail?creditorId=${creditorId}&tripId=${t.trip_id}`)}>
+            <TouchableOpacity onPress={() => router.push(`/TripDebtDetail?creditorId=${creditorId}&tripId=${tripItem.trip_id}`)}>
               <Ionicons name="eye" size={22} color="#45647C" style={{ marginLeft: 10 }} />
             </TouchableOpacity>
           </View>
@@ -176,7 +178,7 @@ export default function PayDetailScreen() {
       </ScrollView>
 
       <TouchableOpacity style={styles.payAllButton}>
-        <Text style={styles.payAllButtonText}>Pay All</Text>
+        <Text style={styles.payAllButtonText}>{t('paydetail.pay_all')}</Text>
       </TouchableOpacity>
 
       <Image source={require('../assets/images/bg.png')} style={styles.bgImage} />
