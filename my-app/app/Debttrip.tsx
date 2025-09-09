@@ -256,6 +256,9 @@ export default function DebttripScreen() {
       return;
     }
 
+    // Update the total unpaid debt immediately for better UX
+    setTotalUnpaidDebt(prev => Math.max(0, prev - debt.amount_owed));
+
     // Navigate to payment upload screen with debt details
     router.push({
       pathname: '/PaymentUpload',
@@ -263,7 +266,6 @@ export default function DebttripScreen() {
         billId: debt.debt_id,
         creditorId: debt.creditor_user,
         amount: debt.amount_owed.toString(),
-        // Add a timestamp to force re-render when coming back
         timestamp: Date.now().toString()
       }
     });
@@ -282,6 +284,14 @@ export default function DebttripScreen() {
           <Ionicons name="chevron-back" size={24} color="black" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Debt</Text>
+      </View>
+
+      {/* Add Total Amount Section */}
+      <View style={styles.totalContainer}>
+        <Text style={styles.totalLabel}>Total Amount to Pay</Text>
+        <Text style={styles.totalAmount}>
+          -{Math.abs(totalUnpaidDebt).toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿
+        </Text>
       </View>
 
       <Text style={styles.subHeader}>Waiting for pay</Text>
@@ -380,6 +390,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row', 
     alignItems: 'center', 
     marginBottom: 10 
+  },
+  totalContainer: {
+    backgroundColor: '#f8f9fa',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
+  },
+  totalLabel: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 4,
+  },
+  totalAmount: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: 'red',
   },
   headerTitle: { 
     fontSize: 20, 
