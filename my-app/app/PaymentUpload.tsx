@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Alert } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRoute } from '@react-navigation/native';
@@ -7,6 +7,7 @@ import { router } from 'expo-router';
 import { supabase } from '../constants/supabase';
 import * as FileSystem from 'expo-file-system';
 import { decode as decodeBase64 } from 'base64-arraybuffer';
+import { runOcrOnImage } from '../utils/ocr';
 
 type RouteParams = {
   billId: string;
@@ -20,16 +21,64 @@ export default function PaymentUploadScreen() {
 
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const [ocrLoading, setOcrLoading] = useState<boolean>(false);
+  const [ocrText, setOcrText] = useState<string | null>(null);
+  const [ocrAmount, setOcrAmount] = useState<number | null>(null);
+  const expectedAmount = useMemo(() => (amount ? Number(amount) : null), [amount]);
+
+  const amountsClose = (a: number, b: number): boolean => {
+    // tolerate small rounding or OCR errors
+    const tol = 1; // THB
+    return Math.abs(a - b) <= tol;
+  };
+
+  const matchOk = useMemo(() => {
+    if (expectedAmount == null || ocrAmount == null) return null;
+    return amountsClose(expectedAmount, ocrAmount);
+  }, [expectedAmount, ocrAmount]);
+
+  const isConfirmEnabled = useMemo(() => {
+    if (!imageUri || submitting || ocrLoading) return false;
+    if (expectedAmount == null) return true; // ไม่มีค่าอ้างอิง อนุโลม
+    if (ocrAmount == null) return false; // ต้องอ่านยอดได้ก่อน
+    return matchOk === true;
+  }, [imageUri, submitting, ocrLoading, expectedAmount, ocrAmount, matchOk]);
+
+  const runOcr = async (uri: string) => {
+    try { console.log('[OCR] runOcr called with uri:', uri); } catch {}
+    setOcrLoading(true);
+    setOcrText(null);
+    setOcrAmount(null);
+    try {
+      const result = await runOcrOnImage({ localUri: uri });
+      try { console.log('[OCR] result received. amount=', result.amount, 'text.len=', result.text?.length || 0); } catch {}
+      setOcrText(result.text ?? null);
+      setOcrAmount(result.amount ?? null);
+      if (expectedAmount != null && result.amount != null && !amountsClose(expectedAmount, result.amount)) {
+        Alert.alert(
+          'ยอดเงินไม่ตรง',
+          `ยอดในสลิป: ${result.amount.toLocaleString()} ฿\nยอดที่ต้องจ่าย: ${expectedAmount.toLocaleString()} ฿`,
+          [{ text: 'ตกลง' }]
+        );
+      }
+    } catch {
+      // swallow; UI will just show unknown
+    } finally {
+      setOcrLoading(false);
+    }
+  };
 
   const pickImage = async () => {
     await ImagePicker.requestMediaLibraryPermissionsAsync();
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       quality: 0.8,
     });
     if (!result.canceled && result.assets?.length) {
+      try { console.log('[OCR] picked image from library:', result.assets[0].uri); } catch {}
       setImageUri(result.assets[0].uri);
+      runOcr(result.assets[0].uri);
     }
   };
 
@@ -40,12 +89,22 @@ export default function PaymentUploadScreen() {
       quality: 0.8,
     });
     if (!result.canceled && result.assets?.length) {
+      try { console.log('[OCR] captured photo:', result.assets[0].uri); } catch {}
       setImageUri(result.assets[0].uri);
+      runOcr(result.assets[0].uri);
     }
   };
 
   const onConfirm = async () => {
     if (!imageUri || submitting) return;
+    if (expectedAmount != null && ocrAmount == null) {
+      Alert.alert('ต้องการยอดจากสลิป', 'กรุณาให้ระบบอ่านยอดจากสลิปให้สำเร็จก่อน', [{ text: 'ตกลง' }]);
+      return;
+    }
+    if (matchOk !== true) {
+      Alert.alert('ยอดไม่ตรง', 'ยอดเงินในสลิปไม่ตรงกับยอดที่ต้องจ่าย', [{ text: 'ตกลง' }]);
+      return;
+    }
     try {
       setSubmitting(true);
       const { data: sessionData } = await supabase.auth.getSession();
@@ -89,7 +148,7 @@ export default function PaymentUploadScreen() {
       // บันทึก payment พร้อมกับ slip_qr
       await supabase.from('payment').insert({
         bill_share_id: billShareId,
-        amount: amount ? Number(amount) : null,
+        amount: amount ? Number(amount) : (ocrAmount ?? null),
         method: 'qr',
         status: 'pending',
         transaction_id: null,
@@ -148,14 +207,43 @@ export default function PaymentUploadScreen() {
         )}
       </TouchableOpacity>
 
+      {imageUri ? (
+        <View style={styles.ocrCard}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Ionicons name="document-text" size={18} color="#234080" />
+            <Text style={{ marginLeft: 6, fontWeight: 'bold' }}>OCR</Text>
+            {ocrLoading ? <ActivityIndicator size="small" color="#234080" style={{ marginLeft: 8 }} /> : null}
+          </View>
+          <View style={{ marginTop: 8 }}>
+            <Text style={{ color: '#555' }}>ยอดในสลิป: {ocrAmount != null ? `${ocrAmount.toLocaleString()} ฿` : '-'}</Text>
+            {expectedAmount != null ? (
+              <Text style={{ color: matchOk === false ? '#c0392b' : '#2e7d32', marginTop: 4 }}>
+                เทียบยอดที่ต้องจ่าย: {expectedAmount.toLocaleString()} ฿ {matchOk == null ? '' : matchOk ? '(ตรงกัน)' : '(ไม่ตรง)'}
+              </Text>
+            ) : null}
+          </View>
+          <TouchableOpacity style={[styles.secondaryButton, { marginTop: 10 }]} onPress={() => imageUri && runOcr(imageUri)}>
+            <Text style={styles.secondaryButtonText}>สแกนใหม่</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
 
       <TouchableOpacity
-        disabled={!imageUri || submitting}
-        style={[styles.primaryButton, { opacity: imageUri ? 1 : 0.5, marginTop: 10 }]}
+        disabled={!isConfirmEnabled}
+        style={[styles.primaryButton, { opacity: isConfirmEnabled ? 1 : 0.5, marginTop: 10 }]}
         onPress={onConfirm}
       >
         <Text style={styles.primaryButtonText}>{imageUri ? 'Confirm Payment' : 'Next'}</Text>
       </TouchableOpacity>
+
+      {imageUri && expectedAmount != null ? (
+        matchOk === false ? (
+          <Text style={{ color: '#c0392b', marginTop: 6 }}>ยอดไม่ตรงกับที่ต้องจ่าย จึงยังยืนยันไม่ได้</Text>
+        ) : ocrAmount == null ? (
+          <Text style={{ color: '#8a6d3b', marginTop: 6 }}>กำลังอ่านยอดจากสลิป หรืออ่านไม่สำเร็จ</Text>
+        ) : null
+      ) : null}
 
       <TouchableOpacity
         style={styles.secondaryButton}
@@ -167,7 +255,6 @@ export default function PaymentUploadScreen() {
         <Text style={styles.secondaryButtonText}>Back</Text>
       </TouchableOpacity>
 
-      <Image source={require('../assets/images/bg.png')} style={styles.bgImage} />
     </View>
   );
 }
@@ -208,5 +295,15 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   secondaryButtonText: { color: '#fff', fontWeight: 'bold' },
+  ocrCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
   bgImage: { width: '111%', height: 235, position: 'absolute', bottom: -4, left: 0 },
 });
