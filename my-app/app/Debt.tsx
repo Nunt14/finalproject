@@ -669,23 +669,25 @@ export default function DebtScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={24} color="black" />
         </TouchableOpacity>
-        <View style={styles.toggleContainer}>
-          <TouchableOpacity
-            style={[styles.toggleButton, activeTab === 'debt' && styles.toggleButtonActive]}
-            onPress={() => setActiveTab('debt')}
-          >
-            <Ionicons name="card" size={20} color={activeTab === 'debt' ? '#fff' : '#666'} />
-            <Text style={[styles.toggleText, activeTab === 'debt' && styles.toggleTextActive]}>Debt</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.toggleButton, activeTab === 'payment' && styles.toggleButtonActive]}
-            onPress={() => setActiveTab('payment')}
-          >
-            <Ionicons name="wallet" size={20} color={activeTab === 'payment' ? '#fff' : '#666'} />
-            <Text style={[styles.toggleText, activeTab === 'payment' && styles.toggleTextActive]}>Payment</Text>
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.headerTitle}>{t('debt.title')}</Text>
         <View style={{ width: 24 }} />
+      </View>
+
+      <View style={styles.toggleContainer}>
+        <TouchableOpacity
+          style={[styles.toggleButton, activeTab === 'debt' && styles.toggleButtonActive]}
+          onPress={() => setActiveTab('debt')}
+        >
+          <Ionicons name="card" size={20} color={activeTab === 'debt' ? '#fff' : '#666'} />
+          <Text style={[styles.toggleText, activeTab === 'debt' && styles.toggleTextActive]}>Debt</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.toggleButton, activeTab === 'payment' && styles.toggleButtonActive]}
+          onPress={() => setActiveTab('payment')}
+        >
+          <Ionicons name="wallet" size={20} color={activeTab === 'payment' ? '#fff' : '#666'} />
+          <Text style={[styles.toggleText, activeTab === 'payment' && styles.toggleTextActive]}>Payment</Text>
+        </TouchableOpacity>
       </View>
 
       {activeTab === 'debt' ? (
@@ -822,15 +824,16 @@ export default function DebtScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff', paddingTop: 60, paddingHorizontal: 20 },
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, paddingHorizontal: 4 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingHorizontal: 16, paddingVertical: 12 },
   backButton: { padding: 8 },
+  headerTitle: { fontSize: 18, fontWeight: 'bold' },
   toggleContainer: { 
-    flex: 1, 
     flexDirection: 'row', 
     backgroundColor: '#f0f0f0', 
     borderRadius: 25, 
     padding: 5,
-    marginHorizontal: -40
+    // Center the segmented control; remove negative margins that offset it
+    alignSelf: 'center'
   },
   toggleButton: { 
     flex: 1,

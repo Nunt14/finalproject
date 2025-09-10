@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -43,15 +43,70 @@ export default function AddBillScreen() {
     () => [
       { key: "stay", icon: "bed-outline" as const },
       { key: "food", icon: "fast-food-outline" as const },
-      { key: "car", icon: "car-outline" as const },
-      { key: "more", icon: "ellipsis-horizontal" as const },
+      { key: "flight", icon: "airplane-outline" as const },
+      { key: "transport", icon: "car-outline" as const },
+      { key: "shopping", icon: "cart-outline" as const },
+      { key: "entertainment", icon: "film-outline" as const },
+      { key: "drinks", icon: "beer-outline" as const },
+      { key: "health", icon: "medkit-outline" as const },
+      { key: "gift", icon: "gift-outline" as const },
     ],
     []
   );
+  const CATEGORY_NAMES: Record<string, string> = {
+    stay: 'ที่พัก',
+    food: 'อาหาร',
+    flight: 'ตั๋วเครื่องบิน',
+    transport: 'การเดินทาง',
+    shopping: 'ช้อปปิ้ง',
+    entertainment: 'บันเทิง',
+    drinks: 'เครื่องดื่ม',
+    health: 'สุขภาพ',
+    gift: 'ของขวัญ',
+  };
+  const CATEGORY_IDS: Record<string, number> = {
+    stay: 1,
+    food: 2,
+    flight: 3,
+    transport: 4,
+    shopping: 5,
+    entertainment: 6,
+    drinks: 7,
+    health: 8,
+    gift: 9,
+  };
+
+  const getOrCreateCategoryId = async (key: string, name: string): Promise<number | null> => {
+    try {
+      const id = CATEGORY_IDS[key];
+      if (!id) return null;
+
+      const { data: found, error: findErr } = await supabase
+        .from('category')
+        .select('category_id')
+        .or(`category_id.eq.${id},category_name.eq.${name}`)
+        .limit(1);
+      if (!findErr && found && found.length > 0) {
+        return Number((found[0] as any).category_id);
+      }
+      const { error: upsertErr } = await supabase
+        .from('category')
+        .upsert({ category_id: id, category_name: name, is_active: true }, { onConflict: 'category_id' });
+      if (upsertErr) {
+        console.warn('Category upsert failed:', upsertErr);
+      }
+      return id;
+    } catch (e) {
+      console.warn('Category ensure error:', e);
+      return null;
+    }
+  };
   const [selectedCategory, setSelectedCategory] = useState("stay");
   const [basePerPerson, setBasePerPerson] = useState<number>(0);
   const [note, setNote] = useState("");
   const [totalLocked, setTotalLocked] = useState(false);
+  const categoryScrollRef = useRef<ScrollView | null>(null);
+  const [catScrollX, setCatScrollX] = useState(0);
 
   const avatarColors = ["#5DADE2", "#F39C12", "#F5B7B1", "#E74C3C"]; // blue, orange, pink, red
 
@@ -323,12 +378,16 @@ export default function AddBillScreen() {
       }
       const currentUserId = sessionData.session.user.id;
 
+      // Resolve category_id from selected category (create if missing)
+      const selectedCategoryName = CATEGORY_NAMES[selectedCategory] || selectedCategory;
+      const categoryId = await getOrCreateCategoryId(selectedCategory, selectedCategoryName);
+
       // Insert bill
       const { data: billRows, error: billErr } = await supabase
         .from("bill")
         .insert({
           trip_id: tripId,
-          category_id: null,
+          category_id: categoryId,
           total_amount: Number(total.toFixed(2)),
           paid_by_user_id: currentUserId,
           is_settled: false,
@@ -526,8 +585,18 @@ export default function AddBillScreen() {
 
         <Text style={styles.sectionTitle}>{t('addbill.category')}</Text>
         <View style={styles.categoryBar}>
-          <Ionicons name="chevron-back" size={18} color="#7f8c8d" />
-          <View style={styles.categoryRow}>
+          <TouchableOpacity onPress={() => categoryScrollRef.current?.scrollTo({ x: Math.max(0, catScrollX - 150), animated: true })}>
+            <Ionicons name="chevron-back" size={18} color="#7f8c8d" />
+          </TouchableOpacity>
+          <ScrollView
+            horizontal
+            ref={categoryScrollRef}
+            style={{ flex: 1 }}
+            contentContainerStyle={styles.categoryRow}
+            showsHorizontalScrollIndicator={false}
+            onScroll={(e) => setCatScrollX(e.nativeEvent.contentOffset.x)}
+            scrollEventThrottle={16}
+         >
             {categories.map((c) => (
               <TouchableOpacity
                 key={c.key}
@@ -544,8 +613,10 @@ export default function AddBillScreen() {
                 />
               </TouchableOpacity>
             ))}
-          </View>
-          <Ionicons name="chevron-forward" size={18} color="#7f8c8d" />
+          </ScrollView>
+          <TouchableOpacity onPress={() => categoryScrollRef.current?.scrollTo({ x: catScrollX + 150, animated: true })}>
+            <Ionicons name="chevron-forward" size={18} color="#7f8c8d" />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.buttonContainer}>
