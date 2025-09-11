@@ -28,32 +28,23 @@ export default function LoginScreen() {
       const userId = data.session.user.id;
       await AsyncStorage.setItem('user_id', userId);
 
-      // อัปเซิร์ตแถวผู้ใช้ของเราให้สอดคล้องกับ schema
-      const { error: upsertError } = await supabase
+      // ไปหน้า welcome ทันทีเพื่อให้ผู้ใช้รู้สึกเร็วขึ้น
+      router.replace('/welcome');
+
+      // ทำ upsert แบบ non-blocking (ไม่ขวาง UI และไม่เด้ง error box)
+      supabase
         .from('user')
         .upsert(
           [
             {
               user_id: userId,
               email,
-              full_name: null,
-              phone_number: null,
-              profile_image_url: null,
-              gender: null,
-              language_preference: null,
-              currency_preference: null,
-              qr_code_img: null,
-              is_verified: true,
             },
           ],
           { onConflict: 'user_id', ignoreDuplicates: true }
-        );
-      if (upsertError) {
-        Alert.alert('Database Insert Failed', upsertError.message);
-        return;
-      }
-
-      router.replace('/welcome');
+        )
+        .then(() => {})
+        .catch(() => {});
     } else {
       Alert.alert('Login Failed', 'No active session. Please try again.');
     }

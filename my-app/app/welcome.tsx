@@ -174,7 +174,7 @@ export default function WelcomeScreen() {
       setLoading(true);
 
       // ตรวจสอบ session จาก Supabase Auth
-      const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
+      const { data: sessionData } = await supabase.auth.getSession();
       const userId = sessionData?.session?.user?.id;
       if (!userId) {
         await hardResetAuth();
@@ -183,35 +183,43 @@ export default function WelcomeScreen() {
         return;
       }
 
-      // ดึงข้อมูลผู้ใช้
-      const { data: userData, error: userError } = await supabase
-        .from('user')
-        .select('full_name')
-        .eq('user_id', userId)
-        .single();
+      // โหลดข้อมูลผู้ใช้ และสมาชิกทริป แบบขนาน
+      const [userRes, memberRes] = await Promise.all([
+        supabase
+          .from('user')
+          .select('full_name')
+          .eq('user_id', userId)
+          .single(),
+        supabase
+          .from('trip_member')
+          .select('trip_id')
+          .eq('user_id', userId)
+          .eq('is_active', true),
+      ]);
 
-      if (!userError && userData?.full_name) {
+      const userData = (userRes as any)?.data;
+      if (userData?.full_name) {
         setUserFullName(userData.full_name);
       }
 
-      // ดึงทริปผ่าน trip_member ที่ active
-      const { data: memberRows, error: memberErr } = await supabase
-        .from('trip_member')
-        .select('trip_id')
-        .eq('user_id', userId)
-        .eq('is_active', true);
+      const memberRows = (memberRes as any)?.data || [];
+      const memberErr = (memberRes as any)?.error;
       if (memberErr) {
         console.log('Error fetching memberships:', memberErr);
         setTrips([]);
+        setFilteredTrips([]);
         setLoading(false);
         return;
       }
-      const tripIds = (memberRows || []).map((m: any) => m.trip_id);
+
+      const tripIds = memberRows.map((m: any) => m.trip_id);
       if (tripIds.length === 0) {
         setTrips([]);
+        setFilteredTrips([]);
         setLoading(false);
         return;
       }
+
       const { data, error } = await supabase
         .from('trip')
         .select('*')
@@ -220,6 +228,8 @@ export default function WelcomeScreen() {
 
       if (error) {
         console.log('Error fetching trips:', error);
+        setTrips([]);
+        setFilteredTrips([]);
       } else {
         setTrips(data || []);
         setFilteredTrips(data || []);
