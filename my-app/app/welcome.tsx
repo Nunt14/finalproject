@@ -55,15 +55,15 @@ export default function WelcomeScreen() {
     try {
       // แสดงกล่องยืนยันการลบ
       Alert.alert(
-        'Confirm Trip Deletion',
-        `Are you sure you want to delete the trip "${tripName}"?`,
+        t('welcome.delete_trip.title'),
+        t('welcome.delete_trip.message').replace('{name}', tripName),
         [
           {
-            text: 'Cancel',
+            text: t('welcome.delete_trip.cancel'),
             style: 'cancel',
           },
           {
-            text: 'Delete',
+            text: t('welcome.delete_trip.ok'),
             style: 'destructive',
             onPress: async () => {
               try {
@@ -154,10 +154,10 @@ export default function WelcomeScreen() {
                 setTrips(prevTrips => prevTrips.filter(trip => trip.trip_id !== tripId));
                 setFilteredTrips(prevTrips => prevTrips.filter(trip => trip.trip_id !== tripId));
 
-                Alert.alert('Success', 'Trip deleted successfully');
+                Alert.alert(t('welcome.delete_trip.success_title'), t('welcome.delete_trip.success_msg'));
               } catch (error) {
                 console.error('Error deleting trip:', error);
-                Alert.alert('Error', 'Unable to delete trip at this time');
+                Alert.alert(t('welcome.delete_trip.error_title'), t('welcome.delete_trip.error_msg'));
               }
             },
           },
