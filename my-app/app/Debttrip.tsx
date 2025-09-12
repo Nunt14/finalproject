@@ -424,7 +424,8 @@ const styles = StyleSheet.create({
   headerTitle: { 
     fontSize: 20, 
     fontWeight: 'bold', 
-    marginLeft: 15 
+    marginLeft: 'auto',
+    textAlign: 'right'
   },
   subHeader: { 
     fontSize: 16, 

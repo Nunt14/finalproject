@@ -826,7 +826,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff', paddingTop: 60, paddingHorizontal: 20 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingHorizontal: 16, paddingVertical: 12 },
   backButton: { padding: 8 },
-  headerTitle: { fontSize: 18, fontWeight: 'bold' },
+  headerTitle: { fontSize: 18, fontWeight: 'bold', marginLeft: 'auto', textAlign: 'right' },
   toggleContainer: { 
     flexDirection: 'row', 
     backgroundColor: '#f0f0f0', 

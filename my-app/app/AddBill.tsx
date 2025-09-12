@@ -646,7 +646,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginBottom: 10,
   },
-  header: { fontSize: 18, fontWeight: "600", color: "#222" },
+  header: { fontSize: 18, fontWeight: "600", color: "#222", marginLeft: 'auto', textAlign: 'right' },
   sectionTitle: { fontSize: 16, color: "#333", marginBottom: 8, fontWeight: "600" },
   card: {
     borderWidth: 1,

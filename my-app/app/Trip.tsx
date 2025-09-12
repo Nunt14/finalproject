@@ -565,7 +565,7 @@ export default function TripScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff', paddingTop: 60, paddingHorizontal: 16 },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', marginLeft: 10 },
+  headerTitle: { fontSize: 18, fontWeight: 'bold', marginLeft: 'auto', textAlign: 'right' },
   tripName: { fontWeight: 'bold', color: '#1A3C6B', marginBottom: 4 },
   totalText: { color: '#2FBF71', fontWeight: 'bold' },
   billCard: {
@@ -670,6 +670,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#000',
+    textAlign: 'right',
+    marginLeft: 'auto',
   },
   expenseCategory: {
     flexDirection: 'row',

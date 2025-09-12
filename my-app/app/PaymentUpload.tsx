@@ -314,13 +314,12 @@ const styles = StyleSheet.create({
   headerContent: {
     flex: 1,
     alignItems: 'flex-end',
-    marginRight: -30,  // Move content more to the right
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#1a1a1a',
-    marginRight: 20,  // Add right margin to the title
+    textAlign: 'right',
   },
   uploadContainer: {
     flex: 1,

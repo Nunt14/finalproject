@@ -32,19 +32,20 @@ export default function LoginScreen() {
       router.replace('/welcome');
 
       // ทำ upsert แบบ non-blocking (ไม่ขวาง UI และไม่เด้ง error box)
-      supabase
-        .from('user')
-        .upsert(
-          [
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      (async () => {
+        const { error: upsertError } = await supabase
+          .from('user')
+          .upsert([
             {
               user_id: userId,
               email,
             },
-          ],
-          { onConflict: 'user_id', ignoreDuplicates: true }
-        )
-        .then(() => {})
-        .catch(() => {});
+          ]);
+        if (upsertError) {
+          console.debug('user upsert error (ignored):', upsertError);
+        }
+      })();
     } else {
       Alert.alert('Login Failed', 'No active session. Please try again.');
     }

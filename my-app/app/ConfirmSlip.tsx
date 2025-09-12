@@ -85,7 +85,7 @@ export default function ConfirmSlipScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff', paddingTop: 60, paddingHorizontal: 16 },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', marginLeft: 10 },
+  headerTitle: { fontSize: 18, fontWeight: 'bold', marginLeft: 10, textAlign: 'left' },
   previewBox: {
     alignItems: 'center',
     justifyContent: 'center',
