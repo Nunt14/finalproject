@@ -36,6 +36,14 @@ const translations: Dictionary = {
   'welcome.title': { TH: 'ยินดีต้อนรับสู่ Harnty,', EN: 'Welcome to Harnty,' },
   'welcome.all_trips': { TH: 'ทริปทั้งหมดของคุณ!', EN: 'All Your Trips!' },
   'welcome.no_results': { TH: 'ไม่พบทริปที่ค้นหา', EN: 'No trips found' },
+  'welcome.delete_trip.title': { TH: 'ยืนยันการลบทริป', EN: 'Confirm Trip Deletion' },
+  'welcome.delete_trip.message': { TH: 'คุณแน่ใจหรือไม่ว่าต้องการลบทริป "{name}"?', EN: 'Are you sure you want to delete the trip "{name}"?' },
+  'welcome.delete_trip.cancel': { TH: 'ยกเลิก', EN: 'Cancel' },
+  'welcome.delete_trip.ok': { TH: 'ลบทริป', EN: 'Delete' },
+  'welcome.delete_trip.success_title': { TH: 'สำเร็จ', EN: 'Success' },
+  'welcome.delete_trip.success_msg': { TH: 'ลบทริปสำเร็จ', EN: 'Trip deleted successfully' },
+  'welcome.delete_trip.error_title': { TH: 'ข้อผิดพลาด', EN: 'Error' },
+  'welcome.delete_trip.error_msg': { TH: 'ไม่สามารถลบทริปได้ในขณะนี้', EN: 'Unable to delete trip at this time' },
 
   // AddTrip screen
   'addtrip.header': { TH: 'สร้างทริปใหม่', EN: 'Add new trip' },
