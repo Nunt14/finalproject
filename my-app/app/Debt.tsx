@@ -507,9 +507,9 @@ export default function DebtScreen() {
       }
 
       setPaymentProofs((prev) => prev.filter((x) => x.id !== p.id));
-      Alert.alert('Success', 'Payment confirmed successfully');
+      Alert.alert(t('common.save'), t('debt.payment_confirmed'));
     } catch (e) {
-      Alert.alert('Error', 'Unable to confirm payment');
+      Alert.alert(t('common.error'), t('debt.error_confirm_payment'));
     }
   };
 
@@ -538,9 +538,9 @@ export default function DebtScreen() {
       } catch {}
       
       setPaymentProofs((prev) => prev.filter((x) => x.id !== p.id));
-      Alert.alert('Success', 'Payment rejected');
+      Alert.alert(t('common.save'), t('debt.payment_rejected'));
     } catch (e) {
-      Alert.alert('Error', 'Unable to reject payment');
+      Alert.alert(t('common.error'), t('debt.error_reject_payment'));
     }
   };
 
@@ -654,7 +654,7 @@ export default function DebtScreen() {
       <View style={styles.rowBetween}>
         <View style={styles.row}>
           <FontAwesome5 name="globe" size={18} color="#45647C" style={{ marginRight: 6 }} />
-          <Text style={styles.totalList}>Total : {debt.trip_count} list</Text>
+          <Text style={styles.totalList}>{t('debt.total_list')} : {debt.trip_count} {t('debt.list')}</Text>
         </View>
         <TouchableOpacity onPress={() => router.push({ pathname: '/PayDetail', params: { creditorId: debt.creditor_id } })}>
           <Ionicons name="eye" size={24} color="#45647C" />
@@ -679,14 +679,14 @@ export default function DebtScreen() {
           onPress={() => setActiveTab('debt')}
         >
           <Ionicons name="card" size={20} color={activeTab === 'debt' ? '#fff' : '#666'} />
-          <Text style={[styles.toggleText, activeTab === 'debt' && styles.toggleTextActive]}>Debt</Text>
+          <Text style={[styles.toggleText, activeTab === 'debt' && styles.toggleTextActive]}>{t('debt.tab_debt')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.toggleButton, activeTab === 'payment' && styles.toggleButtonActive]}
           onPress={() => setActiveTab('payment')}
         >
           <Ionicons name="wallet" size={20} color={activeTab === 'payment' ? '#fff' : '#666'} />
-          <Text style={[styles.toggleText, activeTab === 'payment' && styles.toggleTextActive]}>Payment</Text>
+          <Text style={[styles.toggleText, activeTab === 'payment' && styles.toggleTextActive]}>{t('debt.tab_payment')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -745,7 +745,7 @@ export default function DebtScreen() {
         </>
       ) : (
         <>
-          <Text style={styles.subHeader}>Payment Confirmations</Text>
+          <Text style={styles.subHeader}>{t('debt.payment_confirmations')}</Text>
           <ScrollView 
             style={styles.scrollContainer}
             refreshControl={
@@ -762,7 +762,7 @@ export default function DebtScreen() {
             {paymentProofs.length === 0 ? (
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                 <Ionicons name="document-text-outline" size={48} color="#ccc" />
-                <Text style={{ marginTop: 12, color: '#666' }}>No pending payments</Text>
+                <Text style={{ marginTop: 12, color: '#666' }}>{t('debt.no_pending_payments')}</Text>
                 <TouchableOpacity style={[styles.circle, { backgroundColor: '#234080', marginTop: 14 }]} onPress={() => currentUserId && fetchPaymentProofs(currentUserId)}>
                   <Ionicons name="refresh" size={18} color="#fff" />
                 </TouchableOpacity>
@@ -794,7 +794,7 @@ export default function DebtScreen() {
                         ) : (
                           <Ionicons name="person-circle" size={26} color="#4C6EF5" />
                         )}
-                        <Text style={{ marginLeft: 6 }}>{debtor?.full_name || 'User'}</Text>
+                        <Text style={{ marginLeft: 6 }}>{debtor?.full_name || t('debt.user')}</Text>
                       </View>
                     </View>
                     <TouchableOpacity

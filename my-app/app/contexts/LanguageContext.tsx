@@ -63,6 +63,15 @@ const translations: Dictionary = {
   'debt.waiting_for_confirm': { TH: 'รอการยืนยัน', EN: 'Waiting for confirm' },
   'debt.confirmed': { TH: 'ยืนยันแล้ว', EN: 'Confirmed' },
   'debt.total_list': { TH: 'รวม', EN: 'Total' },
+  'debt.tab_debt': { TH: 'หนี้', EN: 'Debt' },
+  'debt.tab_payment': { TH: 'การชำระเงิน', EN: 'Payment' },
+  'debt.payment_confirmations': { TH: 'การยืนยันการชำระเงิน', EN: 'Payment Confirmations' },
+  'debt.no_pending_payments': { TH: 'ไม่มีการชำระเงินที่รอดำเนินการ', EN: 'No pending payments' },
+  'debt.payment_confirmed': { TH: 'ยืนยันการชำระเงินสำเร็จ', EN: 'Payment confirmed successfully' },
+  'debt.payment_rejected': { TH: 'ปฏิเสธการชำระเงิน', EN: 'Payment rejected' },
+  'debt.error_confirm_payment': { TH: 'ไม่สามารถยืนยันการชำระเงินได้', EN: 'Unable to confirm payment' },
+  'debt.error_reject_payment': { TH: 'ไม่สามารถปฏิเสธการชำระเงินได้', EN: 'Unable to reject payment' },
+  'debt.user': { TH: 'ผู้ใช้', EN: 'User' },
 
   // Trip screen
   'trip.header': { TH: 'ทริปกลุ่ม', EN: 'Group Trip' },
