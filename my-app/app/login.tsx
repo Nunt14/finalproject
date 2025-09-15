@@ -12,7 +12,7 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Please enter email and password');
+      Alert.alert(t('login.required_fields'));
       return;
     }
 
@@ -20,7 +20,7 @@ export default function LoginScreen() {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
-      Alert.alert('Login Failed', error.message);
+      Alert.alert(t('login.error_title'), t('login.invalid_credentials'));
       return;
     }
 
@@ -47,7 +47,7 @@ export default function LoginScreen() {
         }
       })();
     } else {
-      Alert.alert('Login Failed', 'No active session. Please try again.');
+      Alert.alert(t('login.error_title'), t('login.no_active_session'));
     }
   };
 

@@ -31,6 +31,10 @@ const translations: Dictionary = {
   'login.forgot_password': { TH: 'ลืมรหัสผ่าน', EN: 'Forgot password' },
   'login.min_chars_hint': { TH: 'อย่างน้อย 8 ตัวอักษร', EN: 'Minimum 8 characters' },
   'login.next': { TH: 'ถัดไป', EN: 'Next' },
+  'login.required_fields': { TH: 'กรุณากรอกอีเมลและรหัสผ่าน', EN: 'Please enter email and password' },
+  'login.error_title': { TH: 'เข้าสู่ระบบล้มเหลว', EN: 'Login Failed' },
+  'login.invalid_credentials': { TH: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง', EN: 'Invalid email or password' },
+  'login.no_active_session': { TH: 'ไม่พบเซสชันที่ใช้งานได้ กรุณาลองใหม่อีกครั้ง', EN: 'No active session. Please try again.' },
 
   // Welcome screen
   'welcome.title': { TH: 'ยินดีต้อนรับสู่ Harnty,', EN: 'Welcome to Harnty,' },
