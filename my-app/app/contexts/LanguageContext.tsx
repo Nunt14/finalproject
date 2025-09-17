@@ -6,6 +6,39 @@ export type Locale = 'TH' | 'EN';
 type Dictionary = Record<string, { TH: string; EN: string }>; 
 
 const translations: Dictionary = {
+  // Notification translations
+  'notifications.newFriendRequest': { 
+    TH: 'คำขอเป็นเพื่อนใหม่: คุณได้รับคำขอเป็นเพื่อนใหม่', 
+    EN: 'New friend request: You have a new friend request' 
+  },
+  'notifications.friendRequestAccepted': { 
+    TH: 'คำขอเป็นเพื่อนถูกตอบรับ: คำขอเป็นเพื่อนของคุณ', 
+    EN: 'Friend request accepted: Your friend request' 
+  },
+  'notifications.accepted': { 
+    TH: 'ถูกตอบรับแล้ว', 
+    EN: 'Accepted' 
+  },
+  'notifications.newBillInTrip': { 
+    TH: 'บิลใหม่ในทริป: มีบิลใหม่จำนวน {amount} บาท', 
+    EN: 'New bill in trip: New bill for {amount} THB' 
+  },
+  'notifications.addedToNewTrip': { 
+    TH: 'ถูกเพิ่มเข้าทริปใหม่: คุณถูกเพิ่มเข้าไปในทริป\n{tripName}', 
+    EN: 'You have been added to a new trip\n{tripName}' 
+  },
+  'notifications.payment': { 
+    TH: 'การชำระเงิน: ชำระเงินเสร็จสิ้น ระบบได้ยืนยันแล้ว', 
+    EN: 'Payment: Payment completed and confirmed' 
+  },
+  'notifications.paymentConfirmed': { 
+    TH: 'การชำระเงินได้รับการยืนยัน', 
+    EN: 'Payment Confirmed: Your payment has been confirmed' 
+  },
+  'notifications.generic': { 
+    TH: 'การแจ้งเตือนใหม่', 
+    EN: 'New notification' 
+  },
   // Common
   'common.save': { TH: 'บันทึก', EN: 'Save' },
   'common.close': { TH: 'ปิด', EN: 'Close' },

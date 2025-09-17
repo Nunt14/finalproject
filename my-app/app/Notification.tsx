@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   View, Text, StyleSheet, TouchableOpacity, FlatList, 
-  ActivityIndicator, Alert, SafeAreaView 
+  ActivityIndicator, Alert 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -10,7 +10,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../constants/types';
 import { supabase } from '../constants/supabase';
 import { useLanguage } from './contexts/LanguageContext';
-import { LinearGradient } from 'expo-linear-gradient';
 
 // Type definitions
 interface Notification {
@@ -21,6 +20,11 @@ interface Notification {
   is_read: boolean;
   trip_id?: string;
   created_at: string;
+  data?: {
+    amount?: string | number;
+    trip_name?: string;
+    [key: string]: any; // For any additional dynamic properties
+  };
 }
 
 interface NotificationGroup {
@@ -137,14 +141,64 @@ export default function NotificationScreen() {
     }
   };
 
+  // Map notification content to translation keys and extract variables
+  const getNotificationDetails = (title: string, message: string, data: any = {}) => {
+    const titleLower = title?.toLowerCase() || '';
+    const messageLower = message?.toLowerCase() || '';
+    let key = 'notifications.generic';
+    const variables: Record<string, string> = {};
+    
+    // Extract amount from message if it contains numbers
+    const amountMatch = message.match(/\d+(\.\d{1,2})?/);
+    if (amountMatch) {
+      variables.amount = amountMatch[0];
+    }
+    
+    // Extract trip name from data or message
+    if (data.trip_name) {
+      variables.tripName = data.trip_name;
+    } else {
+      // Try to extract trip name from message (this is a simple example)
+      const tripMatch = message.match(/ทริป(.+)/) || message.match(/trip(.+)/i);
+      if (tripMatch && tripMatch[1]) {
+        variables.tripName = tripMatch[1].trim();
+      }
+    }
+    
+    // Determine notification type
+    if (titleLower.includes('เพื่อน') || messageLower.includes('เพื่อน')) {
+      if (titleLower.includes('ตอบรับ') || messageLower.includes('ตอบรับ')) {
+        key = 'notifications.friendRequestAccepted';
+      } else {
+        key = 'notifications.newFriendRequest';
+      }
+    } else if (titleLower.includes('บิล') || messageLower.includes('บิล')) {
+      key = 'notifications.newBillInTrip';
+    } else if (titleLower.includes('ทริป') || messageLower.includes('ทริป') || 
+              titleLower.includes('trip') || messageLower.includes('trip')) {
+      key = 'notifications.addedToNewTrip';
+    } else if (titleLower.includes('เงิน') || messageLower.includes('เงิน') || 
+              titleLower.includes('payment') || messageLower.includes('payment')) {
+      key = 'notifications.payment';
+    } else if (titleLower.includes('ยืนยัน') || messageLower.includes('ยืนยัน') || 
+              titleLower.includes('confirmed') || messageLower.includes('confirmed')) {
+      key = 'notifications.paymentConfirmed';
+    }
+    
+    return { key, variables };
+  };
+
   const renderNotificationItem = ({ item }: { item: Notification }) => {
     const getNotificationIcon = (item: Notification) => {
       const title = item.title?.toLowerCase() || '';
       const message = item.message?.toLowerCase() || '';
+      
       if (title.includes('เพื่อน') || message.includes('เพื่อน')) {
         if (title.includes('ตอบรับ') || message.includes('ตอบรับ')) {
           return { name: 'checkmark-circle' as const, color: '#2196F3' };
-        } else { return { name: 'person-add' as const, color: '#4CAF50' }; }
+        } else { 
+          return { name: 'person-add' as const, color: '#4CAF50' }; 
+        }
       } else if (title.includes('ทริป') || message.includes('ทริป')) {
         return { name: 'car' as const, color: '#FF9800' };
       } else if (title.includes('เงิน') || message.includes('เงิน')) {
@@ -153,9 +207,20 @@ export default function NotificationScreen() {
         return { name: 'notifications' as const, color: '#9C27B0' };
       }
     };
-    const notificationText = item.title && item.message 
-      ? `${item.title}: ${item.message}` 
-      : item.title || item.message || 'การแจ้งเตือนใหม่';
+
+    // Get notification details and variables
+    const { key: translationKey, variables } = getNotificationDetails(
+      item.title || '', 
+      item.message || '',
+      item.data || {}
+    );
+    
+    // Get the translated text and replace variables
+    let notificationText = t(translationKey);
+    Object.entries(variables).forEach(([key, value]) => {
+      notificationText = notificationText.replace(`{${key}}`, value);
+    });
+    
     const isUnread = !item.is_read;
     const icon = getNotificationIcon(item);
 
@@ -203,25 +268,18 @@ export default function NotificationScreen() {
 
   return (
     <View style={styles.overlay}>
-      {/* Header with Gradient */}
-      <LinearGradient
-        colors={['#1A3C6B', '#45647C', '#6B8E9C']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.headerGradient}
-      >
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t('notify.title')}</Text>
-          <View style={styles.headerSpacer} />
-        </View>
-      </LinearGradient>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color="black" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>{t('notify.title')}</Text>
+        <View style={styles.headerSpacer} />
+      </View>
 
       {notifications.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="notifications-off" size={64} color="#1A3C6B" />
+          <Ionicons name="notifications-off" size={64} color="#ccc" />
           <Text style={styles.emptyText}>{t('notify.empty.title')}</Text>
           <Text style={styles.emptySubText}>{t('notify.empty.subtitle')}</Text>
         </View>
@@ -249,58 +307,36 @@ export default function NotificationScreen() {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: '#fff',
-    paddingTop: 50,
-  },
-  headerGradient: {
-    paddingTop: 0,
-    paddingBottom: 20,
-    borderBottomLeftRadius: 25,
-    borderBottomRightRadius: 25,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
+    backgroundColor: '#fff', // ใช้พื้นหลังสีขาวแทน
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingTop: 60,
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
-  headerTitle: { 
-    fontSize: 20, 
-    fontWeight: 'bold', 
-    color: '#fff',
-    flex: 1, 
-    textAlign: 'center' 
-  },
+  headerTitle: { fontSize: 20, fontWeight: 'bold', color: 'black' },
   headerSpacer: { width: 24 },
   content: { flexGrow: 1, paddingHorizontal: 20, paddingBottom: 40 },
   section: { marginTop: 20 },
-  sectionTitle: { 
-    fontSize: 18, 
-    fontWeight: 'bold', 
-    color: '#1A3C6B', 
-    marginBottom: 15 
-  },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: 'black', marginBottom: 15 },
 
   notificationItem: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 15,
     padding: 15,
-    borderRadius: 20,
+    borderRadius: 16,
     backgroundColor: '#fff',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: '#f0f0f0',
+    elevation: 3,
   },
   profileIcon: {
     width: 40, height: 40, borderRadius: 20,
@@ -308,15 +344,15 @@ const styles = StyleSheet.create({
     marginRight: 15,
   },
   notificationContent: { flex: 1 },
-  notificationText: { fontSize: 14, color: '#1A3C6B', lineHeight: 20 },
-  unreadNotification: { backgroundColor: '#f8f9fa' },
+  notificationText: { fontSize: 14, color: 'black', lineHeight: 20 },
+  unreadNotification: { backgroundColor: '#f9f9f9' },
   unreadText: { fontWeight: '600' },
-  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#FF3B30', marginLeft: 10 },
+  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#FF6B6B', marginLeft: 10 },
 
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: 10, color: '#1A3C6B' },
+  loadingText: { marginTop: 10, color: '#45647C' },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 50 },
-  emptyText: { fontSize: 20, fontWeight: 'bold', color: '#1A3C6B', marginTop: 20 },
+  emptyText: { fontSize: 20, fontWeight: 'bold', color: '#333', marginTop: 20 },
   emptySubText: { fontSize: 14, color: '#666', marginTop: 5, textAlign: 'center' },
   timeText: { fontSize: 12, color: '#888', marginTop: 4 },
 });
