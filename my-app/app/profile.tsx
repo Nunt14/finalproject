@@ -9,6 +9,7 @@ import {
   Alert,
   ScrollView,
   Modal,
+  SafeAreaView,
 } from 'react-native';
 import { supabase } from '../constants/supabase';
 import { router, useFocusEffect } from 'expo-router';
@@ -18,6 +19,7 @@ import { decode as decodeBase64 } from 'base64-arraybuffer';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from './contexts/LanguageContext';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function ProfileScreen() {
   const [user, setUser] = useState<any>(null);
@@ -92,7 +94,7 @@ export default function ProfileScreen() {
       const contentType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
 
       // Read the file as Base64 and convert to ArrayBuffer (RN-safe)
-      const base64 = await FileSystem.readAsStringAsync(localUri, { encoding: FileSystem.EncodingType.Base64 });
+      const base64 = await FileSystem.readAsStringAsync(localUri, { encoding: 'base64' });
       const arrayBuffer = decodeBase64(base64);
       const filePath = `${keyPrefix}/${uid}/${Date.now()}.${ext}`;
       const { error: uploadError } = await supabase.storage
@@ -207,106 +209,134 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 80 }}>
-   
-
-      <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color="#000" />
+    <View style={styles.container}>
+      {/* Header with Gradient */}
+      <LinearGradient
+        colors={['#1A3C6B', '#45647C', '#6B8E9C']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerGradient}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="chevron-back" size={24} color="#fff" />
           </TouchableOpacity>
-           <Text style={styles.header}>{t('profile.title')}</Text> 
-           
-           </View>
+          <Text style={styles.headerTitle}>{t('profile.title')}</Text>
+          <View style={{ width: 24 }} />
+        </View>
+      </LinearGradient>
+
+      <ScrollView style={styles.scrollContainer} contentContainerStyle={{ paddingBottom: 80 }}>
 
 
-      <View style={styles.profileSection}>
-  <View style={styles.profileImageWrapper}>
-    <Image
-      source={
+        <View style={styles.profileSection}>
+          <View style={styles.profileImageWrapper}>
+            <Image
+              source={
                 profileImage ? { uri: profileImage } : require('../assets/images/icon.png')
-      }
-      style={styles.profileImage}
-    />
-    <TouchableOpacity style={styles.cameraIcon} onPress={() => handleImagePick('profile')}>
-      <Ionicons name="camera" size={18} color="#000" />
-    </TouchableOpacity>
-  </View>
+              }
+              style={styles.profileImage}
+            />
+            <TouchableOpacity style={styles.cameraIcon} onPress={() => handleImagePick('profile')}>
+              <Ionicons name="camera" size={18} color="#fff" />
+            </TouchableOpacity>
+          </View>
 
-  {/* แสดงชื่อ ถ้ามี full_name */}
-  {user?.full_name ? (
-    <Text style={styles.name}>{user.full_name}</Text>
-  ) : null}
+          {/* แสดงชื่อ ถ้ามี full_name */}
+          {user?.full_name ? (
+            <Text style={styles.name}>{user.full_name}</Text>
+          ) : null}
 
-  {/* แสดงอีเมล ถ้ามี */}
-  {user?.email ? (
-    <Text style={styles.email}>{user.email}</Text>
-  ) : null}
-</View>
+          {/* แสดงอีเมล ถ้ามี */}
+          {user?.email ? (
+            <Text style={styles.email}>{user.email}</Text>
+          ) : null}
+        </View>
 
 
       <View style={styles.sectionCard}>
       <View style={styles.infoSection}>
         {/* PHONE */}
         <View style={styles.infoRow}>
-          <Ionicons name="call-outline" size={18} color="#3f5b78" style={styles.iconLeft} />
-          <Text style={styles.label}>{t('profile.phone')}</Text>
-          {editMode ? (
-            <TextInput
-              style={styles.inlineInput}
-              value={phone}
-              onChangeText={setPhone}
-              placeholder={t('profile.default_phone_placeholder')}
-            />
-          ) : (
-            <Text style={[styles.value, { color: '#3366cc' }]}>{phone || t('profile.default_phone_placeholder')}</Text>
-          )}
-          <TouchableOpacity onPress={() => setEditMode(!editMode)}>
-            <Ionicons name="create-outline" size={18} color="#3f5b78" />
+          <View style={styles.iconContainer}>
+            <Ionicons name="call-outline" size={20} color="#1A3C6B" />
+          </View>
+          <View style={styles.infoContent}>
+            <Text style={styles.label}>{t('profile.phone')}</Text>
+            {editMode ? (
+              <TextInput
+                style={styles.inlineInput}
+                value={phone}
+                onChangeText={setPhone}
+                placeholder={t('profile.default_phone_placeholder')}
+                placeholderTextColor="#999"
+              />
+            ) : (
+              <Text style={styles.value}>{phone || t('profile.default_phone_placeholder')}</Text>
+            )}
+          </View>
+          <TouchableOpacity onPress={() => setEditMode(!editMode)} style={styles.editButton}>
+            <Ionicons name="create-outline" size={18} color="#1A3C6B" />
           </TouchableOpacity>
         </View>
 
         {/* PASSWORD */}
         <View style={styles.infoRow}>
-          <Ionicons name="lock-closed-outline" size={18} color="#3f5b78" style={styles.iconLeft} />
-          <Text style={styles.label}>{t('profile.password')}</Text>
-          {editMode ? (
-            <TextInput
-              style={styles.inlineInput}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              placeholder={t('profile.new_password_placeholder')}
-            />
-          ) : (
-            <Text style={styles.value}>**********</Text>
-          )}
+          <View style={styles.iconContainer}>
+            <Ionicons name="lock-closed-outline" size={20} color="#1A3C6B" />
+          </View>
+          <View style={styles.infoContent}>
+            <Text style={styles.label}>{t('profile.password')}</Text>
+            {editMode ? (
+              <TextInput
+                style={styles.inlineInput}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                placeholder={t('profile.new_password_placeholder')}
+                placeholderTextColor="#999"
+              />
+            ) : (
+              <Text style={styles.value}>**********</Text>
+            )}
+          </View>
         </View>
 
         {/* PAYMENT */}
         <View style={styles.infoRow}>
-          <Ionicons name="qr-code-outline" size={18} color="#3f5b78" style={styles.iconLeft} />
-          <Text style={styles.label}>{t('profile.payment')}</Text>
-          <TouchableOpacity onPress={() => handleImagePick('qr')}>
-            <Ionicons name="create-outline" size={18} color="#3f5b78" />
+          <View style={styles.iconContainer}>
+            <Ionicons name="qr-code-outline" size={20} color="#1A3C6B" />
+          </View>
+          <View style={styles.infoContent}>
+            <Text style={styles.label}>{t('profile.payment')}</Text>
+            <Text style={styles.value}>{qrImage ? 'QR Code Set' : 'No QR Code'}</Text>
+          </View>
+          <TouchableOpacity onPress={() => handleImagePick('qr')} style={styles.editButton}>
+            <Ionicons name="create-outline" size={18} color="#1A3C6B" />
           </TouchableOpacity>
         </View>
 
         <View style={styles.qrBox}>
           <TouchableOpacity style={styles.qrEditIcon} onPress={() => handleImagePick('qr')}>
-            <Ionicons name="create-outline" size={16} color="#777" />
+            <Ionicons name="create-outline" size={16} color="#1A3C6B" />
           </TouchableOpacity>
           {qrImage ? (
             <Image source={{ uri: qrImage }} style={styles.qrImage} resizeMode="contain" />
           ) : (
-            <Ionicons name="qr-code-outline" size={64} color="#bbb" style={{ marginVertical: 24 }} />
+            <Ionicons name="qr-code-outline" size={64} color="#1A3C6B" style={{ marginVertical: 24 }} />
           )}
           <Text style={styles.qrText}>{t('profile.qr_text')}</Text>
         </View>
 
         {/* CURRENCY */}
         <View style={styles.infoRow}>
-          <Ionicons name="cash-outline" size={18} color="#3f5b78" style={styles.iconLeft} />
-          <Text style={styles.label}>{t('profile.currency')}</Text>
+          <View style={styles.iconContainer}>
+            <Ionicons name="cash-outline" size={20} color="#1A3C6B" />
+          </View>
+          <View style={styles.infoContent}>
+            <Text style={styles.label}>{t('profile.currency')}</Text>
+            <Text style={styles.value}>{currency}</Text>
+          </View>
           <TouchableOpacity style={styles.currencyPill} onPress={() => setShowCurrencyPicker(true)}>
             <Text style={styles.currencyPillText}>{currency}</Text>
             <Ionicons name="chevron-down" size={16} color="#fff" />
@@ -315,8 +345,13 @@ export default function ProfileScreen() {
 
         {/* LANGUAGE */}
         <View style={styles.infoRow}>
-          <Ionicons name="language-outline" size={18} color="#3f5b78" style={styles.iconLeft} />
-          <Text style={styles.label}>{t('profile.language')}</Text>
+          <View style={styles.iconContainer}>
+            <Ionicons name="language-outline" size={20} color="#1A3C6B" />
+          </View>
+          <View style={styles.infoContent}>
+            <Text style={styles.label}>{t('profile.language')}</Text>
+            <Text style={styles.value}>{languageNames[language as keyof typeof languageNames]}</Text>
+          </View>
           <TouchableOpacity 
             style={styles.currencyPill} 
             onPress={() => setShowLanguagePicker(true)}
@@ -330,13 +365,14 @@ export default function ProfileScreen() {
       </View>
       </View>
 
-      <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-        <Text style={styles.saveButtonText}>{t('common.save')}</Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+          <Text style={styles.saveButtonText}>{t('common.save')}</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutButtonText}>{t('common.logout')}</Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Text style={styles.logoutButtonText}>{t('common.logout')}</Text>
+        </TouchableOpacity>
+      </ScrollView>
 
       {/* Language picker modal */}
       <Modal transparent visible={showLanguagePicker} animationType="fade" onRequestClose={() => setShowLanguagePicker(false)}>
@@ -389,113 +425,272 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
-
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', padding: 20, paddingBottom: 40 },
-  headerRow: {
+  container: { 
+    flex: 1, 
+    backgroundColor: '#fff',
+    paddingTop: 50,
+  },
+  headerGradient: {
+    paddingTop: 0,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+  },
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 20,
     paddingVertical: 12,
-    marginBottom: -3,
-    marginTop: 40,
-    position: 'relative',
-    width: '100%',
   },
-
   backButton: {
     padding: 8,
-    position: 'absolute',
-    left: -8,
-    zIndex: 1,
   },
-  
-  header: {
-    fontSize: 22,
+  headerTitle: {
+    fontSize: 20,
     fontWeight: 'bold',
+    color: '#fff',
+    flex: 1,
     textAlign: 'center',
-    width: '100%',
   },
-  profileSection: { alignItems: 'center', marginBottom: 24 },
-  profileImageWrapper: { position: 'relative', marginBottom: 12 },
-  profileImage: { width: 96, height: 96, borderRadius: 48, backgroundColor: '#eee', borderWidth: 3, borderColor: '#f2f2f2' },
-  cameraIcon: { position: 'absolute', bottom: 0, right: 0, backgroundColor: '#fff', borderRadius: 15, padding: 3 },
-  name: { fontSize: 20, fontWeight: 'bold', marginTop: 6, color: '#1A3C6B' },
-  email: { fontSize: 13, color: '#7a7a7a', marginTop: 2 },
-  sectionCard: { backgroundColor: '#fff', borderRadius: 16, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#ececec', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
-  infoSection: { marginBottom: 4 },
-  infoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  label: { flex: 1, fontSize: 15, color: '#333' },
-  value: { flex: 1, fontSize: 15, color: '#555' },
-  iconEdit: { width: 18, height: 18 },
-  iconLeft: { marginRight: 6 },
-  inlineInput: {
+  scrollContainer: {
     flex: 1,
-    fontSize: 15,
-    borderBottomWidth: 1,
-    borderColor: '#ccc',
-    paddingVertical: 4,
-    marginRight: 10,
-    color: '#333',
+    paddingHorizontal: 20,
   },
-  inlineInputTouchable: {
-    flex: 1,
-    fontSize: 15,
-    borderBottomWidth: 1,
-    borderColor: '#ccc',
+  profileSection: { 
+    alignItems: 'center', 
+    marginTop: 20,
+    marginBottom: 30,
+    paddingVertical: 20,
+  },
+  profileImageWrapper: { 
+    position: 'relative', 
+    marginBottom: 16,
+  },
+  profileImage: { 
+    width: 120, 
+    height: 120, 
+    borderRadius: 60, 
+    backgroundColor: '#f8f9fa', 
+    borderWidth: 4, 
+    borderColor: '#1A3C6B',
+    shadowColor: '#1A3C6B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  cameraIcon: { 
+    position: 'absolute', 
+    bottom: 0, 
+    right: 0, 
+    backgroundColor: '#1A3C6B', 
+    borderRadius: 18, 
+    padding: 6,
+    shadowColor: '#1A3C6B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  name: { 
+    fontSize: 24, 
+    fontWeight: 'bold', 
+    marginTop: 8, 
+    color: '#1A3C6B',
+    textAlign: 'center',
+  },
+  email: { 
+    fontSize: 14, 
+    color: '#666', 
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  sectionCard: { 
+    backgroundColor: '#fff', 
+    borderRadius: 20, 
+    padding: 20, 
+    marginBottom: 20, 
+    borderWidth: 1, 
+    borderColor: '#f0f0f0', 
+    shadowColor: '#000', 
+    shadowOpacity: 0.08, 
+    shadowRadius: 4, 
+    shadowOffset: { width: 0, height: 2 }, 
+    elevation: 2 
+  },
+  infoSection: { marginBottom: 8 },
+  infoRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginBottom: 20,
     paddingVertical: 8,
-    marginRight: 10,
+  },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f8f9fa',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
+  },
+  infoContent: {
+    flex: 1,
+  },
+  label: { 
+    fontSize: 14, 
+    color: '#666', 
+    marginBottom: 2,
+    fontWeight: '500',
+  },
+  value: { 
+    fontSize: 16, 
+    color: '#1A3C6B',
+    fontWeight: '600',
+  },
+  editButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#f8f9fa',
+  },
+  inlineInput: {
+    fontSize: 16,
+    borderBottomWidth: 2,
+    borderColor: '#1A3C6B',
+    paddingVertical: 6,
+    color: '#1A3C6B',
+    fontWeight: '600',
   },
   currencyPill: {
     backgroundColor: '#1A3C6B',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 18,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-  },
-  currencyPillText: { color: '#fff', fontWeight: '700' },
-  qrBox: {
-    position: 'relative',
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 12,
-    width: '90%',
-    alignSelf: 'center',
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#ECECEC',
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
+    shadowColor: '#1A3C6B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
     elevation: 2,
   },
-  qrEditIcon: { position: 'absolute', top: 10, right: 10, padding: 6, backgroundColor: '#f7f7f7', borderRadius: 12 },
-  qrImage: { width: 240, height: 240, borderRadius: 12, marginBottom: 10 },
-  qrText: { fontSize: 12, color: '#666', textAlign: 'center', marginTop: 2, marginBottom: 6 },
+  currencyPillText: { 
+    color: '#fff', 
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  qrBox: {
+    position: 'relative',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 20,
+    borderWidth: 2,
+    borderColor: '#1A3C6B',
+    borderStyle: 'dashed',
+    shadowColor: '#1A3C6B',
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  qrEditIcon: { 
+    position: 'absolute', 
+    top: 12, 
+    right: 12, 
+    padding: 8, 
+    backgroundColor: '#1A3C6B', 
+    borderRadius: 16,
+    shadowColor: '#1A3C6B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  qrImage: { 
+    width: 200, 
+    height: 200, 
+    borderRadius: 16, 
+    marginBottom: 12,
+    backgroundColor: '#fff',
+    padding: 10,
+  },
+  qrText: { 
+    fontSize: 13, 
+    color: '#1A3C6B', 
+    textAlign: 'center', 
+    marginTop: 4, 
+    fontWeight: '500',
+  },
   saveButton: {
-    backgroundColor: '#3f5b78',
-    padding: 12,
-    borderRadius: 10,
+    backgroundColor: '#1A3C6B',
+    padding: 16,
+    borderRadius: 20,
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
+    shadowColor: '#1A3C6B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  saveButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  saveButtonText: { 
+    color: '#fff', 
+    fontWeight: 'bold', 
+    fontSize: 16 
+  },
   logoutButton: {
-    backgroundColor: '#222',
-    padding: 14,
-    borderRadius: 10,
+    backgroundColor: '#6c757d',
+    padding: 16,
+    borderRadius: 20,
     alignItems: 'center',
+    shadowColor: '#6c757d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  logoutButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center' },
-  pickerCard: { backgroundColor: '#fff', width: '80%', borderRadius: 12, padding: 16 },
-  pickerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#eee' },
+  logoutButtonText: { 
+    color: '#fff', 
+    fontWeight: 'bold', 
+    fontSize: 16 
+  },
+  modalOverlay: { 
+    flex: 1, 
+    backgroundColor: 'rgba(0,0,0,0.5)', 
+    alignItems: 'center', 
+    justifyContent: 'center' 
+  },
+  pickerCard: { 
+    backgroundColor: '#fff', 
+    width: '80%', 
+    borderRadius: 20, 
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  pickerRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    paddingVertical: 12, 
+    borderBottomWidth: 1, 
+    borderBottomColor: '#f0f0f0' 
+  },
 });

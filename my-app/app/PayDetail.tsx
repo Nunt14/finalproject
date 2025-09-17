@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { supabase } from '../constants/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLanguage } from './contexts/LanguageContext';
+import { LinearGradient } from 'expo-linear-gradient';
 
 type TripAggregate = {
   trip_id: string | null;
@@ -125,18 +126,27 @@ export default function PayDetailScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={24} color="black" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('paydetail.header')}</Text>
-      </View>
+      {/* Header with Gradient */}
+      <LinearGradient
+        colors={['#1A3C6B', '#45647C', '#6B8E9C']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerGradient}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="chevron-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{t('paydetail.header')}</Text>
+          <View style={{ width: 24 }} />
+        </View>
+      </LinearGradient>
 
       <View style={styles.creditorSection}>
         {creditor?.profile_image ? (
           <Image source={{ uri: creditor.profile_image }} style={styles.avatar} />
         ) : (
-          <Ionicons name="person-circle" size={50} color="#bbb" />
+          <Ionicons name="person-circle" size={50} color="#1A3C6B" />
         )}
         <View style={{ marginLeft: 10 }}>
           <Text style={styles.creditorName}>{creditor?.full_name || '-'}</Text>
@@ -171,7 +181,7 @@ export default function PayDetailScreen() {
               </TouchableOpacity>
             ) : null}
             <TouchableOpacity onPress={() => router.push(`/TripDebtDetail?creditorId=${creditorId}&tripId=${tripItem.trip_id}`)}>
-              <Ionicons name="eye" size={22} color="#45647C" style={{ marginLeft: 10 }} />
+              <Ionicons name="eye" size={22} color="#1A3C6B" style={{ marginLeft: 10 }} />
             </TouchableOpacity>
           </View>
         ))}
@@ -187,56 +197,100 @@ export default function PayDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', paddingTop: 60, paddingHorizontal: 20 },
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', marginLeft: 15, textAlign: 'left' },
+  container: { 
+    flex: 1, 
+    backgroundColor: '#fff',
+    paddingTop: 50,
+  },
+  headerGradient: {
+    paddingTop: 0,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+  },
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  headerTitle: { 
+    fontSize: 20, 
+    fontWeight: 'bold', 
+    color: '#fff',
+    flex: 1, 
+    textAlign: 'center' 
+  },
   creditorSection: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    borderRadius: 15,
-    padding: 15,
-    marginBottom: 10,
+    borderRadius: 20,
+    padding: 20,
+    marginHorizontal: 20,
+    marginTop: 20,
+    marginBottom: 20,
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
   },
   avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#eee' },
-  creditorName: { fontSize: 18, fontWeight: 'bold' },
-  unpaidText: { color: 'red', fontWeight: 'bold', fontSize: 15 },
-  totalAmount: { marginLeft: 'auto', color: 'red', fontWeight: 'bold', fontSize: 20 },
-  allListTitle: { fontSize: 16, color: '#666', marginVertical: 10 },
+  creditorName: { fontSize: 18, fontWeight: 'bold', color: '#1A3C6B' },
+  unpaidText: { color: '#FF3B30', fontWeight: 'bold', fontSize: 15 },
+  totalAmount: { marginLeft: 'auto', color: '#FF3B30', fontWeight: 'bold', fontSize: 20 },
+  allListTitle: { fontSize: 16, color: '#1A3C6B', marginVertical: 10, marginHorizontal: 20, fontWeight: '600' },
   billCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    borderRadius: 15,
+    borderRadius: 20,
     padding: 15,
-    marginBottom: 10,
+    marginHorizontal: 20,
+    marginBottom: 15,
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
   },
-  tripName: { fontSize: 15, fontWeight: 'bold', color: '#234' },
-  billAmount: { color: 'red', fontWeight: 'bold', fontSize: 14 },
+  tripName: { fontSize: 15, fontWeight: 'bold', color: '#1A3C6B' },
+  billAmount: { color: '#FF3B30', fontWeight: 'bold', fontSize: 14 },
   payButton: {
-    backgroundColor: '#234080',
+    backgroundColor: '#1A3C6B',
     paddingHorizontal: 18,
     paddingVertical: 7,
-    borderRadius: 8,
+    borderRadius: 12,
     marginLeft: 10,
+    shadowColor: '#1A3C6B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
   },
   payAllButton: {
-    backgroundColor: '#234080',
+    backgroundColor: '#1A3C6B',
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 20,
     alignItems: 'center',
+    marginHorizontal: 20,
     marginTop: 10,
     marginBottom: 10,
+    shadowColor: '#1A3C6B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
   },
   payAllButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
   bgImage: { width: '111%', height: 235, position: 'absolute', bottom: -4, left: 0 },

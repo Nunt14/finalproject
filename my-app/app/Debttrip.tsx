@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Alert, SafeAreaView } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { supabase } from '../constants/supabase';
 import { useLanguage } from './contexts/LanguageContext';
+import { LinearGradient } from 'expo-linear-gradient';
 
 type DebtItem = {
   debt_id: string;
@@ -292,12 +293,21 @@ export default function DebttripScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color="black" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('debttrip.title')}</Text>
-      </View>
+      {/* Header with Gradient */}
+      <LinearGradient
+        colors={['#1A3C6B', '#45647C', '#6B8E9C']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerGradient}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{t('debttrip.title')}</Text>
+          <View style={{ width: 24 }} />
+        </View>
+      </LinearGradient>
 
       {/* Add Total Amount Section */}
       <View style={styles.totalContainer}>
@@ -324,13 +334,13 @@ export default function DebttripScreen() {
                     style={styles.avatar} 
                   />
                 ) : (
-                  <Ionicons name="person-circle" size={36} color="#bbb" />
+                  <Ionicons name="person-circle" size={36} color="#1A3C6B" />
                 )}
               </View>
 
               <View style={styles.rowBetween}>
                 <View style={styles.row}>
-                  <FontAwesome5 name="globe" size={18} color="#45647C" style={{ marginRight: 6 }} />
+                  <FontAwesome5 name="globe" size={18} color="#1A3C6B" style={{ marginRight: 6 }} />
                   <Text style={styles.totalList}>{debt.bill_type || t('debttrip.travel_expenses')}</Text>
                 </View>
                 <TouchableOpacity 
@@ -393,60 +403,84 @@ export default function DebttripScreen() {
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: '#fff', 
-    paddingTop: 60, 
-    paddingHorizontal: 20 
+    backgroundColor: '#fff',
+    paddingTop: 50,
+  },
+  headerGradient: {
+    paddingTop: 0,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
   },
   header: { 
     flexDirection: 'row', 
     alignItems: 'center', 
-    marginBottom: 10 
+    paddingHorizontal: 20,
+    paddingVertical: 12,
   },
   totalContainer: {
     backgroundColor: '#f8f9fa',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 16,
+    padding: 20,
+    borderRadius: 20,
+    marginHorizontal: 20,
+    marginTop: 20,
+    marginBottom: 20,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#f0f0f0',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
   },
   totalLabel: {
     fontSize: 16,
-    color: '#666',
+    color: '#1A3C6B',
     marginBottom: 4,
+    fontWeight: '600',
   },
   totalAmount: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: 'red',
+    color: '#FF3B30',
   },
   headerTitle: { 
     fontSize: 20, 
     fontWeight: 'bold', 
-    marginLeft: 'auto',
-    textAlign: 'right'
+    color: '#fff',
+    marginLeft: 10, 
+    flex: 1, 
+    textAlign: 'center' 
   },
   subHeader: { 
     fontSize: 16, 
-    color: '#666', 
-    marginVertical: 10 
+    color: '#1A3C6B', 
+    marginVertical: 10,
+    marginHorizontal: 20,
+    fontWeight: '600',
   },
   scrollContainer: { 
-    paddingVertical: 10 
+    paddingVertical: 10,
+    paddingHorizontal: 20,
   },
   card: {
     backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 15,
+    padding: 20,
+    borderRadius: 20,
     marginBottom: 15,
     shadowColor: '#000',
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 5,
     shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+    elevation: 2,
     borderWidth: 1,
-    borderColor: '#ECECEC',
+    borderColor: '#f0f0f0',
   },
   rowBetween: { 
     flexDirection: 'row', 
@@ -461,10 +495,10 @@ const styles = StyleSheet.create({
   amount: { 
     fontSize: 20, 
     fontWeight: 'bold', 
-    color: 'red' 
+    color: '#FF3B30' 
   },
   totalList: { 
-    color: '#45647C', 
+    color: '#1A3C6B', 
     fontWeight: '600' 
   },
   avatar: { 
@@ -474,10 +508,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#eee' 
   },
   payButton: {
-    backgroundColor: '#0F3176',
+    backgroundColor: '#1A3C6B',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   payButtonText: {
     color: '#fff',

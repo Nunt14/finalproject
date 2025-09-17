@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, ScrollView, Alert, ActivityIndicator, SafeAreaView } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../constants/supabase';
@@ -9,6 +9,7 @@ import { decode as decodeBase64 } from 'base64-arraybuffer';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 import { useLanguage } from './contexts/LanguageContext';
+import { LinearGradient } from 'expo-linear-gradient';
 
 type Member = {
   user_id: string;
@@ -26,6 +27,7 @@ export default function AddTripScreen() {
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [selectAll, setSelectAll] = useState<boolean>(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [defaultImageColor, setDefaultImageColor] = useState<string>('#5DADE2');
 
   // ดึงข้อมูลผู้ใช้ปัจจุบันและเพื่อนเมื่อหน้าจอโหลด
   useEffect(() => {
@@ -173,10 +175,6 @@ export default function AddTripScreen() {
       Alert.alert('Error', 'Please enter a trip name');
       return;
     }
-    if (!selectedImage) {
-      Alert.alert('Error', 'Please select a cover image for the trip');
-      return;
-    }
 
     setLoading(true);
     try {
@@ -187,6 +185,7 @@ export default function AddTripScreen() {
           trip_name: tripName,
           created_by: userId,
           trip_status: 'active',
+          // trip_color: selectedImage ? null : defaultImageColor, // เก็บสีถ้าไม่มีรูป (ปิดชั่วคราว)
         })
         .select();
 
@@ -197,17 +196,20 @@ export default function AddTripScreen() {
         throw new Error('ไม่พบรหัสทริปที่สร้าง');
       }
 
-      // 2) อัปโหลดรูปภาพไปยังโฟลเดอร์ของทริป แล้วอัปเดต URL ลงทริป
-      const imageUrl = await uploadImage(selectedImage as string, `trips/${newTripId}`);
-      if (!imageUrl) {
-        throw new Error('อัปโหลดรูปภาพไม่สำเร็จ');
-      }
+      // 2) อัปโหลดรูปภาพไปยังโฟลเดอร์ของทริป แล้วอัปเดต URL ลงทริป (ถ้ามี)
+      let imageUrl = null;
+      if (selectedImage) {
+        imageUrl = await uploadImage(selectedImage as string, `trips/${newTripId}`);
+        if (!imageUrl) {
+          throw new Error('อัปโหลดรูปภาพไม่สำเร็จ');
+        }
 
-      const { error: updateTripError } = await supabase
-        .from('trip')
-        .update({ trip_image_url: imageUrl })
-        .eq('trip_id', newTripId);
-      if (updateTripError) throw updateTripError;
+        const { error: updateTripError } = await supabase
+          .from('trip')
+          .update({ trip_image_url: imageUrl })
+          .eq('trip_id', newTripId);
+        if (updateTripError) throw updateTripError;
+      }
 
       // 3) เพิ่มข้อมูลสมาชิกในทริปลงในตาราง trip_member (ใช้ชื่อตาราง 'trip_member' ตัวเล็ก)
       const membersToInsert = [
@@ -257,38 +259,76 @@ export default function AddTripScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color="black" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('addtrip.header')}</Text>
-        <View style={{ width: 24 }} />
-      </View>
+      {/* Header with Gradient */}
+      <LinearGradient
+        colors={['#1A3C6B', '#45647C', '#6B8E9C']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerGradient}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{t('addtrip.header')}</Text>
+          <View style={{ width: 24 }} />
+        </View>
+      </LinearGradient>
 
-      <View style={styles.scrollView}>
-        {/* Camera Icon or Selected Image */}
-        <TouchableOpacity style={styles.imageBox} onPress={pickImage}>
-          {selectedImage ? (
-            <Image source={{ uri: selectedImage }} style={styles.tripImage} />
-          ) : (
-            <View style={styles.cameraIconContainer}>
-              <MaterialIcons name="add-photo-alternate" size={36} color="#6b7280" />
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Enhanced Image Upload Section */}
+        <View style={styles.imageSection}>
+          <Text style={styles.sectionTitle}>Cover Image</Text>
+          <TouchableOpacity style={styles.imageBox} onPress={pickImage}>
+            {selectedImage ? (
+              <Image source={{ uri: selectedImage }} style={styles.tripImage} />
+            ) : (
+              <View style={[styles.defaultImageContainer, { backgroundColor: defaultImageColor }]}>
+                <View style={styles.cameraIconContainer}>
+                  <View style={styles.cameraIconBackground}>
+                    <Ionicons name="camera" size={32} color="#fff" />
+                  </View>
+                  <Text style={styles.cameraIconText}>Add Photo</Text>
+                </View>
+              </View>
+            )}
+          </TouchableOpacity>
+          {!selectedImage && (
+            <View style={styles.colorPickerContainer}>
+              <Text style={styles.colorPickerLabel}>Choose default color:</Text>
+              <View style={styles.colorOptions}>
+                {['#5DADE2', '#F39C12', '#F5B7B1', '#E74C3C', '#58D68D', '#BB8FCE'].map((color) => (
+                  <TouchableOpacity
+                    key={color}
+                    style={[
+                      styles.colorOption,
+                      { backgroundColor: color },
+                      defaultImageColor === color && styles.colorOptionSelected
+                    ]}
+                    onPress={() => setDefaultImageColor(color)}
+                  />
+                ))}
+              </View>
             </View>
           )}
-        </TouchableOpacity>
-        <Text style={styles.helperText}>{t('') || 'Tap to add a cover image'}</Text>
+        </View>
 
         {/* Title input */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>{t('addtrip.title_label')}</Text>
-          <TextInput
-            value={tripName}
-            onChangeText={setTripName}
-            style={styles.input}
-            placeholder={t('addtrip.title_placeholder')}
-            placeholderTextColor="#999"
-          />
+          <View style={styles.inputContainer}>
+            <TextInput
+              value={tripName}
+              onChangeText={setTripName}
+              style={styles.input}
+              placeholder={t('addtrip.title_placeholder')}
+              placeholderTextColor="#999"
+            />
+          </View>
         </View>
 
         {/* Member section */}
@@ -340,88 +380,231 @@ export default function AddTripScreen() {
                 </View>
                 <Text style={styles.everyoneLabel}>{t('addtrip.everyone')}</Text>
               </TouchableOpacity>
-
-              <Image
-                source={require('../assets/images/bg4.png')}
-                style={styles.bg4Image}
-                resizeMode="contain"
-              />
             </View>
           )}
         </View>
-      </View>
 
-      {/* Bottom buttons */}
-      <View style={styles.buttonContainer} pointerEvents="box-none">
-        <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm} disabled={loading}>
-          <Text style={styles.confirmText}>{loading ? t('addtrip.saving') : t('addtrip.confirm')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.replace('/welcome')}>
-          <Text style={styles.backText}>{t('addtrip.back')}</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Background images */}
+        {/* Bottom buttons - moved inside ScrollView */}
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm} disabled={loading}>
+            {loading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.confirmText}>{t('addtrip.confirm')}</Text>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.replace('/welcome')}>
+            <Text style={styles.backText}>{t('addtrip.back')}</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 72, paddingHorizontal: 20, backgroundColor: '#fff' },
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', marginLeft: 10, flex: 1, textAlign: 'right' },
-  scrollView: { flex: 1, paddingVertical: 20 },
+  container: { 
+    flex: 1, 
+    backgroundColor: '#fff',
+    paddingTop: 50,
+  },
+  headerGradient: {
+    paddingTop: 0,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+  },
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  headerTitle: { 
+    fontSize: 20, 
+    fontWeight: 'bold', 
+    color: '#fff',
+    marginLeft: 10, 
+    flex: 1, 
+    textAlign: 'center' 
+  },
+  scrollView: { 
+    flex: 1,
+  },
+  scrollContent: {
+    paddingVertical: 25,
+    paddingHorizontal: 20,
+    paddingBottom: 30, // ลดพื้นที่ด้านล่างเพราะปุ่มอยู่ใน ScrollView แล้ว
+  },
+  imageSection: {
+    marginBottom: 35,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1A3C6B',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
   imageBox: {
     alignSelf: 'center',
-    backgroundColor: '#f5f7f9',
-    borderWidth: 1,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 2,
     borderStyle: 'dashed',
-    borderColor: '#d1d5db',
-    borderRadius: 14,
-    marginBottom: 10,
-    width: 160,
-    height: 160,
+    borderColor: '#1A3C6B',
+    borderRadius: 20,
+    width: 180,
+    height: 180,
     justifyContent: 'center',
     alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    marginBottom: 20,
   },
   tripImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 14,
+    borderRadius: 18,
   },
   cameraIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  inputGroup: { marginBottom: 20 },
-  label: { fontWeight: 'bold', marginBottom: 5 },
-  input: { borderBottomWidth: 1, borderBottomColor: '#ccc', paddingVertical: 5 },
-  helperText: { color: '#6b7280', fontSize: 12, textAlign: 'center', marginBottom: 18 },
-  memberSection: { marginBottom: 20 },
-  memberScrollView: { paddingVertical: 10 },
-  memberScrollContent: { paddingHorizontal: 10 },
-  memberAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    marginRight: 10,
+  cameraIconBackground: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#E8F4FD',
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 10,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  cameraIconText: {
+    fontSize: 14,
+    color: '#fff',
+    fontWeight: '600',
+  },
+  defaultImageContainer: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  colorPickerContainer: {
+    marginTop: 15,
+    alignItems: 'center',
+  },
+  colorPickerLabel: {
+    fontSize: 14,
+    color: '#1A3C6B',
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  colorOptions: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  colorOption: {
+    width: 35,
+    height: 35,
+    borderRadius: 17.5,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  colorOptionSelected: {
+    borderColor: '#1A3C6B',
+    borderWidth: 3,
+    elevation: 4,
+    shadowColor: '#1A3C6B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+  },
+  inputGroup: { 
+    marginBottom: 30 
+  },
+  label: { 
+    fontSize: 16,
+    fontWeight: 'bold', 
+    color: '#1A3C6B',
+    marginBottom: 12 
+  },
+  inputContainer: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 15,
+    paddingHorizontal: 15,
+    paddingVertical: 5,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+  },
+  input: { 
+    fontSize: 16,
+    paddingVertical: 12,
+    color: '#333',
+  },
+  memberSection: { 
+    marginBottom: 35 
+  },
+  memberScrollView: { 
+    paddingVertical: 15,
+    marginBottom: 20,
+  },
+  memberScrollContent: { 
+    paddingHorizontal: 10 
+  },
+  memberAvatar: {
+    width: 55,
+    height: 55,
+    borderRadius: 27.5,
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   memberAvatarSelected: {
     borderWidth: 3,
     borderColor: '#1A3C6B',
+    elevation: 4,
+    shadowColor: '#1A3C6B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   memberAvatarImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 24,
+    borderRadius: 27.5,
   },
   memberAvatarText: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#fff',
   },
@@ -435,30 +618,74 @@ const styles = StyleSheet.create({
   everyoneBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 25,
     marginLeft: 10,
-    padding: 5,
-    borderRadius: 5,
+    padding: 15,
+    borderRadius: 15,
+    backgroundColor: '#f8f9fa',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
   },
   checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
+    width: 24,
+    height: 24,
+    borderRadius: 6,
     borderWidth: 2,
-    borderColor: '#ccc',
+    borderColor: '#1A3C6B',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10,
+    marginRight: 12,
   },
   checkboxSelected: {
     backgroundColor: '#1A3C6B',
     borderColor: '#1A3C6B',
   },
-  everyoneLabel: { fontSize: 14, color: '#888' },
-  buttonContainer: { position: 'absolute', left: 20, right: 20, bottom: 20 },
-  confirmBtn: { backgroundColor: '#1A3C6B', padding: 15, borderRadius: 10, marginBottom: 14, width: '100%' },
-  confirmText: { color: '#fff', textAlign: 'center', fontWeight: 'bold' },
-  backBtn: { backgroundColor: '#333', padding: 15, borderRadius: 10, width: '100%' , marginBottom: 30, },
-  backText: { color: '#fff', textAlign: 'center', fontWeight: 'bold' },
-  bg4Image: { alignSelf: 'center', width: 380, height: 135, marginTop: 15 },
+  everyoneLabel: { 
+    fontSize: 16, 
+    color: '#1A3C6B',
+    fontWeight: '600',
+  },
+  buttonContainer: { 
+    marginTop: 30,
+    marginBottom: 20,
+  },
+  confirmBtn: { 
+    backgroundColor: '#1A3C6B', 
+    padding: 18, 
+    borderRadius: 25, 
+    marginBottom: 15, 
+    width: '100%',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  confirmText: { 
+    color: '#fff', 
+    textAlign: 'center', 
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  backBtn: { 
+    backgroundColor: '#6c757d', 
+    padding: 18, 
+    borderRadius: 25, 
+    width: '100%',
+    marginBottom: 30,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  backText: { 
+    color: '#fff', 
+    textAlign: 'center', 
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
 });

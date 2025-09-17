@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { supabase } from '../constants/supabase';
 import { useLanguage } from './contexts/LanguageContext';
+import { LinearGradient } from 'expo-linear-gradient';
 
 type RouteParams = {
   billId: string;
@@ -105,23 +106,32 @@ export default function PaymentScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => {
-            if ((router as any).canGoBack && (router as any).canGoBack()) router.back();
-            else router.replace('/');
-          }}
-        >
-          <Ionicons name="chevron-back" size={24} color="black" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('payment.title')}</Text>
-      </View>
+      {/* Header with Gradient */}
+      <LinearGradient
+        colors={['#1A3C6B', '#45647C', '#6B8E9C']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerGradient}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => {
+              if ((router as any).canGoBack && (router as any).canGoBack()) router.back();
+              else router.replace('/');
+            }}
+          >
+            <Ionicons name="chevron-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{t('payment.title')}</Text>
+          <View style={{ width: 24 }} />
+        </View>
+      </LinearGradient>
 
       <View style={styles.creditorSection}>
         {creditorImageUrl ? (
           <Image source={{ uri: creditorImageUrl }} style={styles.avatar} onError={() => { /* swallow */ }} />
         ) : (
-          <Ionicons name="person-circle" size={50} color="#bbb" />
+          <Ionicons name="person-circle" size={50} color="#1A3C6B" />
         )}
         <View style={{ marginLeft: 10 }}>
           <Text style={styles.creditorName}>{creditor?.full_name || '-'}</Text>
@@ -168,53 +178,98 @@ export default function PaymentScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', paddingTop: 60, paddingHorizontal: 20 },
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', marginLeft: 'auto', textAlign: 'right' },
+  container: { 
+    flex: 1, 
+    backgroundColor: '#fff',
+    paddingTop: 50,
+  },
+  headerGradient: {
+    paddingTop: 0,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+  },
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  headerTitle: { 
+    fontSize: 20, 
+    fontWeight: 'bold', 
+    color: '#fff',
+    flex: 1, 
+    textAlign: 'center' 
+  },
   creditorSection: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    borderRadius: 15,
-    padding: 15,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#eee' },
-  creditorName: { fontSize: 18, fontWeight: 'bold' },
-  unpaidText: { color: 'red', fontWeight: 'bold', fontSize: 15 },
-  totalAmount: { marginLeft: 'auto', color: 'red', fontWeight: 'bold', fontSize: 20 },
-  sectionTitle: { fontSize: 14, color: '#666', marginVertical: 10 },
-  qrCard: {
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    paddingVertical: 18,
+    borderRadius: 20,
+    padding: 20,
+    marginHorizontal: 20,
+    marginTop: 20,
     marginBottom: 20,
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
+  },
+  avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#eee' },
+  creditorName: { fontSize: 18, fontWeight: 'bold', color: '#1A3C6B' },
+  unpaidText: { color: '#FF3B30', fontWeight: 'bold', fontSize: 15 },
+  totalAmount: { marginLeft: 'auto', color: '#FF3B30', fontWeight: 'bold', fontSize: 20 },
+  sectionTitle: { fontSize: 14, color: '#1A3C6B', marginVertical: 10, marginHorizontal: 20, fontWeight: '600' },
+  qrCard: {
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    paddingVertical: 20,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
   },
   qrNote: { marginTop: 8, color: '#666' },
   primaryButton: {
-    backgroundColor: '#234080',
+    backgroundColor: '#1A3C6B',
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 20,
     alignItems: 'center',
+    marginHorizontal: 20,
     marginBottom: 10,
+    shadowColor: '#1A3C6B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
   },
   primaryButtonText: { color: '#fff', fontWeight: 'bold' },
   secondaryButton: {
-    backgroundColor: '#3a3a3a',
+    backgroundColor: '#6c757d',
     padding: 14,
-    borderRadius: 12,
+    borderRadius: 20,
     alignItems: 'center',
+    marginHorizontal: 20,
+    shadowColor: '#6c757d',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
   },
   secondaryButtonText: { color: '#fff', fontWeight: 'bold' },
   bgImage: { width: '111%', height: 235, position: 'absolute', bottom: -4, left: 0 },

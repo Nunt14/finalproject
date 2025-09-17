@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   View, Text, StyleSheet, TouchableOpacity, FlatList, 
-  ActivityIndicator, Alert 
+  ActivityIndicator, Alert, SafeAreaView 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -10,6 +10,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../constants/types';
 import { supabase } from '../constants/supabase';
 import { useLanguage } from './contexts/LanguageContext';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // Type definitions
 interface Notification {
@@ -202,18 +203,25 @@ export default function NotificationScreen() {
 
   return (
     <View style={styles.overlay}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="black" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('notify.title')}</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      {/* Header with Gradient */}
+      <LinearGradient
+        colors={['#1A3C6B', '#45647C', '#6B8E9C']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerGradient}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{t('notify.title')}</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+      </LinearGradient>
 
       {notifications.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="notifications-off" size={64} color="#ccc" />
+          <Ionicons name="notifications-off" size={64} color="#1A3C6B" />
           <Text style={styles.emptyText}>{t('notify.empty.title')}</Text>
           <Text style={styles.emptySubText}>{t('notify.empty.subtitle')}</Text>
         </View>
@@ -241,36 +249,58 @@ export default function NotificationScreen() {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: '#fff', // ใช้พื้นหลังสีขาวแทน
+    backgroundColor: '#fff',
+    paddingTop: 50,
+  },
+  headerGradient: {
+    paddingTop: 0,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 60,
     paddingHorizontal: 20,
-    paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    paddingVertical: 12,
   },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: 'black' },
+  headerTitle: { 
+    fontSize: 20, 
+    fontWeight: 'bold', 
+    color: '#fff',
+    flex: 1, 
+    textAlign: 'center' 
+  },
   headerSpacer: { width: 24 },
   content: { flexGrow: 1, paddingHorizontal: 20, paddingBottom: 40 },
   section: { marginTop: 20 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: 'black', marginBottom: 15 },
+  sectionTitle: { 
+    fontSize: 18, 
+    fontWeight: 'bold', 
+    color: '#1A3C6B', 
+    marginBottom: 15 
+  },
 
   notificationItem: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 15,
     padding: 15,
-    borderRadius: 16,
+    borderRadius: 20,
     backgroundColor: '#fff',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
   },
   profileIcon: {
     width: 40, height: 40, borderRadius: 20,
@@ -278,15 +308,15 @@ const styles = StyleSheet.create({
     marginRight: 15,
   },
   notificationContent: { flex: 1 },
-  notificationText: { fontSize: 14, color: 'black', lineHeight: 20 },
-  unreadNotification: { backgroundColor: '#f9f9f9' },
+  notificationText: { fontSize: 14, color: '#1A3C6B', lineHeight: 20 },
+  unreadNotification: { backgroundColor: '#f8f9fa' },
   unreadText: { fontWeight: '600' },
-  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#FF6B6B', marginLeft: 10 },
+  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#FF3B30', marginLeft: 10 },
 
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: 10, color: '#45647C' },
+  loadingText: { marginTop: 10, color: '#1A3C6B' },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 50 },
-  emptyText: { fontSize: 20, fontWeight: 'bold', color: '#333', marginTop: 20 },
+  emptyText: { fontSize: 20, fontWeight: 'bold', color: '#1A3C6B', marginTop: 20 },
   emptySubText: { fontSize: 14, color: '#666', marginTop: 5, textAlign: 'center' },
   timeText: { fontSize: 12, color: '#888', marginTop: 4 },
 });

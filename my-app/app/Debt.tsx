@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, RefreshControl, SafeAreaView } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../constants/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLanguage } from './contexts/LanguageContext';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // ประเภทข้อมูลสำหรับการ์ดแบบรวมต่อผู้ให้เครดิต (หนึ่งการ์ดต่อหนึ่งผู้ให้เครดิต)
 type DebtItem = {
@@ -640,24 +641,37 @@ export default function DebtScreen() {
 
   const renderDebtCard = (debt: DebtItem) => (
     <View key={debt.creditor_id} style={styles.card}>
-      <View style={styles.rowBetween}>
-        <Text style={styles.amount}>
-          {Number(debt.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} {currencySymbol}
-        </Text>
-        {debt.creditor_profile_image ? (
-          <Image source={{ uri: debt.creditor_profile_image }} style={styles.avatar} />
-        ) : (
-          <Ionicons name="person-circle" size={36} color="#bbb" />
-        )}
+      {/* Top Row - Amount and Avatar */}
+      <View style={styles.cardTopRow}>
+        <View style={styles.amountContainer}>
+          <Text style={styles.amount}>
+            {Number(debt.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} {currencySymbol}
+          </Text>
+        </View>
+        <View style={styles.avatarContainer}>
+          {debt.creditor_profile_image ? (
+            <Image source={{ uri: debt.creditor_profile_image }} style={styles.avatar} />
+          ) : (
+            <Ionicons name="person-circle" size={40} color="#1A3C6B" />
+          )}
+        </View>
       </View>
 
-      <View style={styles.rowBetween}>
-        <View style={styles.row}>
-          <FontAwesome5 name="globe" size={18} color="#45647C" style={{ marginRight: 6 }} />
-          <Text style={styles.totalList}>{t('debt.total_list')} : {debt.trip_count} {t('debt.list')}</Text>
+      {/* Bottom Row - Trip Info and View Button */}
+      <View style={styles.cardBottomRow}>
+        <View style={styles.tripInfoContainer}>
+          <View style={styles.globeIconContainer}>
+            <FontAwesome5 name="globe" size={16} color="#1A3C6B" />
+          </View>
+          <Text style={styles.totalList}>
+            {t('debt.total_list')} : {debt.trip_count} {t('debt.list')}
+          </Text>
         </View>
-        <TouchableOpacity onPress={() => router.push({ pathname: '/PayDetail', params: { creditorId: debt.creditor_id } })}>
-          <Ionicons name="eye" size={24} color="#45647C" />
+        <TouchableOpacity 
+          style={styles.viewButton}
+          onPress={() => router.push({ pathname: '/PayDetail', params: { creditorId: debt.creditor_id } })}
+        >
+          <Ionicons name="eye" size={20} color="#1A3C6B" />
         </TouchableOpacity>
       </View>
     </View>
@@ -665,27 +679,35 @@ export default function DebtScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color="black" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('debt.title')}</Text>
-        <View style={{ width: 24 }} />
-      </View>
+      {/* Header with Gradient */}
+      <LinearGradient
+        colors={['#1A3C6B', '#45647C', '#6B8E9C']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerGradient}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="chevron-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{t('debt.title')}</Text>
+          <View style={{ width: 24 }} />
+        </View>
+      </LinearGradient>
 
       <View style={styles.toggleContainer}>
         <TouchableOpacity
           style={[styles.toggleButton, activeTab === 'debt' && styles.toggleButtonActive]}
           onPress={() => setActiveTab('debt')}
         >
-          <Ionicons name="card" size={20} color={activeTab === 'debt' ? '#fff' : '#666'} />
+          <Ionicons name="card" size={20} color={activeTab === 'debt' ? '#fff' : '#1A3C6B'} />
           <Text style={[styles.toggleText, activeTab === 'debt' && styles.toggleTextActive]}>{t('debt.tab_debt')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.toggleButton, activeTab === 'payment' && styles.toggleButtonActive]}
           onPress={() => setActiveTab('payment')}
         >
-          <Ionicons name="wallet" size={20} color={activeTab === 'payment' ? '#fff' : '#666'} />
+          <Ionicons name="wallet" size={20} color={activeTab === 'payment' ? '#fff' : '#1A3C6B'} />
           <Text style={[styles.toggleText, activeTab === 'payment' && styles.toggleTextActive]}>{t('debt.tab_payment')}</Text>
         </TouchableOpacity>
       </View>
@@ -760,11 +782,13 @@ export default function DebtScreen() {
             }
           >
             {paymentProofs.length === 0 ? (
-              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="document-text-outline" size={48} color="#ccc" />
-                <Text style={{ marginTop: 12, color: '#666' }}>{t('debt.no_pending_payments')}</Text>
-                <TouchableOpacity style={[styles.circle, { backgroundColor: '#234080', marginTop: 14 }]} onPress={() => currentUserId && fetchPaymentProofs(currentUserId)}>
-                  <Ionicons name="refresh" size={18} color="#fff" />
+              <View style={styles.emptyState}>
+                <View style={styles.emptyIconContainer}>
+                  <Ionicons name="document-text-outline" size={32} color="#1A3C6B" />
+                </View>
+                <Text style={styles.emptyText}>{t('debt.no_pending_payments')}</Text>
+                <TouchableOpacity style={styles.refreshButton} onPress={() => currentUserId && fetchPaymentProofs(currentUserId)}>
+                  <Ionicons name="refresh" size={16} color="#fff" />
                 </TouchableOpacity>
               </View>
             ) : (
@@ -792,7 +816,7 @@ export default function DebtScreen() {
                         {debtor?.profile_image_url ? (
                           <Image source={{ uri: debtor.profile_image_url }} style={styles.avatar} />
                         ) : (
-                          <Ionicons name="person-circle" size={26} color="#4C6EF5" />
+                          <Ionicons name="person-circle" size={26} color="#1A3C6B" />
                         )}
                         <Text style={{ marginLeft: 6 }}>{debtor?.full_name || t('debt.user')}</Text>
                       </View>
@@ -801,7 +825,7 @@ export default function DebtScreen() {
                       style={styles.eyeBtn}
                       onPress={() => router.push({ pathname: '/ConfirmSlip', params: p.source === 'payment' ? { imageUri: getImageUrl(imageUri || '') } : { proofId: p.id } })}
                     >
-                      <Ionicons name="eye" size={20} color="#213a5b" />
+                      <Ionicons name="eye" size={20} color="#1A3C6B" />
                     </TouchableOpacity>
                     <View style={styles.actions}>
                       <TouchableOpacity style={[styles.circle, { backgroundColor: '#ff3b30' }]} onPress={() => onRejectPayment(p)}>
@@ -823,17 +847,51 @@ export default function DebtScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', paddingTop: 60, paddingHorizontal: 20 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingHorizontal: 16, paddingVertical: 12 },
+  container: { 
+    flex: 1, 
+    backgroundColor: '#fff',
+    paddingTop: 50,
+  },
+  headerGradient: {
+    paddingTop: 0,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+  },
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
   backButton: { padding: 8 },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', marginLeft: 'auto', textAlign: 'right' },
+  headerTitle: { 
+    fontSize: 20, 
+    fontWeight: 'bold', 
+    color: '#fff',
+    marginLeft: 10, 
+    flex: 1, 
+    textAlign: 'center' 
+  },
   toggleContainer: { 
     flexDirection: 'row', 
-    backgroundColor: '#f0f0f0', 
+    backgroundColor: '#f8f9fa', 
     borderRadius: 25, 
     padding: 5,
-    // Center the segmented control; remove negative margins that offset it
-    alignSelf: 'center'
+    marginHorizontal: 20,
+    marginTop: 20,
+    marginBottom: 15,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
   },
   toggleButton: { 
     flex: 1,
@@ -845,41 +903,103 @@ const styles = StyleSheet.create({
     borderRadius: 22 
   },
   toggleButtonActive: { backgroundColor: '#1A3C6B' },
-  toggleText: { marginLeft: 6, fontSize: 16, color: '#666', fontWeight: '600' },
+  toggleText: { marginLeft: 6, fontSize: 16, color: '#1A3C6B', fontWeight: '600' },
   toggleTextActive: { color: '#fff' },
-  subHeader: { fontSize: 16, color: '#666', marginVertical: 10 },
-  scrollContainer: { paddingVertical: 10 },
+  subHeader: { fontSize: 16, color: '#1A3C6B', marginVertical: 10, marginHorizontal: 20, fontWeight: '600' },
+  scrollContainer: { 
+    paddingVertical: 16, 
+    paddingHorizontal: 0,
+  },
   card: {
     backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 15,
-    marginBottom: 15,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+    padding: 24,
+    borderRadius: 20,
+    marginHorizontal: 20,
+    marginBottom: 16,
+    shadowColor: '#1A3C6B',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
     borderWidth: 1,
-    borderColor: '#ECECEC',
+    borderColor: '#f0f0f0',
+  },
+  cardTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  cardBottomRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  amountContainer: {
+    flex: 1,
+  },
+  amount: { 
+    fontSize: 24, 
+    fontWeight: 'bold', 
+    color: '#FF3B30',
+    letterSpacing: 0.5,
+  },
+  avatarContainer: {
+    marginLeft: 16,
+  },
+  avatar: { 
+    width: 44, 
+    height: 44, 
+    borderRadius: 22, 
+    backgroundColor: '#f8f9fa',
+    borderWidth: 2,
+    borderColor: '#1A3C6B',
+  },
+  tripInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  globeIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#f8f9fa',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  totalList: { 
+    color: '#1A3C6B', 
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  viewButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f8f9fa',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 12,
   },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   row: { flexDirection: 'row', alignItems: 'center' },
-  amount: { fontSize: 20, fontWeight: 'bold', color: 'red' },
-  totalList: { color: '#45647C', fontWeight: '600' },
-  avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#eee' },
   creditorName: { fontSize: 15, color: '#333', fontWeight: 'bold', marginTop: 2, marginLeft: 2 },
   paymentCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 12,
+    borderRadius: 20,
+    padding: 15,
+    marginBottom: 15,
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
   },
   thumb: { width: 64, height: 64, borderRadius: 8, marginRight: 10 },
   thumbPlaceholder: {
@@ -891,9 +1011,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  amountText: { fontSize: 18, fontWeight: 'bold', color: '#e53935' },
+  amountText: { fontSize: 18, fontWeight: 'bold', color: '#FF3B30' },
   eyeBtn: { paddingHorizontal: 10 },
   actions: { flexDirection: 'row', alignItems: 'center' },
   circle: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginLeft: 6 },
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  emptyIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#f8f9fa',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#1A3C6B',
+    fontWeight: '500',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  refreshButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#1A3C6B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#1A3C6B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
   bgImage: { width: '111%', height: 235, position: 'absolute', bottom: -4, left: 0 },
 });

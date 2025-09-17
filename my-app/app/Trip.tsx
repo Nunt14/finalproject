@@ -1,12 +1,13 @@
 // นำเข้า React และฮุคพื้นฐานที่ใช้ในคอมโพเนนต์นี้
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Modal, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Modal, Pressable, Alert, SafeAreaView } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 // นำเข้าฟังก์ชันสำหรับอ่านพารามิเตอร์จาก URL และการนำทาง
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '../constants/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLanguage } from './contexts/LanguageContext';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // ชนิดข้อมูลของส่วนแบ่งบิลของผู้ใช้แต่ละคน
 type BillShare = {
@@ -248,18 +249,25 @@ export default function TripScreen() {
   };
 
   return (
-    
     <View style={styles.container}>
-      {/* ส่วนหัวของหน้า */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color="black" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('trip.header')}</Text>
-      </View>
+      {/* Header with Gradient */}
+      <LinearGradient
+        colors={['#1A3C6B', '#45647C', '#6B8E9C']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerGradient}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{t('trip.header')}</Text>
+          <View style={{ width: 24 }} />
+        </View>
+      </LinearGradient>
 
       {/* สรุปข้อมูลทริป */}
-      <View style={{ paddingHorizontal: 4 }}>
+      <View style={styles.tripSummary}>
         <Text style={styles.tripName}>{trip?.trip_name || t('trip.trip_fallback')}</Text>
         <Text style={styles.totalText}>{t('trip.total')} {totalAmount.toLocaleString()} {currencySymbol}</Text>
       </View>
@@ -282,7 +290,7 @@ export default function TripScreen() {
                     bill.payer_profile_image_url ? (
                       <Image source={{ uri: bill.payer_profile_image_url }} style={styles.senderAvatar} />
                     ) : (
-                      <Ionicons name="person-circle" size={26} color="#4C6EF5" style={{ marginRight: 8 }} />
+                      <Ionicons name="person-circle" size={26} color="#1A3C6B" style={{ marginRight: 8 }} />
                     )
                   )}
                   <View style={[styles.billCard, styles.bubbleCard]}>
@@ -292,9 +300,9 @@ export default function TripScreen() {
                         {bill.payer_profile_image_url ? (
                           <Image source={{ uri: bill.payer_profile_image_url }} style={{ width: 20, height: 20, borderRadius: 10 }} />
                         ) : (
-                          <Ionicons name="person-circle" size={20} color="#4C6EF5" />
+                          <Ionicons name="person-circle" size={20} color="#1A3C6B" />
                         )}
-                        <Text style={{ marginLeft: 6, color: '#4C6EF5', fontWeight: '600' }}>{bill.payer_full_name || t('trip.payer')}</Text>
+                        <Text style={{ marginLeft: 6, color: '#1A3C6B', fontWeight: '600' }}>{bill.payer_full_name || t('trip.payer')}</Text>
                       </View>
                     </View>
                     
@@ -344,7 +352,7 @@ export default function TripScreen() {
                     bill.payer_profile_image_url ? (
                       <Image source={{ uri: bill.payer_profile_image_url }} style={[styles.senderAvatar, { marginLeft: 8, marginRight: 0 }]} />
                     ) : (
-                      <Ionicons name="person-circle" size={26} color="#4C6EF5" style={{ marginLeft: 8 }} />
+                      <Ionicons name="person-circle" size={26} color="#1A3C6B" style={{ marginLeft: 8 }} />
                     )
                   )}
                 </View>
@@ -563,23 +571,74 @@ export default function TripScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', paddingTop: 60, paddingHorizontal: 16 },
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', marginLeft: 'auto', textAlign: 'right' },
-  tripName: { fontWeight: 'bold', color: '#1A3C6B', marginBottom: 4 },
-  totalText: { color: '#2FBF71', fontWeight: 'bold' },
+  container: { 
+    flex: 1, 
+    backgroundColor: '#fff',
+    paddingTop: 50,
+  },
+  headerGradient: {
+    paddingTop: 0,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+  },
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  headerTitle: { 
+    fontSize: 20, 
+    fontWeight: 'bold', 
+    color: '#fff',
+    marginLeft: 10, 
+    flex: 1, 
+    textAlign: 'center' 
+  },
+  tripSummary: {
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: '#f8f9fa',
+    marginHorizontal: 20,
+    marginTop: 20,
+    borderRadius: 15,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+  },
+  tripName: { 
+    fontWeight: 'bold', 
+    color: '#1A3C6B', 
+    marginBottom: 4,
+    fontSize: 18,
+  },
+  totalText: { 
+    color: '#2FBF71', 
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
   billCard: {
-    backgroundColor: '#f7f7fb',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 12,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 15,
+    marginBottom: 15,
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
   },
-  bubbleRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 },
+  bubbleRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 15, marginHorizontal: 20 },
   centeredRow: { justifyContent: 'center' },
   alignRight: { justifyContent: 'flex-end' },
   alignLeft: { justifyContent: 'flex-start' },
@@ -613,8 +672,8 @@ const styles = StyleSheet.create({
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   amount: { fontSize: 18, fontWeight: 'bold', color: 'red' },
   noteText: { color: '#888', fontSize: 14, marginBottom: 8 },
-  payButton: { backgroundColor: '#1A3C6B', paddingVertical: 10, borderRadius: 8, alignItems: 'center', marginTop: 6 },
-  shareList: { backgroundColor: '#fff', borderRadius: 12, paddingVertical: 8, paddingHorizontal: 10, marginTop: 4, marginBottom: 6 },
+  payButton: { backgroundColor: '#1A3C6B', paddingVertical: 12, borderRadius: 15, alignItems: 'center', marginTop: 8 },
+  shareList: { backgroundColor: '#f8f9fa', borderRadius: 15, paddingVertical: 10, paddingHorizontal: 12, marginTop: 6, marginBottom: 8 },
   shareRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
   shareName: { marginLeft: 6, color: '#34495E' },
   shareAmount: { color: '#2FBF71', fontWeight: '600' },
@@ -622,14 +681,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 15,
     backgroundColor: '#fff',
     position: 'absolute',
-    bottom: 24,
-    left: 16,
-    right: 16,
-    height: 72,
-    borderRadius: 40,
+    bottom: 25,
+    left: 20,
+    right: 20,
+    height: 80,
+    borderRadius: 25,
     shadowColor: '#000',
     shadowOpacity: 0.15,
     shadowRadius: 8,
@@ -637,7 +696,7 @@ const styles = StyleSheet.create({
     elevation: 6,
     zIndex: 10,
   },
-  circleBtn: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#1A3C6B', alignItems: 'center', justifyContent: 'center' },
+  circleBtn: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#1A3C6B', alignItems: 'center', justifyContent: 'center', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 },
   bagText: { position: 'absolute', bottom: 8, color: '#fff', fontSize: 10, fontWeight: 'bold' },
   bgImage: { width: '111%', height: 235, position: 'absolute', bottom: -4, alignSelf: 'center', zIndex: -1 },
   bg2Image: { 

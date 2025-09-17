@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, ActivityIndicator, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRoute } from '@react-navigation/native';
@@ -9,6 +9,7 @@ import * as FileSystem from 'expo-file-system';
 import { decode as decodeBase64 } from 'base64-arraybuffer';
 import { runOcrOnImage } from '../utils/ocr';
 import { useLanguage } from './contexts/LanguageContext';
+import { LinearGradient } from 'expo-linear-gradient';
 
 type RouteParams = {
   billId: string;
@@ -179,21 +180,29 @@ export default function PaymentUploadScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => {
-            if ((router as any).canGoBack && (router as any).canGoBack()) router.back();
-            else router.replace('/');
-          }}
-          style={styles.backButton}
-        >
-          <Ionicons name="chevron-back" size={24} color="#0F3176" />
-        </TouchableOpacity>
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>{t('paymentupload.title')}</Text>
+      {/* Header with Gradient */}
+      <LinearGradient
+        colors={['#1A3C6B', '#45647C', '#6B8E9C']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerGradient}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => {
+              if ((router as any).canGoBack && (router as any).canGoBack()) router.back();
+              else router.replace('/');
+            }}
+            style={styles.backButton}
+          >
+            <Ionicons name="chevron-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <View style={styles.headerContent}>
+            <Text style={styles.headerTitle}>{t('paymentupload.title')}</Text>
+          </View>
+          <View style={{ width: 24 }} />
         </View>
-        <View style={{ width: 24 }} />
-      </View>
+      </LinearGradient>
 
       <View style={styles.uploadContainer}>
         <Text style={styles.sectionTitle}>{t('paymentupload.section.title')}</Text>
@@ -216,7 +225,7 @@ export default function PaymentUploadScreen() {
           ) : (
             <View style={styles.uploadContent}>
               <View style={styles.uploadIcon}>
-                <Ionicons name="cloud-upload" size={42} color="#0F3176" />
+                <Ionicons name="cloud-upload" size={42} color="#1A3C6B" />
               </View>
               <Text style={styles.uploadTitle}>{t('paymentupload.upload_slip')}</Text>
               <Text style={styles.uploadSubtitle}>{t('paymentupload.tap_or_longpress')}</Text>
@@ -228,10 +237,10 @@ export default function PaymentUploadScreen() {
           <View style={styles.ocrCard}>
             <View style={styles.ocrHeader}>
               <View style={styles.ocrTitleContainer}>
-                <Ionicons name="document-text" size={20} color="#0F3176" />
+                <Ionicons name="document-text" size={20} color="#1A3C6B" />
                 <Text style={styles.ocrTitle}>{t('paymentupload.payment_details')}</Text>
               </View>
-              {ocrLoading && <ActivityIndicator size="small" color="#0F3176" />}
+              {ocrLoading && <ActivityIndicator size="small" color="#1A3C6B" />}
             </View>
             
             <View style={styles.ocrDetails}>
@@ -258,7 +267,7 @@ export default function PaymentUploadScreen() {
                 onPress={() => imageUri && runOcr(imageUri)}
                 disabled={ocrLoading}
               >
-                <Ionicons name="refresh" size={16} color="#0F3176" style={{ marginRight: 6 }} />
+                <Ionicons name="refresh" size={16} color="#1A3C6B" style={{ marginRight: 6 }} />
                 <Text style={styles.scanAgainText}>{t('paymentupload.scan_again')}</Text>
               </TouchableOpacity>
             </View>
@@ -295,17 +304,26 @@ export default function PaymentUploadScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
-    paddingTop: 55, // Added padding to move content down from the status bar
+    backgroundColor: '#fff',
+    paddingTop: 50,
+  },
+  headerGradient: {
+    paddingTop: 0,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
   },
   backButton: {
     flexDirection: 'row',
@@ -313,13 +331,13 @@ const styles = StyleSheet.create({
   },
   headerContent: {
     flex: 1,
-    alignItems: 'flex-end',
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1a1a1a',
-    textAlign: 'right',
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    textAlign: 'center',
   },
   uploadContainer: {
     flex: 1,
@@ -328,7 +346,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1a1a1a',
+    color: '#1A3C6B',
     marginBottom: 4,
   },
   sectionSubtitle: {
@@ -338,7 +356,7 @@ const styles = StyleSheet.create({
   },
   uploadBox: {
     backgroundColor: '#fff',
-    borderRadius: 16,
+    borderRadius: 20,
     height: 240,
     justifyContent: 'center',
     alignItems: 'center',
@@ -346,6 +364,11 @@ const styles = StyleSheet.create({
     borderColor: '#e0e0e0',
     borderStyle: 'dashed',
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
   },
   uploadContent: {
     alignItems: 'center',
@@ -355,7 +378,7 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: 'rgba(15, 49, 118, 0.1)',
+    backgroundColor: 'rgba(26, 60, 107, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -363,7 +386,7 @@ const styles = StyleSheet.create({
   uploadTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1a1a1a',
+    color: '#1A3C6B',
     marginBottom: 8,
   },
   uploadSubtitle: {
@@ -395,14 +418,16 @@ const styles = StyleSheet.create({
   },
   ocrCard: {
     backgroundColor: '#fff',
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 16,
     marginTop: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
   },
   ocrHeader: {
     flexDirection: 'row',
@@ -417,7 +442,7 @@ const styles = StyleSheet.create({
   ocrTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1a1a1a',
+    color: '#1A3C6B',
     marginLeft: 8,
   },
   ocrDetails: {
@@ -448,7 +473,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   scanAgainText: {
-    color: '#0F3176',
+    color: '#1A3C6B',
     fontSize: 13,
     fontWeight: '500',
   },
@@ -472,12 +497,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   confirmButton: {
-    backgroundColor: '#0F3176',
+    backgroundColor: '#1A3C6B',
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#0F3176',
+    shadowColor: '#1A3C6B',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,

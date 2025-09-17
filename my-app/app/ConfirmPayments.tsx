@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert, RefreshControl, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../constants/supabase';
@@ -7,6 +7,7 @@ import { runOcrOnImage } from '../utils/ocr';
 import * as FileSystem from 'expo-file-system';
 import { useFocusEffect } from '@react-navigation/native';
 import { useLanguage } from './contexts/LanguageContext';
+import { LinearGradient } from 'expo-linear-gradient';
 
 type Proof = {
   id: string;
@@ -592,17 +593,26 @@ export default function ConfirmPaymentsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => {
-            if ((router as any).canGoBack && (router as any).canGoBack()) router.back();
-            else router.replace('/');
-          }}
-        >
-          <Ionicons name="chevron-back" size={24} color="black" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('confirm.title')}</Text>
-      </View>
+      {/* Header with Gradient */}
+      <LinearGradient
+        colors={['#1A3C6B', '#45647C', '#6B8E9C']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerGradient}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => {
+              if ((router as any).canGoBack && (router as any).canGoBack()) router.back();
+              else router.replace('/');
+            }}
+          >
+            <Ionicons name="chevron-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{t('confirm.title')}</Text>
+          <View style={{ width: 24 }} />
+        </View>
+      </LinearGradient>
 
       {/* Add Total Debt Card */}
       <View style={styles.totalDebtCard}>
@@ -631,11 +641,13 @@ export default function ConfirmPaymentsScreen() {
         }
       >
         {proofs.length === 0 ? (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="document-text-outline" size={48} color="#ccc" />
-            <Text style={{ marginTop: 12, color: '#666' }}>{t('confirm.empty')}</Text>
-            <TouchableOpacity style={[styles.circle, { backgroundColor: '#234080', marginTop: 14 }]} onPress={() => currentUserId && fetchProofs(currentUserId)}>
-              <Ionicons name="refresh" size={18} color="#fff" />
+          <View style={styles.emptyState}>
+            <View style={styles.emptyIconContainer}>
+              <Ionicons name="document-text-outline" size={32} color="#1A3C6B" />
+            </View>
+            <Text style={styles.emptyText}>{t('confirm.empty')}</Text>
+            <TouchableOpacity style={styles.refreshButton} onPress={() => currentUserId && fetchProofs(currentUserId)}>
+              <Ionicons name="refresh" size={16} color="#fff" />
             </TouchableOpacity>
           </View>
         ) : proofs.map((p) => {
@@ -670,7 +682,7 @@ export default function ConfirmPaymentsScreen() {
                   {debtor?.profile_image_url ? (
                     <Image source={{ uri: debtor.profile_image_url }} style={styles.avatar} />
                   ) : (
-                    <Ionicons name="person-circle" size={26} color="#4C6EF5" />
+                    <Ionicons name="person-circle" size={26} color="#1A3C6B" />
                   )}
                   <Text style={{ marginLeft: 6 }}>{debtor?.full_name || 'User'}</Text>
                 </View>
@@ -679,7 +691,7 @@ export default function ConfirmPaymentsScreen() {
                 style={styles.eyeBtn}
                 onPress={() => router.push({ pathname: '/ConfirmSlip', params: p.source === 'payment' ? { imageUri: getImageUrl(imageUri || '') } : { proofId: p.id } })}
               >
-                <Ionicons name="eye" size={20} color="#213a5b" />
+                <Ionicons name="eye" size={20} color="#1A3C6B" />
               </TouchableOpacity>
               <View style={styles.actions}>
                 <TouchableOpacity style={[styles.circle, { backgroundColor: '#ff3b30' }]} onPress={() => onReject(p)}>
@@ -701,43 +713,61 @@ export default function ConfirmPaymentsScreen() {
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: '#f8f9fa',
-    paddingTop: 60,
-    paddingHorizontal: 16 
+    backgroundColor: '#fff',
+    paddingTop: 50,
+  },
+  headerGradient: {
+    paddingTop: 0,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
   },
   header: { 
     flexDirection: 'row', 
     alignItems: 'center', 
-    marginBottom: 16 
+    paddingHorizontal: 20,
+    paddingVertical: 12,
   },
   headerTitle: { 
     fontSize: 20, 
     fontWeight: 'bold', 
-    marginLeft: 'auto',
-    textAlign: 'right',
+    color: '#fff',
+    marginLeft: 10, 
+    flex: 1, 
+    textAlign: 'center' 
   },
   totalDebtCard: {
     backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: 20,
+    padding: 20,
+    marginHorizontal: 20,
+    marginTop: 20,
+    marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
     borderLeftWidth: 4,
-    borderLeftColor: '#0F3176',
+    borderLeftColor: '#1A3C6B',
   },
   totalDebtLabel: {
     fontSize: 14,
-    color: '#666',
+    color: '#1A3C6B',
     marginBottom: 4,
+    fontWeight: '600',
   },
   totalDebtAmount: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#2ecc71',
+    color: '#2FBF71',
     marginBottom: 4,
   },
   totalDebtNote: {
@@ -749,14 +779,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 12,
+    borderRadius: 20,
+    padding: 15,
+    marginHorizontal: 20,
+    marginBottom: 15,
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
   },
   thumb: { width: 64, height: 64, borderRadius: 8, marginRight: 10 },
   thumbPlaceholder: {
@@ -768,10 +801,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  amountText: { fontSize: 18, fontWeight: 'bold', color: '#e53935' },
+  amountText: { fontSize: 18, fontWeight: 'bold', color: '#FF3B30' },
   avatar: { width: 26, height: 26, borderRadius: 13 },
   eyeBtn: { paddingHorizontal: 10 },
   actions: { flexDirection: 'row', alignItems: 'center' },
   circle: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginLeft: 6 },
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  emptyIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#f8f9fa',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#1A3C6B',
+    fontWeight: '500',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  refreshButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#1A3C6B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#1A3C6B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
   bgImage: { width: '111%', height: 235, position: 'absolute', bottom: -4, left: 0 },
 });

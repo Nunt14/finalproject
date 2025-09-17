@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Image, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Image, TouchableOpacity, Alert, ScrollView, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../constants/types';
 import { supabase, hardResetAuth } from '../constants/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useLanguage } from './contexts/LanguageContext';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function WelcomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'Welcome'>>();
@@ -19,6 +20,18 @@ export default function WelcomeScreen() {
   const [loading, setLoading] = useState(true);
   const [userFullName, setUserFullName] = useState<string>('User');
   const [sortMode, setSortMode] = useState<'date' | 'alphabetical'>('date'); // 'date' is default (original order)
+  const [userAvatar, setUserAvatar] = useState<string>('');
+  const [totalTrips, setTotalTrips] = useState<number>(0);
+  const [pendingDebts, setPendingDebts] = useState<number>(0);
+  const [greeting, setGreeting] = useState<string>('Good day');
+
+  // ฟังก์ชันสำหรับคำทักทายตามเวลา
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  };
 
   // ฟังก์ชันสำหรับกระดิ่งแจ้งเตือน
   const handleNotificationPress = () => {
@@ -169,93 +182,238 @@ export default function WelcomeScreen() {
   };
 
   // โหลดข้อมูลจาก Supabase เฉพาะทริปที่ผู้ใช้อยู่ในทริปและ active
-  useEffect(() => {
-    const fetchTrips = async () => {
-      setLoading(true);
+  const fetchTrips = async () => {
+    setLoading(true);
 
-      // ตรวจสอบ session จาก Supabase Auth
-      const { data: sessionData } = await supabase.auth.getSession();
-      const userId = sessionData?.session?.user?.id;
-      if (!userId) {
-        await hardResetAuth();
-        router.replace('/login');
-        setLoading(false);
-        return;
-      }
-
-      // โหลดข้อมูลผู้ใช้ และสมาชิกทริป แบบขนาน
-      const [userRes, memberRes] = await Promise.all([
-        supabase
-          .from('user')
-          .select('full_name')
-          .eq('user_id', userId)
-          .single(),
-        supabase
-          .from('trip_member')
-          .select('trip_id')
-          .eq('user_id', userId)
-          .eq('is_active', true),
-      ]);
-
-      const userData = (userRes as any)?.data;
-      if (userData?.full_name) {
-        setUserFullName(userData.full_name);
-      }
-
-      const memberRows = (memberRes as any)?.data || [];
-      const memberErr = (memberRes as any)?.error;
-      if (memberErr) {
-        console.log('Error fetching memberships:', memberErr);
-        setTrips([]);
-        setFilteredTrips([]);
-        setLoading(false);
-        return;
-      }
-
-      const tripIds = memberRows.map((m: any) => m.trip_id);
-      if (tripIds.length === 0) {
-        setTrips([]);
-        setFilteredTrips([]);
-        setLoading(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('trip')
-        .select('*')
-        .in('trip_id', tripIds)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.log('Error fetching trips:', error);
-        setTrips([]);
-        setFilteredTrips([]);
-      } else {
-        setTrips(data || []);
-        setFilteredTrips(data || []);
-      }
-
+    // ตรวจสอบ session จาก Supabase Auth
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData?.session?.user?.id;
+    if (!userId) {
+      await hardResetAuth();
+      router.replace('/login');
       setLoading(false);
-    };
+      return;
+    }
 
+    // โหลดข้อมูลผู้ใช้ และสมาชิกทริป แบบขนาน
+    const [userRes, memberRes] = await Promise.all([
+      supabase
+        .from('user')
+        .select('full_name, profile_image_url, email, phone_number')
+        .eq('user_id', userId)
+        .single(),
+      supabase
+        .from('trip_member')
+        .select('trip_id')
+        .eq('user_id', userId)
+        .eq('is_active', true),
+    ]);
+
+    const userData = (userRes as any)?.data;
+    const userError = (userRes as any)?.error;
+    
+    console.log('User ID:', userId);
+    console.log('User data from welcome screen:', userData);
+    console.log('User response error:', userError);
+    
+    if (userError) {
+      console.log('Error details:', userError.message, userError.details, userError.hint);
+      
+      // ถ้า user ไม่มีในตาราง ให้สร้าง user record ใหม่
+      if (userError.code === 'PGRST116' || userError.message?.includes('No rows found')) {
+        console.log('User not found, creating new user record...');
+        try {
+          const { data: authUser } = await supabase.auth.getUser();
+          if (authUser?.user) {
+            const { data: newUser, error: createError } = await supabase
+              .from('user')
+              .insert({
+                user_id: userId,
+                email: authUser.user.email,
+                full_name: authUser.user.user_metadata?.full_name || authUser.user.email?.split('@')[0] || 'User',
+                created_at: new Date().toISOString(),
+              })
+              .select()
+              .single();
+            
+            if (createError) {
+              console.log('Error creating user:', createError);
+            } else {
+              console.log('User created successfully:', newUser);
+              // ตั้งค่าข้อมูล user ใหม่
+              if (newUser?.full_name) {
+                setUserFullName(newUser.full_name);
+              }
+              if (newUser?.profile_image_url) {
+                setUserAvatar(newUser.profile_image_url);
+              }
+            }
+          }
+        } catch (createErr) {
+          console.log('Error in user creation process:', createErr);
+        }
+      }
+    }
+    
+    if (userData?.full_name) {
+      setUserFullName(userData.full_name);
+    } else {
+      // ถ้าไม่มี full_name ให้ใช้ email แทน
+      if (userData?.email) {
+        const emailName = userData.email.split('@')[0];
+        setUserFullName(emailName);
+      }
+    }
+    
+    // ดึงรูปโปรไฟล์ (ใช้ field ที่ถูกต้องตามตาราง)
+    if (userData?.profile_image_url) {
+      console.log('Profile image URL found:', userData.profile_image_url);
+      setUserAvatar(userData.profile_image_url);
+    } else {
+      console.log('No profile image found, using placeholder');
+      // ถ้าไม่มีรูป ให้ใช้ default avatar
+      setUserAvatar('');
+    }
+    
+    // ตั้งค่าคำทักทาย
+    setGreeting(getGreeting());
+
+    const memberRows = (memberRes as any)?.data || [];
+    const memberErr = (memberRes as any)?.error;
+    if (memberErr) {
+      console.log('Error fetching memberships:', memberErr);
+      setTrips([]);
+      setFilteredTrips([]);
+      setLoading(false);
+      return;
+    }
+
+    const tripIds = memberRows.map((m: any) => m.trip_id);
+    if (tripIds.length === 0) {
+      setTrips([]);
+      setFilteredTrips([]);
+      setLoading(false);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('trip')
+      .select('*')
+      .in('trip_id', tripIds)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.log('Error fetching trips:', error);
+      setTrips([]);
+      setFilteredTrips([]);
+    } else {
+      setTrips(data || []);
+      setFilteredTrips(data || []);
+      setTotalTrips(data?.length || 0);
+    }
+
+    // โหลดข้อมูลหนี้ที่ค้าง
+    try {
+      const { data: debtData } = await supabase
+        .from('debt_summary')
+        .select('*')
+        .eq('debtor_id', userId)
+        .gt('amount', 0);
+      
+      setPendingDebts(debtData?.length || 0);
+    } catch (error) {
+      console.log('Error fetching debts:', error);
+    }
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
     fetchTrips();
   }, []);
+
+  // เรียก fetchTrips ทุกครั้งที่หน้า Welcome ถูก focus (เช่น กลับมาจากหน้า profile)
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchTrips();
+    }, [])
+  );
 
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={{ paddingBottom: 140 }}>
-        {/* Title */}
-        <Text style={styles.title}>
-          Welcome {'\n'}
-          to Harnty, {'\n'}
-          {userFullName}!
-        </Text>
+        {/* Modern Card Header */}
+        <LinearGradient
+          colors={['#1A3C6B', '#45647C', '#6B8E9C']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.headerCard}
+        >
+          <View style={styles.headerContent}>
+            {/* Top Row - Greeting and Avatar */}
+            <View style={styles.headerTopRow}>
+              <View style={styles.greetingContainer}>
+                <Text style={styles.greetingText}>{greeting}</Text>
+                <View style={styles.welcomeContainer}>
+                  <Text style={styles.welcomeText}>Welcome to </Text>
+                  <Text style={styles.harntyText}>Harnty</Text>
+                </View>
+                <Text style={styles.userNameText}>{userFullName}!</Text>
+              </View>
+              
+              <TouchableOpacity 
+                style={styles.avatarContainer}
+                onPress={() => router.push('/profile')}
+              >
+                {userAvatar ? (
+                  <Image 
+                    source={{ uri: userAvatar }} 
+                    style={styles.avatarImage}
+                    onError={() => setUserAvatar('')}
+                  />
+                ) : (
+                  <View style={styles.avatarPlaceholder}>
+                    <Ionicons name="person" size={30} color="#fff" />
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
 
-        <Image
-          source={require('../assets/images/img.png')}
-          style={styles.imgImage}
-          resizeMode="contain"
-        />
+            {/* Quick Stats Row */}
+            <View style={styles.statsContainer}>
+              <View style={styles.statItem}>
+                <View style={styles.statIconContainer}>
+                  <Ionicons name="airplane" size={20} color="#fff" />
+                </View>
+                <Text style={styles.statNumber}>{totalTrips}</Text>
+                <Text style={styles.statLabel}>Active Trips</Text>
+              </View>
+              
+              <View style={styles.statDivider} />
+              
+              <View style={styles.statItem}>
+                <View style={styles.statIconContainer}>
+                  <Ionicons name="wallet" size={20} color="#fff" />
+                </View>
+                <Text style={styles.statNumber}>{pendingDebts}</Text>
+                <Text style={styles.statLabel}>Pending Debts</Text>
+              </View>
+              
+              <View style={styles.statDivider} />
+              
+              <TouchableOpacity 
+                style={styles.statItem}
+                onPress={handleNotificationPress}
+              >
+                <View style={styles.statIconContainer}>
+                  <Ionicons name="notifications" size={20} color="#fff" />
+                </View>
+                <Text style={styles.statNumber}>0</Text>
+                <Text style={styles.statLabel}>Notifications</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </LinearGradient>
 
         {/* Search */}
         <View style={styles.searchContainer}>
@@ -283,14 +441,9 @@ export default function WelcomeScreen() {
         {/* Section Header */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{t('welcome.all_trips')}</Text>
-          <View style={styles.iconsRight}>
-            <TouchableOpacity onPress={handleNotificationPress}>
-              <Ionicons name="notifications" size={20} color="red" style={{ marginRight: 10 }} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleMenuPress}>
-              <Ionicons name="menu" size={20} />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity onPress={handleMenuPress} style={styles.menuButton}>
+            <Ionicons name="menu" size={20} color="#1A3C6B" />
+          </TouchableOpacity>
         </View>
 
         {/* Trip List */}
@@ -305,7 +458,13 @@ export default function WelcomeScreen() {
             >
               {trip.trip_image_url ? (
                 <Image source={{ uri: trip.trip_image_url }} style={styles.image} />
-              ) : null}
+              ) : (
+                <View style={[styles.defaultTripImage, { backgroundColor: '#5DADE2' }]}>
+                  <View style={styles.tripIconContainer}>
+                    <Ionicons name="airplane" size={40} color="#fff" />
+                  </View>
+                </View>
+              )}
               <View style={styles.tripInfo}>
                 <Text style={styles.tripTitle}>{trip.trip_name}</Text>
                 {trip.trip_status ? (
@@ -324,52 +483,215 @@ export default function WelcomeScreen() {
       </ScrollView>
 
       {/* Navigation Bar */}
-      <View style={styles.navbar}>
-        <Ionicons name="home" size={30} color="#fff" />
+      <LinearGradient
+        colors={['#1A3C6B', '#45647C', '#6B8E9C']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.navbar}
+      >
+        <View style={styles.navbarContent}>
+          <TouchableOpacity style={styles.navItem}>
+            <Ionicons name="home" size={28} color="#fff" />
+            <Text style={styles.navLabel}>Home</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => navigation.navigate('AddFriends')}>
-          <Ionicons name="people" size={40} color="#fff" />
-        </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.navItem}
+            onPress={() => navigation.navigate('AddFriends')}
+          >
+            <Ionicons name="people" size={28} color="#fff" />
+            <Text style={styles.navLabel}>Friends</Text>
+          </TouchableOpacity>
 
-        {/* Floating Add Button */}
-        <TouchableOpacity
-          style={styles.fabContainer}
-          onPress={() => navigation.navigate('AddTrip')}>
-          <Ionicons name="add" size={55} color="#fff" />
-        </TouchableOpacity>
+          {/* Floating Add Button */}
+          <TouchableOpacity
+            style={styles.fabContainer}
+            onPress={() => navigation.navigate('AddTrip')}>
+            <Ionicons name="add" size={50} color="#fff" />
+          </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => navigation.navigate('Debt')}>
-          <Ionicons name="wallet" size={30} color="#fff" />
-        </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.navItem}
+            onPress={() => navigation.navigate('Debt')}
+          >
+            <Ionicons name="wallet" size={28} color="#fff" />
+            <Text style={styles.navLabel}>Debt</Text>
+          </TouchableOpacity>
 
-        {/* ปุ่มโปรไฟล์เดียวเท่านั้น */}
-        <TouchableOpacity onPress={() => router.push('/profile')}>
-          <Ionicons name="person" size={30} color="#fff" />
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity 
+            style={styles.navItem}
+            onPress={() => router.push('/profile')}
+          >
+            <Ionicons name="person" size={28} color="#fff" />
+            <Text style={styles.navLabel}>Profile</Text>
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
     </View>
   );
 }
 
+const { width } = Dimensions.get('window');
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 60,
-    paddingHorizontal: 20,
+    paddingTop: 0,
+    paddingHorizontal: 0,
     paddingBottom: 90,
     backgroundColor: '#fff',
   },
-  title: {
-    fontSize: 35,
+  // Modern Card Header Styles
+  headerCard: {
+    paddingTop: 60,
+    paddingBottom: 25,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 35,
+    borderBottomRightRadius: 35,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+  },
+  headerContent: {
+    paddingTop: 10,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 20,
+  },
+  greetingContainer: {
+    flex: 1,
+    paddingRight: 15,
+  },
+  greetingText: {
+    fontSize: 16,
+    color: '#E8F4FD',
+    fontWeight: '500',
+    marginBottom: 4,
+    letterSpacing: 0.5,
+  },
+  welcomeContainer: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: 4,
+  },
+  welcomeText: {
+    fontSize: 24,
+    color: '#fff',
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  harntyText: {
+    fontSize: 28,
+    color: '#fff',
     fontWeight: 'bold',
+    letterSpacing: 1,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  userNameText: {
+    fontSize: 32,
+    color: '#fff',
+    fontWeight: 'bold',
+    letterSpacing: 0.8,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
+  },
+  avatarContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    overflow: 'hidden',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: 25,
+    paddingVertical: 18,
+    paddingHorizontal: 15,
+    marginTop: 5,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 5,
+  },
+  statIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  statNumber: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#E8F4FD',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  statDivider: {
+    width: 1,
+    height: 45,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    marginHorizontal: 8,
+  },
+  menuButton: {
+    padding: 10,
+    borderRadius: 20,
+    backgroundColor: '#f8f9fa',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-    borderRadius: 10,
-    marginTop: 15,
-    paddingHorizontal: 10,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 25,
+    marginTop: 25,
+    marginHorizontal: 20,
+    paddingHorizontal: 20,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
   },
   searchBox: {
     flex: 1,
@@ -381,30 +703,35 @@ const styles = StyleSheet.create({
   },
   noResultsText: {
     marginTop: 20,
+    marginHorizontal: 20,
     textAlign: 'center',
     color: '#666',
   },
   sectionHeader: {
     marginTop: 30,
+    marginHorizontal: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   sectionTitle: {
     fontWeight: 'bold',
-    fontSize: 16,
-  },
-  iconsRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    fontSize: 18,
+    color: '#1A3C6B',
   },
   card: {
-    marginTop: 10,
-    borderRadius: 10,
+    marginTop: 15,
+    marginHorizontal: 20,
+    borderRadius: 20,
     overflow: 'hidden',
-    backgroundColor: '#eee',
+    backgroundColor: '#fff',
     position: 'relative',
     paddingBottom: -5, // Add space for delete button
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
   },
   cardContent: {
     paddingBottom: 1, // Add some padding at the bottom
@@ -413,56 +740,102 @@ const styles = StyleSheet.create({
     height: 150,
     width: '100%',
   },
+  defaultTripImage: {
+    height: 150,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tripIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
   tripInfo: {
-    padding: 10,
+    padding: 15,
   },
   tripTitle: {
     fontWeight: 'bold',
     color: '#1A3C6B',
+    fontSize: 16,
   },
   tripNote: {
     color: 'red',
   },
   navbar: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingVertical: 10,
-    backgroundColor: '#45647C',
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: 70,
+    height: 80,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  navbarContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingVertical: 15,
+    paddingHorizontal: 10,
+    height: '100%',
+  },
+  navItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    borderRadius: 15,
+    minWidth: 50,
+  },
+  navLabel: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '500',
+    marginTop: 2,
+    textAlign: 'center',
   },
   fabContainer: {
     position: 'absolute',
-    top: -30,
+    top: -35,
     alignSelf: 'center',
     backgroundColor: '#1A3C6B',
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 5,
+    elevation: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    borderWidth: 3,
+    borderColor: '#fff',
   },
   deleteButton: {
     position: 'absolute',
-    bottom: 10,
-    right: 10,
-    padding: 5,
-  },
-  imgImage: {
-    position: 'absolute',
-    top: 7,
-    right: 10,
-    width: 150,
-    height: 120,
-    borderRadius: 10,
+    bottom: 15,
+    right: 15,
+    padding: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 25,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
 });

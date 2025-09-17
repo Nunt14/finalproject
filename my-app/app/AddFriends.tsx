@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../constants/supabase';
 import { useLanguage } from './contexts/LanguageContext';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // Component for rendering a single user item with actions
 interface UserItemProps {
@@ -516,27 +517,35 @@ export default function AddFriendsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }} />
-        <Text style={styles.headerTitle}>{t('friends.title')}</Text>
-      </View>
+      {/* Header with Gradient */}
+      <LinearGradient
+        colors={['#1A3C6B', '#45647C', '#6B8E9C']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerGradient}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <View style={{ flex: 1 }} />
+          <Text style={styles.headerTitle}>{t('friends.title')}</Text>
+        </View>
+      </LinearGradient>
 
       <View style={styles.tabs}>
         <TouchableOpacity
           style={[styles.tab, selectedTab === 'friends' && styles.activeTab]}
           onPress={() => setSelectedTab('friends')}
         >
-          <Ionicons name="people" size={20} color={selectedTab === 'friends' ? '#fff' : '#666'} />
+          <Ionicons name="people" size={20} color={selectedTab === 'friends' ? '#fff' : '#1A3C6B'} />
           <Text style={[styles.tabText, selectedTab === 'friends' && styles.activeTabText]}>{t('friends.tab.friends')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, selectedTab === 'group' && styles.activeTab]}
           onPress={() => setSelectedTab('group')}
         >
-          <Ionicons name="folder" size={20} color={selectedTab === 'group' ? '#fff' : '#666'} />
+          <Ionicons name="folder" size={20} color={selectedTab === 'group' ? '#fff' : '#1A3C6B'} />
           <Text style={[styles.tabText, selectedTab === 'group' && styles.activeTabText]}>{t('friends.tab.group')}</Text>
         </TouchableOpacity>
       </View>
@@ -544,7 +553,7 @@ export default function AddFriendsScreen() {
       {selectedTab === 'friends' ? (
         <>
           <View style={styles.searchInputContainer}>
-            <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+            <Ionicons name="search" size={20} color="#888" style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
               placeholder={t('friends.search_placeholder')}
@@ -669,29 +678,45 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    paddingHorizontal: 20,
+  },
+  headerGradient: {
     paddingTop: 50,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 12,
-    marginBottom: 20,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
+    color: '#fff',
     marginLeft: 10,
   },
   tabs: {
     flexDirection: 'row',
     justifyContent: 'center',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#f8f9fa',
     borderRadius: 25,
     padding: 5,
+    marginHorizontal: 20,
+    marginTop: 20,
     marginBottom: 20,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
   },
   tab: {
     flex: 1,
@@ -708,7 +733,7 @@ const styles = StyleSheet.create({
   tabText: {
     marginLeft: 6,
     fontSize: 16,
-    color: '#666',
+    color: '#1A3C6B',
     fontWeight: '600',
   },
   activeTabText: {
@@ -717,10 +742,16 @@ const styles = StyleSheet.create({
   searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 12,
-    paddingHorizontal: 15,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 25,
+    paddingHorizontal: 20,
+    marginHorizontal: 20,
     marginBottom: 20,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
   },
   searchIcon: {
     marginRight: 10,
@@ -733,17 +764,25 @@ const styles = StyleSheet.create({
   sectionHeader: {
     fontSize: 18,
     fontWeight: 'bold',
+    color: '#1A3C6B',
     marginTop: 10,
     marginBottom: 5,
+    marginHorizontal: 20,
   },
   friendItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#f5f5f5',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 10,
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 20,
+    marginHorizontal: 20,
+    marginBottom: 15,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
   },
   friendIcon: {
     width: 40,
@@ -769,10 +808,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   addButton: {
-    backgroundColor: '#4CAF50',
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 8,
+    backgroundColor: '#1A3C6B',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   buttonText: {
     color: '#fff',
@@ -790,16 +834,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   acceptButton: {
-    backgroundColor: '#4CAF50',
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 8,
+    backgroundColor: '#1A3C6B',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   declineButton: {
-    backgroundColor: '#F44336',
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 8,
+    backgroundColor: '#dc3545',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   viewProfileButton: {
     backgroundColor: '#007bff',
@@ -809,18 +863,29 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     backgroundColor: '#dc3545',
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   groupItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 10,
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 20,
+    marginHorizontal: 20,
+    marginBottom: 15,
     gap: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
   },
   groupImage: {
     width: 50,
