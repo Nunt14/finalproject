@@ -412,10 +412,12 @@ export default function ConfirmPaymentsScreen() {
   const downloadToLocal = async (remoteUrl: string): Promise<string | null> => {
     try {
       const filename = `ocr_${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
-      const target = FileSystem.cacheDirectory + filename;
+      const cacheDir = await FileSystem.Paths.cache;
+      const target = `${cacheDir}/${filename}`;
       const res = await FileSystem.downloadAsync(remoteUrl, target);
       return res.uri;
-    } catch {
+    } catch (error) {
+      console.error('Error downloading file:', error);
       return null;
     }
   };

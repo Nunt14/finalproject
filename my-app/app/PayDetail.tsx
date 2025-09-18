@@ -200,6 +200,7 @@ const styles = StyleSheet.create({
   container: { 
     flex: 1, 
     backgroundColor: '#fff',
+    fontFamily: 'Prompt-Medium',
     paddingTop: 50,
   },
   headerGradient: {
@@ -221,7 +222,8 @@ const styles = StyleSheet.create({
   },
   headerTitle: { 
     fontSize: 20, 
-    fontWeight: 'bold', 
+    fontFamily: 'Prompt-Medium',
+    fontWeight: '600', 
     color: '#fff',
     flex: 1, 
     textAlign: 'center' 
@@ -244,10 +246,10 @@ const styles = StyleSheet.create({
     borderColor: '#f0f0f0',
   },
   avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#eee' },
-  creditorName: { fontSize: 18, fontWeight: 'bold', color: '#1A3C6B' },
-  unpaidText: { color: '#FF3B30', fontWeight: 'bold', fontSize: 15 },
-  totalAmount: { marginLeft: 'auto', color: '#FF3B30', fontWeight: 'bold', fontSize: 20 },
-  allListTitle: { fontSize: 16, color: '#1A3C6B', marginVertical: 10, marginHorizontal: 20, fontWeight: '600' },
+  creditorName: { fontSize: 18, fontFamily: 'Prompt-Medium', fontWeight: '600', color: '#1A3C6B' },
+  unpaidText: { color: '#FF3B30', fontWeight: 'bold', fontSize: 15, fontFamily: 'Prompt-Medium' },
+  totalAmount: { marginLeft: 'auto', color: '#FF3B30', fontWeight: 'bold', fontSize: 20, fontFamily: 'Prompt-Medium' },
+  allListTitle: { fontSize: 16, fontFamily: 'Prompt-Medium', color: '#1A3C6B', marginVertical: 10, marginHorizontal: 20, fontWeight: '600' },
   billCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -264,8 +266,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#f0f0f0',
   },
-  tripName: { fontSize: 15, fontWeight: 'bold', color: '#1A3C6B' },
-  billAmount: { color: '#FF3B30', fontWeight: 'bold', fontSize: 14 },
+  tripName: { fontSize: 15, fontFamily: 'Prompt-Medium', fontWeight: '600', color: '#1A3C6B' },
+  billAmount: { color: '#FF3B30', fontWeight: 'bold', fontSize: 14, fontFamily: 'Prompt-Medium' },
   payButton: {
     backgroundColor: '#1A3C6B',
     paddingHorizontal: 18,
@@ -292,6 +294,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  payAllButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  payAllButtonText: { color: '#fff', fontWeight: '600', fontSize: 16, fontFamily: 'Prompt-Medium' },
   bgImage: { width: '111%', height: 235, position: 'absolute', bottom: -4, left: 0 },
 });

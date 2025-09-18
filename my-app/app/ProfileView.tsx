@@ -1,6 +1,7 @@
 // File: screens/ProfileViewScreen.tsx
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView } from 'react-native';
+import { View, StyleSheet, Image, TouchableOpacity, ScrollView } from 'react-native';
+import { Text } from '@/components';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { supabase } from '../constants/supabase';
@@ -49,13 +50,35 @@ export default function ProfileViewScreen() {
           source={user.profile_image_url ? { uri: user.profile_image_url } : require('../assets/images/logo.png')}
           style={styles.profileImage}
         />
-        <Text style={styles.name}>{user.full_name || t('profileview.user_fallback')}</Text>
-        <Text style={styles.email}>{user.email}</Text>
+        <Text style={styles.userName}>{user.full_name || t('profileview.user_fallback')}</Text>
+        <Text style={styles.userEmail}>{user.email}</Text>
       </View>
       <View style={styles.infoSection}>
-        <Text style={styles.label}>{t('profileview.phone')}: {user.phone_number || 'N/A'}</Text>
-        <Text style={styles.label}>{t('profileview.currency')}: {user.currency_preference || 'THB'}</Text>
-        <Text style={styles.label}>{t('profileview.language')}: {user.language_preference || 'TH'}</Text>
+        <View style={styles.infoItem}>
+          <Ionicons name="call-outline" size={20} color="#1A3C6B" style={styles.infoIcon} />
+          <View>
+            <Text style={styles.infoLabel}>{t('profileview.phone')}</Text>
+            <Text style={styles.infoValue}>{user.phone_number || 'N/A'}</Text>
+          </View>
+        </View>
+        
+        <View style={styles.infoItem}>
+          <Ionicons name="cash-outline" size={20} color="#1A3C6B" style={styles.infoIcon} />
+          <View>
+            <Text style={styles.infoLabel}>{t('profileview.currency')}</Text>
+            <Text style={styles.infoValue}>{user.currency_preference || 'THB'}</Text>
+          </View>
+        </View>
+        
+        <View style={[styles.infoItem, { borderBottomWidth: 0 }]}>
+          <Ionicons name="language-outline" size={20} color="#1A3C6B" style={styles.infoIcon} />
+          <View>
+            <Text style={styles.infoLabel}>{t('profileview.language')}</Text>
+            <Text style={styles.infoValue}>
+              {user.language_preference === 'TH' ? 'ไทย' : 'English'}
+            </Text>
+          </View>
+        </View>
       </View>
       <TouchableOpacity style={styles.editButton} onPress={() => router.push('/ProfileEdit')}>
         <Text style={styles.editButtonText}>{t('profileview.edit')}</Text>
@@ -70,13 +93,65 @@ export default function ProfileViewScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff', padding: 20 },
   backButton: { marginBottom: 10 },
-  header: { fontSize: 22, fontWeight: 'bold', alignSelf: 'center' },
+  header: { 
+    fontSize: 22, 
+    fontFamily: 'Prompt-Medium',
+    fontWeight: '600', 
+    alignSelf: 'center',
+    color: '#1A3C6B' 
+  },
   profileSection: { alignItems: 'center', marginVertical: 20 },
-  profileImage: { width: 90, height: 90, borderRadius: 45, backgroundColor: '#eee' },
-  name: { fontSize: 18, fontWeight: 'bold', marginTop: 5 },
-  email: { fontSize: 14, color: '#666' },
-  infoSection: { marginBottom: 20 },
-  label: { fontSize: 16, marginBottom: 10 },
+  profileImage: { width: 120, height: 120, borderRadius: 60, alignSelf: 'center', marginVertical: 20 },
+  userName: { 
+    fontSize: 20, 
+    fontFamily: 'Prompt-Medium',
+    fontWeight: '600', 
+    textAlign: 'center', 
+    marginBottom: 5,
+    color: '#1A3C6B' 
+  },
+  userEmail: { 
+    fontSize: 16, 
+    fontFamily: 'Prompt-Medium',
+    color: '#666', 
+    textAlign: 'center', 
+    marginBottom: 20 
+  },
+  infoSection: {
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    padding: 20,
+    marginVertical: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  infoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  infoIcon: {
+    marginRight: 15,
+    width: 24,
+    textAlign: 'center',
+  },
+  infoLabel: {
+    fontSize: 16, 
+    fontFamily: 'Prompt-Regular',
+    color: '#666',
+    marginBottom: 2,
+  },
+  infoValue: {
+    fontSize: 16,
+    color: '#1A3C6B',
+    fontFamily: 'Prompt-Medium',
+    fontWeight: '500',
+  },
   editButton: { backgroundColor: '#3f5b78', padding: 12, borderRadius: 10, alignItems: 'center', marginBottom: 10 },
   editButtonText: { color: '#fff', fontWeight: 'bold' },
   logoutButton: { backgroundColor: '#222', padding: 14, borderRadius: 10, alignItems: 'center' },

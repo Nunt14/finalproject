@@ -17,6 +17,7 @@ import { useRouter } from 'expo-router';
 import { supabase } from '../constants/supabase';
 import { useLanguage } from './contexts/LanguageContext';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Fonts } from './utils/fonts';
 
 // Component for rendering a single user item with actions
 interface UserItemProps {
@@ -699,6 +700,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
+    fontFamily: Fonts.medium,
     fontWeight: 'bold',
     color: '#fff',
     marginLeft: 10,
@@ -734,6 +736,7 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     fontSize: 16,
     color: '#1A3C6B',
+    fontFamily: Fonts.medium,
     fontWeight: '600',
   },
   activeTabText: {
@@ -763,6 +766,7 @@ const styles = StyleSheet.create({
   },
   sectionHeader: {
     fontSize: 18,
+    fontFamily: Fonts.medium,
     fontWeight: 'bold',
     color: '#1A3C6B',
     marginTop: 10,
@@ -806,6 +810,7 @@ const styles = StyleSheet.create({
   friendName: {
     flex: 1,
     fontSize: 16,
+    fontFamily: Fonts.medium,
   },
   addButton: {
     backgroundColor: '#1A3C6B',
@@ -820,14 +825,17 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#fff',
+    fontFamily: Fonts.medium,
     fontWeight: 'bold',
   },
   addedText: {
     color: '#666',
+    fontFamily: Fonts.medium,
     fontWeight: 'bold',
   },
   pendingText: {
     color: '#FFA500',
+    fontFamily: Fonts.medium,
     fontWeight: 'bold',
   },
   actionButtons: {
@@ -894,6 +902,7 @@ const styles = StyleSheet.create({
   },
   groupName: {
     fontSize: 16,
+    fontFamily: Fonts.medium,
     fontWeight: 'bold',
   },
   bottomButton: {
@@ -906,6 +915,7 @@ const styles = StyleSheet.create({
   },
   bottomButtonText: {
     color: '#fff',
+    fontFamily: Fonts.medium,
     fontWeight: 'bold',
   },
   emptyList: {
@@ -915,11 +925,13 @@ const styles = StyleSheet.create({
   emptyText: {
     color: '#888',
     fontSize: 16,
+    fontFamily: Fonts.medium,
     marginTop: 10,
   },
   emptyStateSubtext: {
     color: '#999',
     fontSize: 14,
+    fontFamily: Fonts.medium,
     marginTop: 5,
   },
   loadingContainer: {

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
-import { View, StyleSheet, Image } from 'react-native';
+import { View, StyleSheet, Image, Text } from 'react-native';
 import { router } from 'expo-router';
+import { Fonts } from './utils/fonts';
 
 export default function SplashScreen() {
   useEffect(() => {
@@ -28,9 +29,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#fff',
+    fontFamily: Fonts.medium,
   },
   logoImage: {
-    width: 500,
+    width: 200,
     height: 200,
+  },
+  text: {
+    fontFamily: Fonts.medium,
   },
 });

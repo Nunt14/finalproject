@@ -15,6 +15,8 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { supabase } from "../constants/supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLanguage } from './contexts/LanguageContext';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Fonts } from './utils/fonts';
 
 type Friend = {
   id: string;
@@ -495,7 +497,7 @@ export default function AddBillScreen() {
               value={basePerPerson ? basePerPerson.toString() : ""}
               onChangeText={handleBaseChange}
             />
-            <Text style={{ marginLeft: 6, color: '#2ecc71', fontSize: 20, fontWeight: 'bold' }}>{currencySymbol}</Text>
+            <Text style={{ marginLeft: 6, color: '#2ecc71', fontSize: 20, fontFamily: Fonts.medium, fontWeight: 'bold' }}>{currencySymbol}</Text>
           </View>
         </View>
 
@@ -546,12 +548,12 @@ export default function AddBillScreen() {
                 <View style={styles.dropdown}>
                   <View style={styles.breakdownRow}>
                     <Ionicons name="people" size={16} color="#888" style={{ marginRight: 8 }} />
-                    <Text style={{ flex: 1, color: '#666', fontSize: 16 }}>{t('addbill.per_person')}</Text>
-                    <Text style={[styles.green, { fontSize: 16 }]}>{basePerPerson.toFixed(2)} {currencySymbol}</Text>
+                    <Text style={{ flex: 1, color: '#666', fontSize: 16, fontFamily: Fonts.medium }}>{t('addbill.per_person')}</Text>
+                    <Text style={[styles.green, { fontSize: 16, fontFamily: Fonts.medium }]}>{basePerPerson.toFixed(2)} {currencySymbol}</Text>
                   </View>
                   <View style={[styles.breakdownRow, { borderTopWidth: 1, borderTopColor: '#eee', marginTop: 6, paddingTop: 6 }]}>
                     <Ionicons name="person" size={16} color="#888" style={{ marginRight: 8 }} />
-                    <Text style={{ flex: 1, color: '#666', fontSize: 16 }}>{t('addbill.extra')}</Text>
+                    <Text style={{ flex: 1, color: '#666', fontSize: 16, fontFamily: Fonts.medium }}>{t('addbill.extra')}</Text>
                     <TextInput
                       style={[styles.customInput, { minWidth: 90, textAlign: 'right' }]}
                       placeholder={t('addbill.placeholder_amount')}
@@ -559,7 +561,7 @@ export default function AddBillScreen() {
                       value={item.extraAmount ?? ''}
                       onChangeText={(val) => handleCustomChange(item.id, val)}
                     />
-                    <Text style={{ marginLeft: 6, color: '#2ecc71', fontSize: 16 }}>{currencySymbol}</Text>
+                    <Text style={{ marginLeft: 6, color: '#2ecc71', fontSize: 16, fontFamily: Fonts.medium }}>{currencySymbol}</Text>
                   </View>
                 </View>
               )}
@@ -646,8 +648,21 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginBottom: 10,
   },
-  header: { fontSize: 18, fontWeight: "600", color: "#222", marginLeft: 'auto', textAlign: 'right' },
-  sectionTitle: { fontSize: 16, color: "#333", marginBottom: 8, fontWeight: "600" },
+  header: { 
+    fontSize: 18, 
+    fontFamily: Fonts.medium,
+    fontWeight: "600", 
+    color: "#222", 
+    marginLeft: 'auto', 
+    textAlign: 'right' 
+  },
+  sectionTitle: { 
+    fontSize: 16, 
+    color: "#333", 
+    marginBottom: 8, 
+    fontFamily: Fonts.medium,
+    fontWeight: "600" 
+  },
   card: {
     borderWidth: 1,
     borderColor: "#ddd",
@@ -670,6 +685,7 @@ const styles = StyleSheet.create({
   amountInput: { 
     fontSize: 32, 
     color: "#2ecc71", 
+    fontFamily: Fonts.medium,
     fontWeight: "bold",
     textAlign: "center",
     minWidth: 150,
@@ -677,18 +693,30 @@ const styles = StyleSheet.create({
   splitAmountInput: { 
     fontSize: 20, 
     color: "#2ecc71", 
+    fontFamily: Fonts.medium,
     fontWeight: "bold",
     textAlign: "right",
     minWidth: 50,
   },
-  currency: { fontSize: 20, fontWeight: "bold", color: "#2ecc71" },
+  currency: { 
+    fontSize: 20, 
+    fontFamily: Fonts.medium,
+    fontWeight: "bold", 
+    color: "#2ecc71" 
+  },
   noteContainer: {
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: "#eee",
   },
-  noteLabel: { fontSize: 16, color: "#666", marginBottom: 4, fontWeight: "500" },
+  noteLabel: { 
+    fontSize: 16, 
+    color: "#666", 
+    marginBottom: 4, 
+    fontFamily: Fonts.medium,
+    fontWeight: "500" 
+  },
   noteInput: {
     fontSize: 16,
     color: "#333",
@@ -706,8 +734,17 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 8,
   },
-  splitText: { fontSize: 16, color: "#333", fontWeight: "500" },
-  green: { color: "#2ecc71", fontWeight: "600" },
+  splitText: { 
+    fontSize: 16, 
+    color: "#333", 
+    fontFamily: Fonts.medium,
+    fontWeight: "500" 
+  },
+  green: { 
+    color: "#2ecc71", 
+    fontFamily: Fonts.medium,
+    fontWeight: "600" 
+  },
   friendRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -733,7 +770,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 1,
   },
-  friendName: { flex: 1, fontSize: 16, marginLeft: 8, fontWeight: "500" },
+  friendName: { 
+    flex: 1, 
+    fontSize: 16, 
+    marginLeft: 8, 
+    fontFamily: Fonts.medium,
+    fontWeight: "500" 
+  },
   amountPill: {
     flexDirection: "row",
     alignItems: "center",
@@ -745,7 +788,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e6edf5",
   },
-  amountText: { fontSize: 16, color: "#2ecc71", fontWeight: "600" },
+  amountText: { 
+    fontSize: 16, 
+    color: "#2ecc71", 
+    fontFamily: Fonts.medium,
+    fontWeight: "600" 
+  },
   dropdown: { paddingLeft: 50, paddingVertical: 6 },
   breakdownRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
   customInput: {

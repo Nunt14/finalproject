@@ -6,6 +6,7 @@ import { supabase } from '../constants/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLanguage } from './contexts/LanguageContext';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Fonts } from './utils/fonts';
 
 // ประเภทข้อมูลสำหรับการ์ดแบบรวมต่อผู้ให้เครดิต (หนึ่งการ์ดต่อหนึ่งผู้ให้เครดิต)
 type DebtItem = {
@@ -873,7 +874,8 @@ const styles = StyleSheet.create({
   backButton: { padding: 8 },
   headerTitle: { 
     fontSize: 20, 
-    fontWeight: 'bold', 
+    fontFamily: Fonts.medium,
+    fontWeight: 'bold',
     color: '#fff',
     marginLeft: 10, 
     flex: 1, 
@@ -903,9 +905,22 @@ const styles = StyleSheet.create({
     borderRadius: 22 
   },
   toggleButtonActive: { backgroundColor: '#1A3C6B' },
-  toggleText: { marginLeft: 6, fontSize: 16, color: '#1A3C6B', fontWeight: '600' },
+  toggleText: { 
+    marginLeft: 6, 
+    fontSize: 16, 
+    color: '#1A3C6B', 
+    fontFamily: Fonts.medium,
+    fontWeight: '600' 
+  },
   toggleTextActive: { color: '#fff' },
-  subHeader: { fontSize: 16, color: '#1A3C6B', marginVertical: 10, marginHorizontal: 20, fontWeight: '600' },
+  subHeader: { 
+    fontSize: 16, 
+    color: '#1A3C6B', 
+    marginVertical: 10, 
+    marginHorizontal: 20, 
+    fontFamily: Fonts.medium,
+    fontWeight: '600' 
+  },
   scrollContainer: { 
     paddingVertical: 16, 
     paddingHorizontal: 0,
@@ -940,6 +955,7 @@ const styles = StyleSheet.create({
   },
   amount: { 
     fontSize: 24, 
+    fontFamily: Fonts.medium,
     fontWeight: 'bold', 
     color: '#FF3B30',
     letterSpacing: 0.5,
@@ -971,6 +987,7 @@ const styles = StyleSheet.create({
   },
   totalList: { 
     color: '#1A3C6B', 
+    fontFamily: Fonts.medium,
     fontWeight: '600',
     fontSize: 14,
   },
@@ -985,7 +1002,14 @@ const styles = StyleSheet.create({
   },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   row: { flexDirection: 'row', alignItems: 'center' },
-  creditorName: { fontSize: 15, color: '#333', fontWeight: 'bold', marginTop: 2, marginLeft: 2 },
+  creditorName: { 
+    fontSize: 15, 
+    color: '#333', 
+    fontFamily: Fonts.medium,
+    fontWeight: 'bold', 
+    marginTop: 2, 
+    marginLeft: 2 
+  },
   paymentCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1011,7 +1035,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  amountText: { fontSize: 18, fontWeight: 'bold', color: '#FF3B30' },
+  amountText: { 
+    fontSize: 18, 
+    fontFamily: Fonts.medium,
+    fontWeight: 'bold', 
+    color: '#FF3B30' 
+  },
   eyeBtn: { paddingHorizontal: 10 },
   actions: { flexDirection: 'row', alignItems: 'center' },
   circle: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginLeft: 6 },
@@ -1033,6 +1062,7 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     color: '#1A3C6B',
+    fontFamily: Fonts.medium,
     fontWeight: '500',
     textAlign: 'center',
     marginBottom: 20,

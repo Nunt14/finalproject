@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, SafeAreaView } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, SafeAreaView } from 'react-native';
+import { Text } from '@/components';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useLocalSearchParams, router } from 'expo-router';
 import { supabase } from '../constants/supabase';
@@ -286,13 +287,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
   },
-  headerTitle: { 
-    fontSize: 20, 
-    fontWeight: 'bold', 
+  headerTitle: {
+    flex: 1,
+    textAlign: 'center',
     color: '#fff',
-    marginLeft: 10, 
-    flex: 1, 
-    textAlign: 'center' 
+    fontSize: 18,
+    fontFamily: 'Prompt-Medium',
+    fontWeight: '600',
+  },
+  headerText: {
+    fontSize: 20,
+    fontFamily: 'Prompt-Medium',
+    fontWeight: '600',
+    color: '#1A3C6B',
+    marginBottom: 10,
   },
   creditorSection: {
     flexDirection: 'row',
@@ -312,26 +320,34 @@ const styles = StyleSheet.create({
     borderColor: '#f0f0f0',
   },
   avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#eee' },
-  creditorName: { fontSize: 18, fontWeight: 'bold', color: '#1A3C6B' },
-  unpaidText: { color: '#FF3B30', fontWeight: 'bold', fontSize: 15 },
+  creditorName: { fontSize: 18, fontWeight: 'bold', color: '#1A3C6B', fontFamily: 'Prompt-Medium' },
+  unpaidText: { color: '#FF3B30', fontWeight: 'bold', fontSize: 15, fontFamily: 'Prompt-Medium' },
   totalAmount: { 
     marginLeft: 'auto', 
     color: '#FF3B30', 
     fontWeight: 'bold', 
     fontSize: 20,
-    textAlign: 'right'
+    textAlign: 'right',
+    fontFamily: 'Prompt-Medium'
   },
   thbEquivalent: {
     color: '#666',
     fontSize: 12,
     marginTop: 2,
+    fontFamily: 'Prompt-Medium'
   },
   thbTotal: {
     color: '#666',
     fontSize: 14,
     fontWeight: '500',
+    fontFamily: 'Prompt-Medium'
   },
-  allListTitle: { fontSize: 16, color: '#666', marginVertical: 10 },
+  allListTitle: { 
+    fontSize: 16, 
+    color: '#666', 
+    marginVertical: 10, 
+    fontFamily: 'Prompt-Medium' 
+  },
   billCard: {
     flexDirection: 'row',
     alignItems: 'center',

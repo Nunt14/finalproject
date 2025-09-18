@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Image, TouchableOpacity, Alert, ScrollView, Dimensions } from 'react-native';
+import { View, StyleSheet, TextInput, Image, TouchableOpacity, Alert, ScrollView, Dimensions } from 'react-native';
+import { Text } from '@/components';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -570,6 +571,7 @@ const styles = StyleSheet.create({
   greetingText: {
     fontSize: 16,
     color: '#E8F4FD',
+    fontFamily: 'Prompt-Medium',
     fontWeight: '500',
     marginBottom: 4,
     letterSpacing: 0.5,
@@ -582,13 +584,15 @@ const styles = StyleSheet.create({
   welcomeText: {
     fontSize: 24,
     color: '#fff',
+    fontFamily: 'Prompt-Medium',
     fontWeight: '600',
     letterSpacing: 0.5,
   },
   harntyText: {
     fontSize: 28,
     color: '#fff',
-    fontWeight: 'bold',
+    fontFamily: 'Prompt-Medium',
+    fontWeight: '700',
     letterSpacing: 1,
     textShadowColor: 'rgba(0, 0, 0, 0.3)',
     textShadowOffset: { width: 1, height: 1 },
@@ -597,6 +601,7 @@ const styles = StyleSheet.create({
   userNameText: {
     fontSize: 32,
     color: '#fff',
+    fontFamily: 'Prompt-Medium',
     fontWeight: 'bold',
     letterSpacing: 0.8,
     textShadowColor: 'rgba(0, 0, 0, 0.2)',
@@ -653,12 +658,14 @@ const styles = StyleSheet.create({
   },
   statNumber: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: 'Prompt-Medium',
+    fontWeight: '600',
     color: '#fff',
     marginBottom: 2,
   },
   statLabel: {
     fontSize: 12,
+    fontFamily: 'Prompt-Medium',
     color: '#E8F4FD',
     textAlign: 'center',
     fontWeight: '500',
@@ -697,6 +704,9 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 10,
     paddingLeft: 10,
+    fontFamily: 'Prompt-Medium',
+    color: '#333',
+    fontSize: 16,
   },
   searchIcon: {
     marginRight: 5,
@@ -715,7 +725,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sectionTitle: {
-    fontWeight: 'bold',
+    fontFamily: 'Prompt-Medium',
+    fontWeight: '600',
     fontSize: 18,
     color: '#1A3C6B',
   },
@@ -763,7 +774,8 @@ const styles = StyleSheet.create({
     padding: 15,
   },
   tripTitle: {
-    fontWeight: 'bold',
+    fontFamily: 'Prompt-Medium',
+    fontWeight: '600',
     color: '#1A3C6B',
     fontSize: 16,
   },
@@ -803,6 +815,7 @@ const styles = StyleSheet.create({
   navLabel: {
     color: '#fff',
     fontSize: 10,
+    fontFamily: 'Prompt-Medium',
     fontWeight: '500',
     marginTop: 2,
     textAlign: 'center',

@@ -1,6 +1,7 @@
 // นำเข้า React และฮุคพื้นฐานที่ใช้ในคอมโพเนนต์นี้
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Modal, Pressable, Alert, SafeAreaView } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Image, Modal, Pressable, Alert, SafeAreaView } from 'react-native';
+import { Text } from '@/components';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 // นำเข้าฟังก์ชันสำหรับอ่านพารามิเตอร์จาก URL และการนำทาง
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -675,7 +676,7 @@ const styles = StyleSheet.create({
   payButton: { backgroundColor: '#1A3C6B', paddingVertical: 12, borderRadius: 15, alignItems: 'center', marginTop: 8 },
   shareList: { backgroundColor: '#f8f9fa', borderRadius: 15, paddingVertical: 10, paddingHorizontal: 12, marginTop: 6, marginBottom: 8 },
   shareRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
-  shareName: { marginLeft: 6, color: '#34495E' },
+  shareName: { marginLeft: 6, color: '#34495E', fontFamily: 'Prompt-Medium' },
   shareAmount: { color: '#2FBF71', fontWeight: '600' },
   bottomBar: {
     flexDirection: 'row',
@@ -765,10 +766,12 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 18,
+    fontFamily: 'Prompt-Medium',
     fontWeight: '600',
-    color: '#000',
-    marginBottom: 8,
+    color: '#1A3C6B',
+    marginVertical: 15,
+    marginLeft: 15,
   },
   divider: {
     height: 1,
@@ -808,6 +811,7 @@ const styles = StyleSheet.create({
     color: '#000',
     fontWeight: '600',
     marginRight: 8,
+    fontFamily: 'Prompt-Medium',
   },
   ownerInline: {
     fontSize: 14,

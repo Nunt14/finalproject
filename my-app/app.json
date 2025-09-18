@@ -8,6 +8,9 @@
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true
     },
@@ -37,6 +40,9 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "font": "Prompt-Medium"
     }
   }
 }

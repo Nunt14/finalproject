@@ -1,31 +1,50 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import React from 'react';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-// import 'react-native-reanimated'; // Temporarily disabled
+import { View, ActivityIndicator } from 'react-native';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { LanguageProvider } from './contexts/LanguageContext';
+import { loadFonts } from '../config/fonts';
+
+// Custom loading component
+function Loading() {
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <ActivityIndicator size="large" />
+    </View>
+  );
+}
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+  const [fontsLoaded] = useFonts({
+    'Prompt-Medium': require('../assets/fonts/Prompt-Medium.ttf'),
   });
 
-  if (!loaded) {
-    // Async font loading only occurs in development.
-    return null;
+  // Load fonts when component mounts
+  React.useEffect(() => {
+    loadFonts();
+  }, []);
+
+  if (!fontsLoaded) {
+    return <Loading />;
   }
 
-  // เพิ่ม return นี้เพื่อให้แอปแสดงผลหน้าจอ
   return (
-     <LanguageProvider>
-       <Stack
-        screenOptions={{
-          headerShown: false, // ❌ ปิด header ทุกหน้า
-        }}
-      />
-     </LanguageProvider>
+    <View style={{ flex: 1 }}>
+      <LanguageProvider>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            headerTitleStyle: {
+              fontFamily: 'Prompt-Medium',
+            },
+          }}
+        />
+        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+      </LanguageProvider>
+    </View>
   );
 }

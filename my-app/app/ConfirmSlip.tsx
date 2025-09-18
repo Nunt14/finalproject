@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, router } from 'expo-router';
+import { Fonts } from './utils/fonts';
 import { supabase } from '../constants/supabase';
 import { useLanguage } from './contexts/LanguageContext';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -30,6 +31,7 @@ const getImageUrl = (imageUri: string | null | undefined): string | null => {
 };
 
 export default function ConfirmSlipScreen() {
+  const router = useRouter();
   const { proofId, imageUri: imageUriParam } = useLocalSearchParams<{ proofId?: string; imageUri?: string }>();
   const [imageUri, setImageUri] = useState<string | null>(imageUriParam ?? null);
   const { t } = useLanguage();
@@ -117,6 +119,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: { 
     fontSize: 20, 
+    fontFamily: Fonts.medium,
     fontWeight: 'bold', 
     color: '#fff',
     marginLeft: 10, 
@@ -143,6 +146,12 @@ const styles = StyleSheet.create({
   },
   preview: { width: '92%', height: '100%', borderRadius: 8 },
   noImageContainer: { alignItems: 'center', justifyContent: 'center' },
-  noImageText: { marginTop: 8, color: '#1A3C6B', fontSize: 14, fontWeight: '500' },
+  noImageText: { 
+    marginTop: 8, 
+    color: '#1A3C6B', 
+    fontSize: 14, 
+    fontFamily: Fonts.medium,
+    fontWeight: '500' 
+  },
   bgImage: { width: '111%', height: 235, position: 'absolute', bottom: -4, left: 0 },
 });

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { Text } from '@/components';
 import { router } from 'expo-router';
 import { useLanguage } from './contexts/LanguageContext';
 
@@ -53,19 +54,34 @@ export default function SignUpStep1() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, paddingTop: 80, backgroundColor: '#fff' },
-  header: { fontSize: 24, fontWeight: 'bold', marginBottom: 30 },
+  header: { 
+    fontSize: 24, 
+    fontFamily: 'Prompt-Medium',
+    fontWeight: '600', 
+    marginBottom: 30,
+    color: '#1A3C6B'
+  },
   input: {
-    borderColor: '#ddd', borderWidth: 1, borderRadius: 10,
-    paddingHorizontal: 15, paddingVertical: 12, marginBottom: 15,
+    borderColor: '#ddd', 
+    borderWidth: 1, 
+    borderRadius: 10,
+    paddingHorizontal: 15, 
+    paddingVertical: 12, 
+    marginBottom: 15,
     backgroundColor: '#f5f5f5'
   },
   hint: { fontSize: 12, color: '#666', marginBottom: 20 },
   button: {
-    backgroundColor: '#3f5b78',
-    paddingVertical: 14,
-    borderRadius: 10,
+    backgroundColor: '#1A3C6B',
+    padding: 15,
+    borderRadius: 5,
     alignItems: 'center',
-    bottom: -25,
+    marginTop: 10,
   },
-  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 }
+  buttonText: {
+    color: 'white',
+    fontFamily: 'Prompt-Medium',
+    fontWeight: '600',
+    fontSize: 16,
+  }
 });

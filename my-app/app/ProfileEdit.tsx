@@ -1,6 +1,7 @@
 // File: screens/ProfileEditScreen.tsx
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, TextInput, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { View, StyleSheet, Image, TextInput, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { Text } from '@/components';
 import { supabase } from '../constants/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
@@ -57,7 +58,7 @@ export default function ProfileEditScreen() {
       const ext = (match?.[1] || 'jpg').toLowerCase();
       const contentType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
 
-      const base64 = await FileSystem.readAsStringAsync(localUri, { encoding: FileSystem.EncodingType.Base64 });
+      const base64 = await FileSystem.readAsStringAsync(localUri, { encoding: 'base64' });
       const arrayBuffer = decodeBase64(base64);
       const filePath = `${keyPrefix}/${uid}/${Date.now()}.${ext}`;
       const { error: uploadError } = await supabase.storage
@@ -164,27 +165,46 @@ export default function ProfileEditScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff', padding: 20 },
   backButton: { marginBottom: 10 },
-  header: { fontSize: 22, fontWeight: 'bold', alignSelf: 'center', marginBottom: 10 },
+  header: {
+    fontSize: 22,
+    fontFamily: 'Prompt-Medium',
+    fontWeight: '600',
+    alignSelf: 'center',
+    marginBottom: 20,
+    color: '#1A3C6B',
+  },
   profileSection: { alignItems: 'center', marginBottom: 20 },
-  profileImage: { width: 90, height: 90, borderRadius: 45, backgroundColor: '#eee' },
+  profileImage: { width: 120, height: 120, borderRadius: 60, marginBottom: 10 },
   cameraIcon: { position: 'absolute', bottom: 0, right: '42%', backgroundColor: '#fff', borderRadius: 15, padding: 3 },
+  label: {
+    fontSize: 16,
+    marginBottom: 8,
+    color: '#1A3C6B',
+    fontFamily: 'Prompt-Medium',
+    fontWeight: '500',
+  },
   input: {
-    borderColor: '#ddd',
     borderWidth: 1,
+    borderColor: '#ddd',
+    padding: 15,
     borderRadius: 10,
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    marginBottom: 10,
-    backgroundColor: '#f5f5f5',
+    marginBottom: 15,
+    fontSize: 16,
+    fontFamily: 'Prompt-Medium',
   },
   saveButton: {
-    backgroundColor: '#3f5b78',
-    padding: 14,
+    backgroundColor: '#1A3C6B',
+    padding: 15,
     borderRadius: 10,
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 20,
   },
-  saveButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: 'Prompt-Medium',
+    fontWeight: '600',
+  },
   qrButton: {
     backgroundColor: '#ddd',
     padding: 10,

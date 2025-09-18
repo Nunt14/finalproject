@@ -307,6 +307,7 @@ export default function NotificationScreen() {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
+    fontFamily: 'Prompt-Medium',
     backgroundColor: '#fff', // ใช้พื้นหลังสีขาวแทน
   },
   header: {
@@ -319,11 +320,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: 'black' },
+  headerTitle: { fontSize: 20, fontFamily: 'Prompt-Medium', fontWeight: 'bold', color: 'black' },
   headerSpacer: { width: 24 },
   content: { flexGrow: 1, paddingHorizontal: 20, paddingBottom: 40 },
   section: { marginTop: 20 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: 'black', marginBottom: 15 },
+  sectionTitle: { fontSize: 18, fontFamily: 'Prompt-Medium', fontWeight: 'bold', color: 'black', marginBottom: 15 },
 
   notificationItem: {
     flexDirection: 'row',
@@ -344,15 +345,20 @@ const styles = StyleSheet.create({
     marginRight: 15,
   },
   notificationContent: { flex: 1 },
-  notificationText: { fontSize: 14, color: 'black', lineHeight: 20 },
+  notificationText: { fontSize: 14, fontFamily: 'Prompt-Medium', color: 'black', lineHeight: 20 },
   unreadNotification: { backgroundColor: '#f9f9f9' },
-  unreadText: { fontWeight: '600' },
+  unreadText: { fontWeight: '600', fontFamily: 'Prompt-Medium' },
   unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#FF6B6B', marginLeft: 10 },
 
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: 10, color: '#45647C' },
+  loadingText: { marginTop: 10, color: '#45647C', fontFamily: 'Prompt-Medium' },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 50 },
-  emptyText: { fontSize: 20, fontWeight: 'bold', color: '#333', marginTop: 20 },
-  emptySubText: { fontSize: 14, color: '#666', marginTop: 5, textAlign: 'center' },
-  timeText: { fontSize: 12, color: '#888', marginTop: 4 },
+  emptyText: { fontSize: 20, fontFamily: 'Prompt-Medium', fontWeight: 'bold', color: '#333', marginTop: 20 },
+  emptySubText: { fontSize: 14, fontFamily: 'Prompt-Medium', color: '#666', marginTop: 5, textAlign: 'center' },
+  timeText: { 
+    fontSize: 12, 
+    fontFamily: 'Prompt-Medium', 
+    color: '#888', 
+    marginTop: 4 
+  },
 });

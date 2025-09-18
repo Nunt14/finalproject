@@ -128,35 +128,82 @@ export default function PaymentUploadScreen() {
         billShareId = (bs as any)?.bill_share_id ?? null;
       } catch {}
       
-      // อัปโหลดสลิปไปยัง Supabase Storage (RN-safe via Base64 -> ArrayBuffer)
+      // Upload slip to Supabase Storage (RN-safe via Base64 -> ArrayBuffer)
       let publicImageUrl: string | null = null;
       try {
+        if (!imageUri) {
+          throw new Error('No image URI provided');
+        }
+
+        // Extract file extension from URI
         const match = imageUri.match(/\.([a-zA-Z0-9]+)(?:\?|$)/);
         const ext = (match?.[1] || 'jpg').toLowerCase();
         const contentType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
-        const base64 = await FileSystem.readAsStringAsync(imageUri, { encoding: FileSystem.EncodingType.Base64 });
+        
+        // Read and convert image to base64
+        const base64 = await FileSystem.readAsStringAsync(imageUri, { 
+          encoding: 'base64'
+        });
+        
+        if (!base64) {
+          throw new Error('Failed to read image data');
+        }
+        
         const arrayBuffer = decodeBase64(base64);
-        const filePath = `slips/${uid}/${billId}-${Date.now()}.${ext}`;
+        const fileName = `slips/${uid}/${billId}-${Date.now()}.${ext}`;
+        
+        // Upload file to storage
         const { error: uploadError } = await supabase.storage
           .from('payment-proofs')
-          .upload(filePath, arrayBuffer, { contentType, upsert: true });
-        if (!uploadError) {
-          const { data: pub } = await supabase.storage
-            .from('payment-proofs')
-            .getPublicUrl(filePath);
-          publicImageUrl = (pub as any)?.publicUrl ?? null;
+          .upload(fileName, arrayBuffer, { 
+            contentType,
+            upsert: true 
+          });
+          
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
+          throw uploadError;
         }
-      } catch {}
+        
+        // Get public URL
+        const { data } = await supabase.storage
+          .from('payment-proofs')
+          .getPublicUrl(fileName);
+        
+        // The public URL is directly available in the response
+        publicImageUrl = data.publicUrl;
+        
+        if (!publicImageUrl) {
+          throw new Error('Failed to get public URL');
+        }
+      } catch (error) {
+        console.error('Error uploading image:', error);
+        throw error; // Re-throw to be caught by the outer try-catch
+      }
       
       // บันทึก payment พร้อมกับ slip_qr
-      await supabase.from('payment').insert({
+      if (!publicImageUrl) {
+        throw new Error('No image URL available for payment');
+      }
+      
+      const paymentData = {
         bill_share_id: billShareId,
         amount: amount ? Number(amount) : (ocrAmount ?? null),
         method: 'qr',
         status: 'pending',
         transaction_id: null,
-        slip_qr: publicImageUrl ?? imageUri, // บันทึกรูปสลิปใน slip_qr field
-      });
+        slip_qr: publicImageUrl,
+        created_at: new Date().toISOString()
+      };
+      
+      const { error: paymentError } = await supabase
+        .from('payment')
+        .insert(paymentData);
+        
+      if (paymentError) {
+        console.error('Error saving payment:', paymentError);
+        throw paymentError;
+      }
       
       // บันทึก payment_proof สำหรับ backup (optional)
       await supabase.from('payment_proof').insert({
@@ -305,6 +352,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+    fontFamily: 'Prompt-Medium',
     paddingTop: 50,
   },
   headerGradient: {
@@ -335,7 +383,8 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'Prompt-Medium',
+    fontWeight: '600',
     color: '#fff',
     textAlign: 'center',
   },
@@ -345,12 +394,14 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
+    fontFamily: 'Prompt-Medium',
     fontWeight: '600',
     color: '#1A3C6B',
     marginBottom: 4,
   },
   sectionSubtitle: {
     fontSize: 14,
+    fontFamily: 'Prompt-Medium',
     color: '#666',
     marginBottom: 20,
   },
@@ -385,12 +436,14 @@ const styles = StyleSheet.create({
   },
   uploadTitle: {
     fontSize: 18,
+    fontFamily: 'Prompt-Medium',
     fontWeight: '600',
     color: '#1A3C6B',
     marginBottom: 8,
   },
   uploadSubtitle: {
     fontSize: 14,
+    fontFamily: 'Prompt-Medium',
     color: '#666',
     textAlign: 'center',
     paddingHorizontal: 20,
@@ -414,6 +467,7 @@ const styles = StyleSheet.create({
   overlayText: {
     color: '#fff',
     marginTop: 8,
+    fontFamily: 'Prompt-Medium',
     fontWeight: '500',
   },
   ocrCard: {
@@ -441,6 +495,7 @@ const styles = StyleSheet.create({
   },
   ocrTitle: {
     fontSize: 16,
+    fontFamily: 'Prompt-Medium',
     fontWeight: '600',
     color: '#1A3C6B',
     marginLeft: 8,
@@ -455,10 +510,12 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 14,
+    fontFamily: 'Prompt-Medium',
     color: '#666',
   },
   detailValue: {
     fontSize: 14,
+    fontFamily: 'Prompt-Medium',
     fontWeight: '500',
   },
   scanAgainButton: {
@@ -475,6 +532,7 @@ const styles = StyleSheet.create({
   scanAgainText: {
     color: '#1A3C6B',
     fontSize: 13,
+    fontFamily: 'Prompt-Medium',
     fontWeight: '500',
   },
   footer: {
@@ -495,6 +553,7 @@ const styles = StyleSheet.create({
     color: '#e74c3c',
     marginLeft: 8,
     fontSize: 14,
+    fontFamily: 'Prompt-Medium',
   },
   confirmButton: {
     backgroundColor: '#1A3C6B',
@@ -511,6 +570,7 @@ const styles = StyleSheet.create({
   confirmButtonText: {
     color: '#fff',
     fontSize: 16,
+    fontFamily: 'Prompt-Medium',
     fontWeight: '600',
   },
 });

@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { Text } from '@/components';
 import { router } from 'expo-router';
 import { useLanguage } from './contexts/LanguageContext';
 
@@ -50,15 +51,17 @@ const styles = StyleSheet.create({
   },
   button: {
     backgroundColor: '#1A3C6B',
-    padding: 16,
-    borderRadius: 10,
-    width: 300,
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
     marginVertical: 10,
+    width: '80%',
   },
   buttonText: {
-    color: '#fff',
-    textAlign: 'center',
-    fontWeight: 'bold',
+    color: 'white',
+    fontSize: 16,
+    fontFamily: 'Prompt-Medium',
+    fontWeight: '600',
   },
   bgImage: {
     // ปรับแก้ไขส่วนนี้

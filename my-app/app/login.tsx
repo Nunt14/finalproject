@@ -90,8 +90,20 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, paddingTop: 80, backgroundColor: '#fff' },
-  header: { fontSize: 24, fontWeight: 'bold', marginBottom: 30 },
+  container: { 
+    flex: 1, 
+    padding: 20, 
+    paddingTop: 80, 
+    backgroundColor: '#fff',
+    fontFamily: 'Prompt-Medium',
+  },
+  header: { 
+    fontSize: 24, 
+    fontFamily: 'Prompt-Medium',
+    fontWeight: 'bold', 
+    marginBottom: 30,
+    color: '#1A3C6B',
+  },
   input: {
     borderColor: '#ddd', 
     borderWidth: 1, 
@@ -99,16 +111,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15, 
     paddingVertical: 12, 
     marginBottom: 15,
+    fontSize: 16,
+    fontFamily: 'Prompt-Medium',
     backgroundColor: '#f5f5f5'
   },
-  hint: { fontSize: 12, color: '#666', marginBottom: 20 },
-  link: { color: '#333', fontWeight: '600' },
+  hint: {
+    fontSize: 14,
+    fontFamily: 'Prompt-Medium',
+    color: '#666',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  link: { 
+    color: '#333', 
+    fontWeight: '600', 
+    fontFamily: 'Prompt-Medium',
+  },
   button: {
-    backgroundColor: '#3f5b78',
-    paddingVertical: 14,
+    backgroundColor: '#1A3C6B',
+    padding: 16,
     borderRadius: 10,
     alignItems: 'center',
-    bottom: -25,
+    marginTop: 10,
   },
-  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 }
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: 'Prompt-Medium',
+    fontWeight: '600',
+  },
 });

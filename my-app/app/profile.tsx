@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   Image,
   TouchableOpacity,
@@ -11,6 +10,7 @@ import {
   Modal,
   SafeAreaView,
 } from 'react-native';
+import { Text } from '@/components';
 import { supabase } from '../constants/supabase';
 import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -457,7 +457,8 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'Prompt-Medium',
+    fontWeight: '600',
     color: '#fff',
     flex: 1,
     textAlign: 'center',
@@ -502,15 +503,17 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  name: { 
+  userName: { 
     fontSize: 24, 
-    fontWeight: 'bold', 
+    fontFamily: 'Prompt-Medium',
+    fontWeight: '600', 
     marginTop: 8, 
     color: '#1A3C6B',
     textAlign: 'center',
   },
-  email: { 
-    fontSize: 14, 
+  userEmail: { 
+    fontSize: 16, 
+    fontFamily: 'Prompt-Medium',
     color: '#666', 
     marginTop: 4,
     textAlign: 'center',
@@ -552,11 +555,13 @@ const styles = StyleSheet.create({
     color: '#666', 
     marginBottom: 2,
     fontWeight: '500',
+    fontFamily: 'Prompt-Medium',
   },
   value: { 
     fontSize: 16, 
     color: '#1A3C6B',
     fontWeight: '600',
+    fontFamily: 'Prompt-Medium',
   },
   editButton: {
     padding: 8,
@@ -570,6 +575,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     color: '#1A3C6B',
     fontWeight: '600',
+    fontFamily: 'Prompt-Medium',
   },
   currencyPill: {
     backgroundColor: '#1A3C6B',
@@ -589,6 +595,7 @@ const styles = StyleSheet.create({
     color: '#fff', 
     fontWeight: '700',
     fontSize: 14,
+    fontFamily: 'Prompt-Medium',
   },
   qrBox: {
     position: 'relative',
@@ -634,6 +641,7 @@ const styles = StyleSheet.create({
     textAlign: 'center', 
     marginTop: 4, 
     fontWeight: '500',
+    fontFamily: 'Prompt-Medium',
   },
   saveButton: {
     backgroundColor: '#1A3C6B',
@@ -649,8 +657,9 @@ const styles = StyleSheet.create({
   },
   saveButtonText: { 
     color: '#fff', 
-    fontWeight: 'bold', 
-    fontSize: 16 
+    fontWeight: '600', 
+    fontSize: 16,
+    fontFamily: 'Prompt-Medium',
   },
   logoutButton: {
     backgroundColor: '#6c757d',
@@ -692,5 +701,20 @@ const styles = StyleSheet.create({
     paddingVertical: 12, 
     borderBottomWidth: 1, 
     borderBottomColor: '#f0f0f0' 
+  },
+  name: {
+    fontSize: 24,
+    fontFamily: 'Prompt-Medium',
+    fontWeight: '600',
+    color: '#1A3C6B',
+    marginTop: 10,
+    textAlign: 'center',
+  },
+  email: {
+    fontSize: 16,
+    fontFamily: 'Prompt-Medium',
+    color: '#666',
+    marginTop: 4,
+    textAlign: 'center',
   },
 });
