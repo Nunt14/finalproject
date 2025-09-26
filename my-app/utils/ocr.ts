@@ -20,7 +20,7 @@ export function parsePaymentInfoFromText(text: string): { amount: number | null;
   const lines = normalized.split(/\n|\r/).map((l) => l.trim()).filter(Boolean);
   const numberPattern = '(?:\\d{1,3}(?:,\\d{3})*(?:\\.\\d{1,2})?|\\d+(?:\\.\\d{1,2})?)';
   const amountRegex = new RegExp(
-    `(?:(?:รวมทั้งสิ้น|รวม|ยอดรวม|ยอดเงิน|ยอด|จำนวน|Amount|Total|Paid|Grand\\s*Total|ชำระ)\\s*[:=]?\\s*)(${numberPattern})`,
+    `(?:(?:รวมทั้งสิ้น|รวม|ยอดรวม|ยอดเงิน|ยอด|จำนวน|จำนวน:|จำนวนเงิน:|Amount|Total|Paid|Grand\\s*Total|ชำระ)\\s*[:=]?\\s*)(${numberPattern})`,
     'i'
   );
   const bahtRegex = new RegExp(`(${numberPattern})\\s*(?:บาท|THB|฿)`, 'i');
