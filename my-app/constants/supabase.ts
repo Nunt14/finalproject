@@ -15,6 +15,18 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     detectSessionInUrl: false,
     storageKey: STORAGE_KEY,
   },
+  // Optimize for reduced bandwidth usage
+  global: {
+    headers: {
+      'Cache-Control': 'max-age=300', // 5 minutes cache
+    },
+  },
+  // Disable real-time subscriptions by default to reduce bandwidth
+  realtime: {
+    params: {
+      eventsPerSecond: 2, // Limit real-time events
+    },
+  },
 });
 
 // เมื่อ refresh token ใช้ไม่ได้ Supabase จะส่งอีเวนต์ SIGNED_OUT ให้เราเคลียร์ key ทิ้ง

@@ -5,6 +5,8 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../constants/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLanguage } from './contexts/LanguageContext';
+import { ImageCache } from '../utils/imageCache';
+import { DataCache, CACHE_KEYS } from '../utils/dataCache';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Fonts } from './utils/fonts';
 

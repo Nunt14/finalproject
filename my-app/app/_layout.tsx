@@ -7,6 +7,7 @@ import { View, ActivityIndicator } from 'react-native';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { loadFonts } from '../config/fonts';
+import { CacheManager } from '../utils/cacheManager';
 
 // Custom loading component
 function Loading() {
@@ -23,9 +24,10 @@ export default function RootLayout() {
     'Prompt-Medium': require('../assets/fonts/Prompt-Medium.ttf'),
   });
 
-  // Load fonts when component mounts
+  // Load fonts and initialize cache when component mounts
   React.useEffect(() => {
     loadFonts();
+    CacheManager.initialize();
   }, []);
 
   if (!fontsLoaded) {

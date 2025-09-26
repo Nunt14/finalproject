@@ -7,6 +7,7 @@ import { router } from 'expo-router';
 import { supabase } from '../constants/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLanguage } from './contexts/LanguageContext';
+import { DataCache, CACHE_KEYS } from '../utils/dataCache';
 
 export default function ProfileViewScreen() {
   const [user, setUser] = useState<any>(null);
@@ -20,13 +21,27 @@ export default function ProfileViewScreen() {
         router.replace('/login');
         return;
       }
+
+      // Check cache first
+      const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${userId}`;
+      const cachedUser = await DataCache.get(cacheKey);
+      
+      if (cachedUser) {
+        setUser(cachedUser);
+        return;
+      }
+
+      // Fetch from database if not cached
       const { data } = await supabase
         .from('user')
         .select('*')
         .eq('user_id', userId)
         .single();
+      
       if (data) {
         setUser(data);
+        // Cache for 10 minutes
+        await DataCache.set(cacheKey, data, 10 * 60 * 1000);
       }
     };
     fetchUser();
