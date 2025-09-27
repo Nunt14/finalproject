@@ -337,7 +337,7 @@ export default function AddFriendsScreen() {
           .from('user')
           .select('user_id, full_name, profile_image_url')
           .eq('user_id', receiverId)
-          .single();
+          .maybeSingle();
 
       if (newPendingError) throw newPendingError;
       

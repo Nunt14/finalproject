@@ -107,7 +107,7 @@ export default function TripDebtDetailScreen() {
           .from('user')
           .select('full_name, profile_image_url')
           .eq('user_id', creditorId)
-          .single();
+          .maybeSingle();
         if (userRows) {
           setCreditor({ full_name: (userRows as any).full_name, profile_image: (userRows as any).profile_image_url || null });
         }

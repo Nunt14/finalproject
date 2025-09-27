@@ -95,7 +95,7 @@ export default function PayDetailScreen() {
         .from('user')
         .select('full_name, profile_image_url')
         .eq('user_id', creditorId)
-        .single();
+        .maybeSingle();
       if (userRows) {
         creditorInfo = {
           full_name: userRows.full_name,

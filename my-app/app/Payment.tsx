@@ -26,7 +26,7 @@ export default function PaymentScreen() {
         .from('user')
         .select('full_name, profile_image_url, qr_code_img')
         .eq('user_id', creditorId)
-        .single();
+        .maybeSingle();
       setCreditor(data as any);
     };
     const fetchDebtor = async () => {
@@ -37,7 +37,7 @@ export default function PaymentScreen() {
         .from('user')
         .select('full_name, profile_image_url')
         .eq('user_id', uid)
-        .single();
+        .maybeSingle();
       const fallbackName = (sessionData?.session?.user as any)?.user_metadata?.full_name || (sessionData?.session?.user?.email ?? null);
       setDebtor({
         full_name: (data as any)?.full_name ?? fallbackName ?? '-',
@@ -64,7 +64,7 @@ export default function PaymentScreen() {
           .from('bill')
           .select('trip_id')
           .eq('bill_id', billId)
-          .single();
+          .maybeSingle();
 
         const tripId = (bill as any)?.trip_id ?? null;
 

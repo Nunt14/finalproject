@@ -44,7 +44,7 @@ export default function ConfirmSlipScreen() {
         .from('payment_proof')
         .select('image_uri_local, slip_qr')
         .eq('id', proofId)
-        .single();
+        .maybeSingle();
       // ใช้ slip_qr เป็นหลัก แล้วค่อย fallback ไป image_uri_local
       const imgUri = (data as any)?.slip_qr || (data as any)?.image_uri_local || null;
       setImageUri(imgUri);

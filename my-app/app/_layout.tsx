@@ -8,6 +8,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { loadFonts } from '../config/fonts';
 import { CacheManager } from '../utils/cacheManager';
+import { clearOldCache } from '../utils/clearOldCache';
 
 // Custom loading component
 function Loading() {
@@ -27,7 +28,10 @@ export default function RootLayout() {
   // Load fonts and initialize cache when component mounts
   React.useEffect(() => {
     loadFonts();
-    CacheManager.initialize();
+    // Clear old cache when switching to new database
+    clearOldCache().then(() => {
+      CacheManager.initialize();
+    });
   }, []);
 
   if (!fontsLoaded) {

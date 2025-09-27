@@ -50,10 +50,17 @@ export default function ProfileScreen() {
       .from('user')
       .select('*')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
       if (error) {
-        Alert.alert('Error', error.message);
+        console.log('User data not found, this is normal for new users');
+        // ไม่แสดง error ให้ผู้ใช้ เพราะเป็นเรื่องปกติที่ user ใหม่ยังไม่มีข้อมูล
+        return;
+      }
+
+      if (!data) {
+        console.log('User profile not found, user needs to complete profile setup');
+        // ไม่แสดง error ให้ผู้ใช้ เพราะเป็นเรื่องปกติที่ user ใหม่ยังไม่มีข้อมูล
         return;
       }
 

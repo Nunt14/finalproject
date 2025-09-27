@@ -456,7 +456,7 @@ export default function DebtScreen() {
             .select('bill_share_id')
             .eq('bill_id', p.bill_id)
             .eq('user_id', p.debtor_user_id)
-            .single();
+            .maybeSingle();
           const billShareId = (bs as any)?.bill_share_id as string | undefined;
           if (billShareId) {
             await supabase
@@ -473,7 +473,7 @@ export default function DebtScreen() {
             .from('bill')
             .select('trip_id')
             .eq('bill_id', p.bill_id)
-            .single();
+            .maybeSingle();
           const tripId = (bill as any)?.trip_id ?? null;
 
           if (creditorUid && tripId) {
@@ -483,7 +483,7 @@ export default function DebtScreen() {
               .eq('trip_id', tripId)
               .eq('debtor_user', p.debtor_user_id)
               .eq('creditor_user', creditorUid)
-              .single();
+              .maybeSingle();
 
             const prevPaid = (ds as any)?.amount_paid ?? 0;
             const owed = (ds as any)?.amount_owed ?? null;
@@ -531,7 +531,7 @@ export default function DebtScreen() {
           .select('bill_share_id')
           .eq('bill_id', p.bill_id)
           .eq('user_id', p.debtor_user_id)
-          .single();
+          .maybeSingle();
         const billShareId = (bs as any)?.bill_share_id as string | undefined;
         if (billShareId) {
           await supabase

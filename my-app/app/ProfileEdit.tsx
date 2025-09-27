@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system';
+import { FileSystem } from 'expo-file-system';
 import { decode as decodeBase64 } from 'base64-arraybuffer';
 import { useLanguage } from './contexts/LanguageContext';
 
@@ -20,6 +20,7 @@ export default function ProfileEditScreen() {
   const [language, setLanguage] = useState('TH');
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [qrImage, setQRImage] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -33,7 +34,7 @@ export default function ProfileEditScreen() {
         .from('user')
         .select('*')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
       if (data) {
         setUser(data);
         setFullName(data.full_name || '');
@@ -51,59 +52,165 @@ export default function ProfileEditScreen() {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const uid = sessionData?.session?.user?.id;
-      if (!uid) return null;
+      if (!uid) {
+        console.error('No user ID found');
+        return null;
+      }
 
       // detect ext/content-type
       const match = localUri.match(/\.([a-zA-Z0-9]+)(?:\?|$)/);
       const ext = (match?.[1] || 'jpg').toLowerCase();
       const contentType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
 
-      const base64 = await FileSystem.readAsStringAsync(localUri, { encoding: 'base64' });
+      console.log('Uploading image:', { localUri, keyPrefix, ext, contentType });
+
+      // อ่านไฟล์เป็น base64 (ใช้ modern API)
+      let base64: string;
+      try {
+        base64 = await FileSystem.readAsStringAsync(localUri, { encoding: FileSystem.EncodingType.Base64 });
+        if (!base64) {
+          console.error('Failed to read image data - empty result');
+          return null;
+        }
+        console.log('File read successfully, base64 length:', base64.length);
+      } catch (error) {
+        console.error('Error reading file:', error);
+        return null;
+      }
+
+      // แปลง base64 เป็น ArrayBuffer
       const arrayBuffer = decodeBase64(base64);
       const filePath = `${keyPrefix}/${uid}/${Date.now()}.${ext}`;
+      
+      // ใช้ bucket ที่ถูกต้องสำหรับรูปโปรไฟล์
+      const bucketName = keyPrefix === 'user-profile' ? 'profile-images' : 'payment-proofs';
+      
+      console.log('Uploading to bucket:', bucketName, 'path:', filePath);
+      console.log('File size:', arrayBuffer.byteLength, 'bytes');
+      
+      console.log('Starting upload to Supabase Storage...');
       const { error: uploadError } = await supabase.storage
-        .from('payment-proofs')
+        .from(bucketName)
         .upload(filePath, arrayBuffer, { contentType, upsert: true });
-      if (uploadError) return null;
+      
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        console.error('Upload error details:', {
+          message: uploadError.message,
+          statusCode: uploadError.statusCode,
+          error: uploadError.error
+        });
+        return null;
+      }
+      
+      console.log('Upload successful!');
 
       const { data: pub } = await supabase.storage
-        .from('payment-proofs')
+        .from(bucketName)
         .getPublicUrl(filePath);
+      
       const publicUrl = (pub as any)?.publicUrl ?? null;
+      console.log('Upload successful, public URL:', publicUrl);
       return publicUrl;
-    } catch {
+    } catch (error) {
+      console.error('Upload to storage error:', error);
       return null;
     }
   };
 
   const handleImagePick = async (type: 'profile' | 'qr') => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
-
-    if (!result.canceled && result.assets?.length > 0) {
-      const imageUri = result.assets[0].uri;
-
-      if (type === 'profile') {
-        const publicUrl = await uploadToStorage(imageUri, 'user-profile');
-        if (!publicUrl) {
-          Alert.alert(t('profileedit.upload_failed'), t('profileedit.upload_profile_fail'));
-          return;
-        }
-        setProfileImage(publicUrl);
-        await supabase.from('user').update({ profile_image_url: publicUrl }).eq('user_id', user.user_id);
-      } else {
-        const publicUrl = await uploadToStorage(imageUri, 'user-qr');
-        if (!publicUrl) {
-          Alert.alert(t('profileedit.upload_failed'), t('profileedit.upload_qr_fail'));
-          return;
-        }
-        setQRImage(publicUrl);
-        await supabase.from('user').update({ qr_code_img: publicUrl }).eq('user_id', user.user_id);
+    try {
+      console.log('Requesting media library permissions...');
+      // ขอ permission ก่อน
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please grant permission to access your photo library.');
+        return;
       }
+      console.log('Media library permission granted');
+
+      console.log('Launching image picker...');
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+      });
+      
+      console.log('Image picker result:', result);
+
+      if (!result.canceled && result.assets?.length > 0) {
+        const imageUri = result.assets[0].uri;
+        console.log('Image selected:', imageUri);
+
+        if (type === 'profile') {
+          setIsUploading(true);
+          console.log('Uploading profile image...');
+        
+          try {
+            const publicUrl = await uploadToStorage(imageUri, 'user-profile');
+            if (!publicUrl) {
+              console.error('Failed to upload profile image');
+              Alert.alert('Upload Failed', 'Failed to upload profile image. Please try again.');
+              setIsUploading(false);
+              return;
+            }
+            console.log('Profile image uploaded successfully:', publicUrl);
+            
+            // อัปเดต state ทันทีเพื่อให้เห็นรูป
+            setProfileImage(publicUrl);
+            
+            // บันทึกลงฐานข้อมูล
+            const { error: updateError } = await supabase
+              .from('user')
+              .update({ profile_image_url: publicUrl })
+              .eq('user_id', user.user_id);
+            
+            if (updateError) {
+              console.error('Database update error:', updateError);
+              Alert.alert('Database Error', 'Failed to save profile image URL to database.');
+              // ถ้าบันทึกไม่สำเร็จ ให้ revert state
+              setProfileImage(null);
+            } else {
+              console.log('Profile image URL saved to database');
+              Alert.alert('Success', 'Profile image updated successfully!');
+            }
+          } catch (error) {
+            console.error('Upload error:', error);
+            Alert.alert('Error', 'An error occurred while uploading the image.');
+          } finally {
+            setIsUploading(false);
+          }
+        } else {
+          console.log('Uploading QR image...');
+          const publicUrl = await uploadToStorage(imageUri, 'user-qr');
+          if (!publicUrl) {
+            console.error('Failed to upload QR image');
+            Alert.alert('Upload Failed', 'Failed to upload QR image. Please try again.');
+            return;
+          }
+          console.log('QR image uploaded successfully:', publicUrl);
+          setQRImage(publicUrl);
+          
+          // บันทึกลงฐานข้อมูล
+          const { error: updateError } = await supabase
+            .from('user')
+            .update({ qr_code_img: publicUrl })
+            .eq('user_id', user.user_id);
+          
+          if (updateError) {
+            console.error('Database update error:', updateError);
+            Alert.alert('Database Error', 'Failed to save QR image URL to database.');
+          } else {
+            console.log('QR image URL saved to database');
+          }
+        }
+      } else {
+        console.log('Image picker was canceled');
+      }
+    } catch (error) {
+      console.error('Image picker error:', error);
+      Alert.alert('Error', 'An error occurred while selecting the image.');
     }
   };
 
@@ -138,10 +245,25 @@ export default function ProfileEditScreen() {
         <Image
           source={profileImage ? { uri: profileImage } : require('../assets/images/logo.png')}
           style={styles.profileImage}
+          onError={(error) => {
+            console.error('Image load error:', error);
+          }}
+          onLoad={() => {
+            console.log('Image loaded successfully');
+          }}
         />
-        <TouchableOpacity style={styles.cameraIcon} onPress={() => handleImagePick('profile')}>
-          <Ionicons name="camera" size={18} color="#000" />
+        <TouchableOpacity 
+          style={[styles.cameraIcon, isUploading && styles.cameraIconDisabled]} 
+          onPress={() => !isUploading && handleImagePick('profile')}
+          disabled={isUploading}
+        >
+          <Ionicons name={isUploading ? "hourglass" : "camera"} size={20} color="#fff" />
         </TouchableOpacity>
+        {isUploading && (
+          <View style={styles.loadingOverlay}>
+            <Text style={styles.loadingText}>Uploading...</Text>
+          </View>
+        )}
       </View>
 
       <TextInput style={styles.input} placeholder={t('profileedit.fullname')} value={fullName} onChangeText={setFullName} />
@@ -175,7 +297,19 @@ const styles = StyleSheet.create({
   },
   profileSection: { alignItems: 'center', marginBottom: 20 },
   profileImage: { width: 120, height: 120, borderRadius: 60, marginBottom: 10 },
-  cameraIcon: { position: 'absolute', bottom: 0, right: '42%', backgroundColor: '#fff', borderRadius: 15, padding: 3 },
+  cameraIcon: { 
+    position: 'absolute', 
+    bottom: 0, 
+    right: '42%', 
+    backgroundColor: '#007AFF', 
+    borderRadius: 20, 
+    padding: 8,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
   label: {
     fontSize: 16,
     marginBottom: 8,
@@ -206,12 +340,42 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   qrButton: {
-    backgroundColor: '#ddd',
-    padding: 10,
-    borderRadius: 8,
+    backgroundColor: '#007AFF',
+    padding: 15,
+    borderRadius: 10,
     alignItems: 'center',
     marginVertical: 10,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.22,
+    shadowRadius: 2.22,
   },
-  qrButtonText: { color: '#333' },
+  qrButtonText: { 
+    color: '#fff', 
+    fontSize: 16,
+    fontFamily: 'Prompt-Medium',
+    fontWeight: '600',
+  },
   qrImage: { width: 180, height: 115, borderRadius: 12, alignSelf: 'center', marginBottom: 15 },
+  cameraIconDisabled: {
+    backgroundColor: '#ccc',
+    opacity: 0.6,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 60,
+  },
+  loadingText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
 });

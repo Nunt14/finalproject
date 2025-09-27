@@ -397,7 +397,7 @@ export default function AddBillScreen() {
           updated_at: new Date().toISOString(),
         })
         .select()
-        .single();
+        .maybeSingle();
       if (billErr) throw billErr;
       const billId = billRows?.bill_id;
       if (!billId) throw new Error("Cannot get bill_id");

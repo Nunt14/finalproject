@@ -7,6 +7,7 @@ import { router } from 'expo-router';
 import { supabase } from '../constants/supabase';
 import * as FileSystem from 'expo-file-system';
 import { decode as decodeBase64 } from 'base64-arraybuffer';
+import { OptimizedImageService } from '../utils/optimizedImageService';
 import { runOcrOnImage } from '../utils/ocr';
 import { useLanguage } from './contexts/LanguageContext';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -124,11 +125,11 @@ export default function PaymentUploadScreen() {
           .select('bill_share_id')
           .eq('bill_id', billId)
           .eq('user_id', uid)
-          .single();
+          .maybeSingle();
         billShareId = (bs as any)?.bill_share_id ?? null;
       } catch {}
       
-      // Upload slip to Supabase Storage (RN-safe via Base64 -> ArrayBuffer)
+      // Upload slip using optimized image service
       let publicImageUrl: string | null = null;
       try {
         if (!imageUri) {
@@ -152,29 +153,14 @@ export default function PaymentUploadScreen() {
         const arrayBuffer = decodeBase64(base64);
         const fileName = `slips/${uid}/${billId}-${Date.now()}.${ext}`;
         
-        // Upload file to storage
-        const { error: uploadError } = await supabase.storage
-          .from('payment-proofs')
-          .upload(fileName, arrayBuffer, { 
-            contentType,
-            upsert: true 
-          });
-          
-        if (uploadError) {
-          console.error('Upload error:', uploadError);
-          throw uploadError;
-        }
-        
-        // Get public URL
-        const { data } = await supabase.storage
-          .from('payment-proofs')
-          .getPublicUrl(fileName);
-        
-        // The public URL is directly available in the response
-        publicImageUrl = data.publicUrl;
+        // Use optimized image service for upload
+        publicImageUrl = await OptimizedImageService.uploadImage(fileName, arrayBuffer, {
+          contentType,
+          upsert: true
+        });
         
         if (!publicImageUrl) {
-          throw new Error('Failed to get public URL');
+          throw new Error('Failed to upload image');
         }
       } catch (error) {
         console.error('Error uploading image:', error);
@@ -205,15 +191,8 @@ export default function PaymentUploadScreen() {
         throw paymentError;
       }
       
-      // บันทึก payment_proof สำหรับ backup (optional)
-      await supabase.from('payment_proof').insert({
-        bill_id: billId,
-        creditor_id: creditorId,
-        debtor_user_id: uid,
-        amount: amount ? Number(amount) : null,
-        image_uri_local: publicImageUrl ?? imageUri,
-        status: 'pending',
-      });
+      // ไม่ต้องบันทึก payment_proof เพราะใช้ payment.slip_qr แทน
+      // รูปภาพสลิปถูกเก็บใน payment.slip_qr แล้ว
       
       Alert.alert(t('paymentupload.success'), t('paymentupload.success_msg'));
       if ((router as any).canGoBack && (router as any).canGoBack()) router.back();

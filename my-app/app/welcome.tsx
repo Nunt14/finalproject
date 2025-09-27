@@ -202,7 +202,7 @@ export default function WelcomeScreen() {
         .from('user')
         .select('full_name, profile_image_url, email, phone_number')
         .eq('user_id', userId)
-        .single(),
+        .maybeSingle(),
       supabase
         .from('trip_member')
         .select('trip_id')
@@ -235,7 +235,7 @@ export default function WelcomeScreen() {
                 created_at: new Date().toISOString(),
               })
               .select()
-              .single();
+              .maybeSingle();
             
             if (createError) {
               console.log('Error creating user:', createError);

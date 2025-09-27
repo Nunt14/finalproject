@@ -1,12 +1,14 @@
 import { ImageCache } from './imageCache';
 import { DataCache } from './dataCache';
+import { AggressiveCache } from './aggressiveCache';
+import { CacheDashboard } from './cacheDashboard';
 
 /**
  * Centralized cache management utility
  */
 export class CacheManager {
   /**
-   * Initialize cache management
+   * Initialize cache management with aggressive optimization
    * Call this when app starts
    */
   static async initialize(): Promise<void> {
@@ -15,9 +17,17 @@ export class CacheManager {
       await Promise.all([
         ImageCache.cleanExpiredCache(),
         DataCache.cleanExpired(),
+        // Aggressive cache cleanup is handled automatically
       ]);
       
-      console.log('Cache manager initialized');
+      // Monitor cache performance
+      const performance = await CacheDashboard.monitorPerformance();
+      if (!performance.isHealthy) {
+        console.warn('Cache performance issues detected:', performance.issues);
+        console.log('Suggestions:', performance.suggestions);
+      }
+      
+      console.log('🚀 Aggressive cache manager initialized');
     } catch (error) {
       console.error('Error initializing cache manager:', error);
     }
@@ -31,9 +41,11 @@ export class CacheManager {
       await Promise.all([
         ImageCache.clearAllImageCache(),
         DataCache.clearAll(),
+        AggressiveCache.clearAll(),
+        CacheDashboard.clearAllCaches(),
       ]);
       
-      console.log('All caches cleared');
+      console.log('🧹 All caches cleared (including aggressive cache)');
     } catch (error) {
       console.error('Error clearing all caches:', error);
     }
@@ -48,6 +60,8 @@ export class CacheManager {
       await DataCache.clear(`user_profile_${userId}`);
       await DataCache.clear(`user_debts_${userId}`);
       await DataCache.clear(`user_trips_${userId}`);
+      await DataCache.clear(`user_payments_${userId}`);
+      await DataCache.clear(`user_notifications_${userId}`);
       
       console.log(`User caches cleared for user: ${userId}`);
     } catch (error) {

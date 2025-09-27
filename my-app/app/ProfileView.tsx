@@ -8,6 +8,9 @@ import { supabase } from '../constants/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLanguage } from './contexts/LanguageContext';
 import { DataCache, CACHE_KEYS } from '../utils/dataCache';
+import { OptimizedSupabase } from '../utils/optimizedSupabase';
+import { SafeSupabase } from '../utils/safeSupabase';
+import EmptyUserProfile from '../components/EmptyUserProfile';
 
 export default function ProfileViewScreen() {
   const [user, setUser] = useState<any>(null);
@@ -22,26 +25,18 @@ export default function ProfileViewScreen() {
         return;
       }
 
-      // Check cache first
-      const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${userId}`;
-      const cachedUser = await DataCache.get(cacheKey);
-      
-      if (cachedUser) {
-        setUser(cachedUser);
-        return;
-      }
-
-      // Fetch from database if not cached
-      const { data } = await supabase
-        .from('user')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-      
-      if (data) {
-        setUser(data);
-        // Cache for 10 minutes
-        await DataCache.set(cacheKey, data, 10 * 60 * 1000);
+      try {
+        // Use safe query to avoid .single() errors
+        const userData = await SafeSupabase.getUserProfile(userId);
+        if (userData) {
+          setUser(userData);
+        } else {
+          console.log('User profile not found, this is normal for new users');
+          // ไม่แสดง error ให้ผู้ใช้ เพราะเป็นเรื่องปกติที่ user ใหม่ยังไม่มีข้อมูล
+        }
+      } catch (error) {
+        console.log('User profile not found, this is normal for new users');
+        // ไม่แสดง error ให้ผู้ใช้ เพราะเป็นเรื่องปกติที่ user ใหม่ยังไม่มีข้อมูล
       }
     };
     fetchUser();
@@ -52,7 +47,13 @@ export default function ProfileViewScreen() {
     router.replace('/login');
   };
 
-  if (!user) return null;
+  if (!user) {
+    return (
+      <View style={styles.container}>
+        <EmptyUserProfile />
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -64,6 +65,12 @@ export default function ProfileViewScreen() {
         <Image
           source={user.profile_image_url ? { uri: user.profile_image_url } : require('../assets/images/logo.png')}
           style={styles.profileImage}
+          onError={(error) => {
+            console.error('Image load error:', error);
+          }}
+          onLoad={() => {
+            console.log('Image loaded successfully:', user.profile_image_url);
+          }}
         />
         <Text style={styles.userName}>{user.full_name || t('profileview.user_fallback')}</Text>
         <Text style={styles.userEmail}>{user.email}</Text>

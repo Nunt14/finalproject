@@ -4,6 +4,7 @@ import { Text } from '@/components';
 import { useLocalSearchParams, router } from 'expo-router';
 import { supabase } from '../constants/supabase';
 import { useLanguage } from './contexts/LanguageContext';
+import { SafeSupabase } from '../utils/safeSupabase';
 
 export default function SignUpStep2() {
   const { email, password } = useLocalSearchParams();
@@ -40,29 +41,21 @@ export default function SignUpStep2() {
       return;
     }
 
-    // 2) บันทึกลงตาราง user ของเราแบบ upsert โดยกันซ้ำด้วยคอลัมน์ email
+    // 2) บันทึกลงตาราง user ของเราแบบ insertUserWithUpsert
     if (data && data.user) {
-      const { error: upsertError } = await supabase
-        .from('user')
-        .upsert(
-          [
-            {
-              user_id: data.user.id,
-              email: data.user.email,
-              full_name: fullName,
-              phone_number: phone,
-              is_verified: true,
-              created_at: data.user.created_at,
-              updated_at: data.user.created_at,
-            },
-          ],
-          { onConflict: 'email', ignoreDuplicates: true }
-        );
+      const { error: userError } = await SafeSupabase.insertUserWithUpsert({
+        user_id: data.user.id,
+        email: data.user.email,
+        full_name: fullName,
+        phone_number: phone,
+        is_verified: true,
+        created_at: data.user.created_at,
+        updated_at: data.user.created_at,
+      });
 
-      if (upsertError) {
-        // ถ้า DB มี unique constraint บน email จะกันซ้ำอีกชั้นหนึ่ง
-        Alert.alert('Database Insert Failed', upsertError.message);
-        return;
+      if (userError) {
+        console.debug('user insert with upsert error (ignored):', userError);
+        // ไม่แสดง error ให้ผู้ใช้ เพราะอาจเป็น duplicate ที่ไม่เป็นปัญหา
       }
     }
 

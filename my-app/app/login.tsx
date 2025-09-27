@@ -4,6 +4,7 @@ import { supabase } from '../constants/supabase';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLanguage } from './contexts/LanguageContext';
+import { SafeSupabase } from '../utils/safeSupabase';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -31,19 +32,16 @@ export default function LoginScreen() {
       // ไปหน้า welcome ทันทีเพื่อให้ผู้ใช้รู้สึกเร็วขึ้น
       router.replace('/welcome');
 
-      // ทำ upsert แบบ non-blocking (ไม่ขวาง UI และไม่เด้ง error box)
+      // ทำ insert แบบ non-blocking (ไม่ขวาง UI และไม่เด้ง error box)
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
       (async () => {
-        const { error: upsertError } = await supabase
-          .from('user')
-          .upsert([
-            {
-              user_id: userId,
-              email,
-            },
-          ]);
-        if (upsertError) {
-          console.debug('user upsert error (ignored):', upsertError);
+        // ใช้ insertUserWithCheck เพื่อจัดการ duplicate email
+        const { error: userError } = await SafeSupabase.insertUserWithCheck({
+          user_id: userId,
+          email,
+        });
+        if (userError) {
+          console.debug('user insert with check error (ignored):', userError);
         }
       })();
     } else {

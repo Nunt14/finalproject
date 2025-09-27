@@ -1,11 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const SUPABASE_URL = 'https://kiwketmokykkyotpwdmm.supabase.co';
-export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtpd2tldG1va3lra3lvdHB3ZG1tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM2OTI0MTMsImV4cCI6MjA2OTI2ODQxM30.meC3vFGhBDCj4DF66ITDNNEUlsRIt4d1UOldBpiwGyw';
+export const SUPABASE_URL = 'https://teejginbhuiyyyzjqawv.supabase.co';
+export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRlZWpnaW5iaHVpeXl5empxYXd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4NTU2NDksImV4cCI6MjA3NDQzMTY0OX0.R_MT5U_oiveh6h0b9bF0qwIT-Q0VTqc2K1rNEqAhQaM';
 
 // ใช้ storageKey คงที่ ผูกกับ project-ref เพื่อกันชนกับโปรเจกต์อื่น
-const STORAGE_KEY = 'sb-kiwketmokykkyotpwdmm-auth-token';
+const STORAGE_KEY = 'sb-teejginbhuiyyyzjqawv-auth-token';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
@@ -15,17 +15,22 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     detectSessionInUrl: false,
     storageKey: STORAGE_KEY,
   },
-  // Optimize for reduced bandwidth usage
+  // Aggressive caching to minimize Cached Egress
   global: {
     headers: {
-      'Cache-Control': 'max-age=300', // 5 minutes cache
+      'Cache-Control': 'max-age=3600', // 1 hour cache
+      'X-Client-Info': 'bill-splitter-app',
     },
   },
-  // Disable real-time subscriptions by default to reduce bandwidth
+  // Disable real-time subscriptions completely to save bandwidth
   realtime: {
     params: {
-      eventsPerSecond: 2, // Limit real-time events
+      eventsPerSecond: 0, // Disable real-time events
     },
+  },
+  // Disable automatic retries to reduce requests
+  db: {
+    schema: 'public',
   },
 });
 
@@ -46,6 +51,6 @@ export async function hardResetAuth(): Promise<void> {
   try {
     await AsyncStorage.removeItem(STORAGE_KEY);
     // เผื่อเคยใช้ค่า default มาก่อน
-    await AsyncStorage.removeItem('sb-kiwketmokykkyotpwdmm-auth-token');
+    await AsyncStorage.removeItem('sb-teejginbhuiyyyzjqawv-auth-token');
   } catch {}
 }
