@@ -26,10 +26,14 @@ export class ImageCache {
       if (cached) {
         const cachedData: CachedImageUrl = JSON.parse(cached);
         if (Date.now() < cachedData.expiresAt) {
+          console.log(`🖼️  Image cache HIT: ${filePath}`);
           return cachedData.url;
         }
         // Cache expired, remove it
+        console.log(`🖼️  Image cache EXPIRED: ${filePath}`);
         await AsyncStorage.removeItem(cacheKey);
+      } else {
+        console.log(`🖼️  Image cache MISS: ${filePath}`);
       }
 
       // Fetch from Supabase
@@ -45,6 +49,10 @@ export class ImageCache {
           expiresAt: Date.now() + CACHE_DURATION
         };
         await AsyncStorage.setItem(cacheKey, JSON.stringify(cacheData));
+        
+        // Log cache activity
+        console.log(`🖼️  Image cached: ${filePath} (${cacheData.url.substring(0, 50)}...)`);
+        
         return data.publicUrl;
       }
 

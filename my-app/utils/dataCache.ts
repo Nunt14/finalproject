@@ -24,10 +24,14 @@ export class DataCache {
       if (cached) {
         const cachedData: CachedData<T> = JSON.parse(cached);
         if (Date.now() < cachedData.expiresAt) {
+          console.log(`📊 Data cache HIT: ${key}`);
           return cachedData.data;
         }
         // Cache expired, remove it
+        console.log(`📊 Data cache EXPIRED: ${key}`);
         await AsyncStorage.removeItem(cacheKey);
+      } else {
+        console.log(`📊 Data cache MISS: ${key}`);
       }
       
       return null;
@@ -53,6 +57,7 @@ export class DataCache {
         expiresAt: Date.now() + duration
       };
       await AsyncStorage.setItem(cacheKey, JSON.stringify(cacheData));
+      console.log(`📊 Data cached: ${key} (TTL: ${Math.round(duration / 1000)}s)`);
     } catch (error) {
       console.error('Error setting cached data:', error);
     }

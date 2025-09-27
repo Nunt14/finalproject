@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { FileSystem } from 'expo-file-system';
 import { decode as decodeBase64 } from 'base64-arraybuffer';
 import { useLanguage } from './contexts/LanguageContext';
+import CacheDebugger from '../components/CacheDebugger';
 
 export default function ProfileEditScreen() {
   const { t } = useLanguage();
@@ -21,6 +22,7 @@ export default function ProfileEditScreen() {
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [qrImage, setQRImage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [showCacheDebugger, setShowCacheDebugger] = useState(false);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -234,12 +236,31 @@ export default function ProfileEditScreen() {
     }
   };
 
+  if (showCacheDebugger) {
+    return (
+      <View style={styles.container}>
+        <TouchableOpacity onPress={() => setShowCacheDebugger(false)} style={styles.backButton}>
+          <Ionicons name="chevron-back" size={24} color="#000" />
+        </TouchableOpacity>
+        <CacheDebugger />
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.container}>
       <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
         <Ionicons name="chevron-back" size={24} color="#000" />
       </TouchableOpacity>
-      <Text style={styles.header}>{t('profileedit.title')}</Text>
+      <View style={styles.headerContainer}>
+        <Text style={styles.header}>{t('profileedit.title')}</Text>
+        <TouchableOpacity 
+          style={styles.debugButton} 
+          onPress={() => setShowCacheDebugger(true)}
+        >
+          <Ionicons name="analytics" size={20} color="#007AFF" />
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.profileSection}>
         <Image
@@ -377,5 +398,16 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontWeight: '600',
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  debugButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
   },
 });

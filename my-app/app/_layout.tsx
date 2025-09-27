@@ -30,7 +30,11 @@ export default function RootLayout() {
     loadFonts();
     // Clear old cache when switching to new database
     clearOldCache().then(() => {
-      CacheManager.initialize();
+      CacheManager.initialize().then(() => {
+        // Log cache usage after initialization
+        CacheManager.logCacheUsage();
+        CacheManager.logCachePerformance();
+      });
     });
   }, []);
 

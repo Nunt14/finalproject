@@ -39,6 +39,7 @@ export class AggressiveCache {
       entry.lastAccessed = Date.now();
       await AsyncStorage.setItem(cacheKey, JSON.stringify(entry));
       
+      console.log(`⚡ Aggressive cache HIT: ${key} (access #${entry.accessCount})`);
       return entry.data;
     } catch (error) {
       console.error('Error getting from aggressive cache:', error);
@@ -65,6 +66,7 @@ export class AggressiveCache {
       };
       
       await AsyncStorage.setItem(cacheKey, JSON.stringify(entry));
+      console.log(`⚡ Aggressive cache SET: ${key} (TTL: ${Math.round(ttl / 1000)}s)`);
       
       // Clean up old entries if cache is too large
       await this.cleanupIfNeeded();
