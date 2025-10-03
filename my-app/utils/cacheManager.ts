@@ -2,6 +2,7 @@ import { ImageCache } from './imageCache';
 import { DataCache } from './dataCache';
 import { AggressiveCache } from './aggressiveCache';
 import { CacheDashboard } from './cacheDashboard';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /**
  * Centralized cache management utility
@@ -80,7 +81,6 @@ export class CacheManager {
     hitRate: number;
   }> {
     try {
-      const AsyncStorage = require('@react-native-async-storage/async-storage');
       const keys = await AsyncStorage.getAllKeys();
       
       const imageCacheCount = keys.filter(key => key.startsWith('cached_image_url_')).length;

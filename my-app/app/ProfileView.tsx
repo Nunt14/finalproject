@@ -8,7 +8,6 @@ import { supabase } from '../constants/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLanguage } from './contexts/LanguageContext';
 import { DataCache, CACHE_KEYS } from '../utils/dataCache';
-import { OptimizedSupabase } from '../utils/optimizedSupabase';
 import { SafeSupabase } from '../utils/safeSupabase';
 import EmptyUserProfile from '../components/EmptyUserProfile';
 

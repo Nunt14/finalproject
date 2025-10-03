@@ -7,7 +7,7 @@ import { router } from 'expo-router';
 import { supabase } from '../constants/supabase';
 import * as FileSystem from 'expo-file-system';
 import { decode as decodeBase64 } from 'base64-arraybuffer';
-import { OptimizedImageService } from '../utils/optimizedImageService';
+import { ImageCache } from '../utils/imageCache';
 import { runOcrOnImage } from '../utils/ocr';
 import { useLanguage } from './contexts/LanguageContext';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -153,11 +153,21 @@ export default function PaymentUploadScreen() {
         const arrayBuffer = decodeBase64(base64);
         const fileName = `slips/${uid}/${billId}-${Date.now()}.${ext}`;
         
-        // Use optimized image service for upload
-        publicImageUrl = await OptimizedImageService.uploadImage(fileName, arrayBuffer, {
-          contentType,
-          upsert: true
-        });
+        // Upload to Supabase Storage
+        const { error: uploadError } = await supabase.storage
+          .from('payment-proofs')
+          .upload(fileName, arrayBuffer, { contentType, upsert: true });
+        
+        if (uploadError) {
+          throw new Error(`Upload failed: ${uploadError.message}`);
+        }
+        
+        // Get public URL
+        const { data } = await supabase.storage
+          .from('payment-proofs')
+          .getPublicUrl(fileName);
+        
+        publicImageUrl = data?.publicUrl;
         
         if (!publicImageUrl) {
           throw new Error('Failed to upload image');
