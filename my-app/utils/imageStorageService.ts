@@ -4,10 +4,15 @@ import { decode as decodeBase64 } from 'base64-arraybuffer';
 
 /**
  * Image Storage Service สำหรับจัดการรูปภาพใน Supabase Storage
- * ตามโครงสร้างฐานข้อมูลจริง
+ * แก้ไขให้ใช้ buckets ที่ถูกต้องตามโครงสร้างจริง
  */
 export class ImageStorageService {
-  private static readonly BUCKET_NAME = 'payment-proofs';
+  private static readonly BUCKETS = {
+    paymentProofs: 'payment-proofs',
+    profiles: 'profiles',
+    trips: 'trips',
+    qrCodes: 'qr-codes'
+  };
 
   /**
    * อัปโหลดรูปภาพสลิปการชำระเงิน
@@ -19,7 +24,7 @@ export class ImageStorageService {
   ): Promise<string | null> {
     try {
       const fileName = `slips/${userId}/${billId}-${Date.now()}.jpg`;
-      return await this.uploadImage(imageUri, fileName);
+      return await this.uploadImage(imageUri, fileName, this.BUCKETS.paymentProofs);
     } catch (error) {
       console.error('Error uploading payment slip:', error);
       return null;
@@ -35,7 +40,7 @@ export class ImageStorageService {
   ): Promise<string | null> {
     try {
       const fileName = `profiles/${userId}/${Date.now()}.jpg`;
-      return await this.uploadImage(imageUri, fileName);
+      return await this.uploadImage(imageUri, fileName, this.BUCKETS.profiles);
     } catch (error) {
       console.error('Error uploading profile image:', error);
       return null;
@@ -51,7 +56,7 @@ export class ImageStorageService {
   ): Promise<string | null> {
     try {
       const fileName = `qr-codes/${userId}/${Date.now()}.jpg`;
-      return await this.uploadImage(imageUri, fileName);
+      return await this.uploadImage(imageUri, fileName, this.BUCKETS.qrCodes);
     } catch (error) {
       console.error('Error uploading QR code:', error);
       return null;
@@ -67,7 +72,7 @@ export class ImageStorageService {
   ): Promise<string | null> {
     try {
       const fileName = `trips/${tripId}/${Date.now()}.jpg`;
-      return await this.uploadImage(imageUri, fileName);
+      return await this.uploadImage(imageUri, fileName, this.BUCKETS.trips);
     } catch (error) {
       console.error('Error uploading trip image:', error);
       return null;
@@ -75,43 +80,47 @@ export class ImageStorageService {
   }
 
   /**
-   * อัปโหลดรูปภาพทั่วไป
+   * อัปโหลดรูปภาพทั่วไปไปยัง bucket ที่กำหนด
    */
   private static async uploadImage(
     imageUri: string,
-    fileName: string
+    fileName: string,
+    bucketName: string
   ): Promise<string | null> {
     try {
+      console.log(`Uploading to bucket: ${bucketName}, file: ${fileName}`);
+
       // อ่านรูปภาพเป็น base64
-      const base64 = await FileSystem.readAsStringAsync(imageUri, { 
+      const base64 = await FileSystem.readAsStringAsync(imageUri, {
         encoding: 'base64'
       });
-      
+
       if (!base64) {
         throw new Error('Failed to read image data');
       }
-      
+
       // แปลงเป็น ArrayBuffer
       const arrayBuffer = decodeBase64(base64);
-      
+
       // อัปโหลดไป Supabase Storage
       const { error: uploadError } = await supabase.storage
-        .from(this.BUCKET_NAME)
-        .upload(fileName, arrayBuffer, { 
+        .from(bucketName)
+        .upload(fileName, arrayBuffer, {
           contentType: 'image/jpeg',
-          upsert: true 
+          upsert: true
         });
-        
+
       if (uploadError) {
         console.error('Upload error:', uploadError);
         throw uploadError;
       }
-      
+
       // ได้ public URL
       const { data } = await supabase.storage
-        .from(this.BUCKET_NAME)
+        .from(bucketName)
         .getPublicUrl(fileName);
-      
+
+      console.log('Upload successful, URL:', data?.publicUrl);
       return data?.publicUrl || null;
     } catch (error) {
       console.error('Error in uploadImage:', error);
@@ -122,17 +131,17 @@ export class ImageStorageService {
   /**
    * ลบรูปภาพ
    */
-  static async deleteImage(fileName: string): Promise<boolean> {
+  static async deleteImage(fileName: string, bucketName: string = this.BUCKETS.paymentProofs): Promise<boolean> {
     try {
       const { error } = await supabase.storage
-        .from(this.BUCKET_NAME)
+        .from(bucketName)
         .remove([fileName]);
-      
+
       if (error) {
         console.error('Delete error:', error);
         return false;
       }
-      
+
       return true;
     } catch (error) {
       console.error('Error deleting image:', error);
@@ -143,11 +152,11 @@ export class ImageStorageService {
   /**
    * ได้ public URL ของรูปภาพ
    */
-  static getPublicUrl(fileName: string): string {
+  static getPublicUrl(fileName: string, bucketName: string = this.BUCKETS.paymentProofs): string {
     const { data } = supabase.storage
-      .from(this.BUCKET_NAME)
+      .from(bucketName)
       .getPublicUrl(fileName);
-    
+
     return data?.publicUrl || '';
   }
 
@@ -156,18 +165,19 @@ export class ImageStorageService {
    */
   static async getSignedUrl(
     fileName: string,
+    bucketName: string = this.BUCKETS.paymentProofs,
     expiresIn: number = 3600
   ): Promise<string | null> {
     try {
       const { data, error } = await supabase.storage
-        .from(this.BUCKET_NAME)
+        .from(bucketName)
         .createSignedUrl(fileName, expiresIn);
-      
+
       if (error) {
         console.error('Signed URL error:', error);
         return null;
       }
-      
+
       return data?.signedUrl || null;
     } catch (error) {
       console.error('Error creating signed URL:', error);

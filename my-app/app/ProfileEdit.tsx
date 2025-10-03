@@ -7,12 +7,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import { FileSystem } from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { decode as decodeBase64 } from 'base64-arraybuffer';
 import { useLanguage } from './contexts/LanguageContext';
 import CacheDebugger from '../components/CacheDebugger';
 
-export default function ProfileEditScreen() {
+function ProfileEditScreen() {
   const { t } = useLanguage();
   const [user, setUser] = useState<any>(null);
   const [fullName, setFullName] = useState('');
@@ -23,6 +23,8 @@ export default function ProfileEditScreen() {
   const [qrImage, setQRImage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [showCacheDebugger, setShowCacheDebugger] = useState(false);
+  const [imageLoading, setImageLoading] = useState<{[key: string]: boolean}>({});
+  const [imageError, setImageError] = useState<{[key: string]: boolean}>({});
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -50,69 +52,48 @@ export default function ProfileEditScreen() {
     fetchUser();
   }, []);
 
-  const uploadToStorage = async (localUri: string, keyPrefix: string): Promise<string | null> => {
+  // แก้ไขฟังก์ชัน uploadToStorage ให้ใช้ bucket ที่ถูกต้อง
+  const uploadToStorage = async (imageUri: string, bucketName: string): Promise<string | null> => {
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const uid = sessionData?.session?.user?.id;
-      if (!uid) {
-        console.error('No user ID found');
-        return null;
+      console.log(`Starting upload to ${bucketName}...`);
+
+      // อ่านรูปภาพเป็น base64
+      const base64 = await FileSystem.readAsStringAsync(imageUri, {
+        encoding: 'base64'
+      });
+
+      if (!base64) {
+        throw new Error('Failed to read image data');
       }
 
-      // detect ext/content-type
-      const match = localUri.match(/\.([a-zA-Z0-9]+)(?:\?|$)/);
-      const ext = (match?.[1] || 'jpg').toLowerCase();
-      const contentType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
-
-      console.log('Uploading image:', { localUri, keyPrefix, ext, contentType });
-
-      // อ่านไฟล์เป็น base64 (ใช้ modern API)
-      let base64: string;
-      try {
-        base64 = await FileSystem.readAsStringAsync(localUri, { encoding: FileSystem.EncodingType.Base64 });
-        if (!base64) {
-          console.error('Failed to read image data - empty result');
-          return null;
-        }
-        console.log('File read successfully, base64 length:', base64.length);
-      } catch (error) {
-        console.error('Error reading file:', error);
-        return null;
-      }
-
-      // แปลง base64 เป็น ArrayBuffer
+      // แปลงเป็น ArrayBuffer
       const arrayBuffer = decodeBase64(base64);
-      const filePath = `${keyPrefix}/${uid}/${Date.now()}.${ext}`;
-      
-      // ใช้ bucket ที่ถูกต้องสำหรับรูปโปรไฟล์
-      const bucketName = keyPrefix === 'user-profile' ? 'profile-images' : 'payment-proofs';
-      
-      console.log('Uploading to bucket:', bucketName, 'path:', filePath);
-      console.log('File size:', arrayBuffer.byteLength, 'bytes');
-      
-      console.log('Starting upload to Supabase Storage...');
+
+      // สร้างชื่อไฟล์
+      const fileName = `${user?.user_id}/${Date.now()}.jpg`;
+
+      // อัปโหลดไป Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from(bucketName)
-        .upload(filePath, arrayBuffer, { contentType, upsert: true });
-      
+        .upload(fileName, arrayBuffer, {
+          contentType: 'image/jpeg',
+          upsert: true
+        });
+
       if (uploadError) {
         console.error('Upload error:', uploadError);
-        console.error('Upload error details:', {
-          message: uploadError.message,
-          statusCode: uploadError.statusCode,
-          error: uploadError.error
-        });
         return null;
       }
-      
+
       console.log('Upload successful!');
 
-      const { data: pub } = await supabase.storage
+      // สร้าง public URL ที่ถูกต้อง
+      const { data } = await supabase.storage
         .from(bucketName)
-        .getPublicUrl(filePath);
-      
-      const publicUrl = (pub as any)?.publicUrl ?? null;
-      console.log('Upload successful, public URL:', publicUrl);
+        .getPublicUrl(fileName);
+
+      const publicUrl = data?.publicUrl || null;
+      console.log('Generated public URL:', publicUrl);
       return publicUrl;
     } catch (error) {
       console.error('Upload to storage error:', error);
@@ -138,7 +119,7 @@ export default function ProfileEditScreen() {
         aspect: [1, 1],
         quality: 1,
       });
-      
+
       console.log('Image picker result:', result);
 
       if (!result.canceled && result.assets?.length > 0) {
@@ -148,9 +129,10 @@ export default function ProfileEditScreen() {
         if (type === 'profile') {
           setIsUploading(true);
           console.log('Uploading profile image...');
-        
+
           try {
-            const publicUrl = await uploadToStorage(imageUri, 'user-profile');
+            // แก้ไขให้ใช้ bucket ที่ถูกต้อง
+            const publicUrl = await uploadToStorage(imageUri, 'profiles');
             if (!publicUrl) {
               console.error('Failed to upload profile image');
               Alert.alert('Upload Failed', 'Failed to upload profile image. Please try again.');
@@ -158,16 +140,16 @@ export default function ProfileEditScreen() {
               return;
             }
             console.log('Profile image uploaded successfully:', publicUrl);
-            
+
             // อัปเดต state ทันทีเพื่อให้เห็นรูป
             setProfileImage(publicUrl);
-            
+
             // บันทึกลงฐานข้อมูล
             const { error: updateError } = await supabase
               .from('user')
               .update({ profile_image_url: publicUrl })
               .eq('user_id', user.user_id);
-            
+
             if (updateError) {
               console.error('Database update error:', updateError);
               Alert.alert('Database Error', 'Failed to save profile image URL to database.');
@@ -185,7 +167,8 @@ export default function ProfileEditScreen() {
           }
         } else {
           console.log('Uploading QR image...');
-          const publicUrl = await uploadToStorage(imageUri, 'user-qr');
+          // แก้ไขให้ใช้ bucket ที่ถูกต้อง
+          const publicUrl = await uploadToStorage(imageUri, 'qr-codes');
           if (!publicUrl) {
             console.error('Failed to upload QR image');
             Alert.alert('Upload Failed', 'Failed to upload QR image. Please try again.');
@@ -193,13 +176,13 @@ export default function ProfileEditScreen() {
           }
           console.log('QR image uploaded successfully:', publicUrl);
           setQRImage(publicUrl);
-          
+
           // บันทึกลงฐานข้อมูล
           const { error: updateError } = await supabase
             .from('user')
             .update({ qr_code_img: publicUrl })
             .eq('user_id', user.user_id);
-          
+
           if (updateError) {
             console.error('Database update error:', updateError);
             Alert.alert('Database Error', 'Failed to save QR image URL to database.');
@@ -254,8 +237,8 @@ export default function ProfileEditScreen() {
       </TouchableOpacity>
       <View style={styles.headerContainer}>
         <Text style={styles.header}>{t('profileedit.title')}</Text>
-        <TouchableOpacity 
-          style={styles.debugButton} 
+        <TouchableOpacity
+          style={styles.debugButton}
           onPress={() => setShowCacheDebugger(true)}
         >
           <Ionicons name="analytics" size={20} color="#007AFF" />
@@ -266,15 +249,28 @@ export default function ProfileEditScreen() {
         <Image
           source={profileImage ? { uri: profileImage } : require('../assets/images/logo.png')}
           style={styles.profileImage}
+          onLoadStart={() => {
+            console.log('Starting to load image:', profileImage);
+            setImageLoading((prev: {[key: string]: boolean}) => ({ ...prev, profile: true }));
+          }}
+          onLoadEnd={() => {
+            console.log('Finished loading image');
+            setImageLoading((prev: {[key: string]: boolean}) => ({ ...prev, profile: false }));
+          }}
           onError={(error) => {
-            console.error('Image load error:', error);
+            console.error('Image load error:', error.nativeEvent.error);
+            console.error('Failed image URL:', profileImage);
+            setImageError((prev: {[key: string]: boolean}) => ({ ...prev, profile: true }));
+            setImageLoading((prev: {[key: string]: boolean}) => ({ ...prev, profile: false }));
           }}
           onLoad={() => {
             console.log('Image loaded successfully');
+            setImageError((prev: {[key: string]: boolean}) => ({ ...prev, profile: false }));
           }}
+          key={profileImage} // เพิ่ม key เพื่อ force re-render
         />
-        <TouchableOpacity 
-          style={[styles.cameraIcon, isUploading && styles.cameraIconDisabled]} 
+        <TouchableOpacity
+          style={[styles.cameraIcon, isUploading && styles.cameraIconDisabled]}
           onPress={() => !isUploading && handleImagePick('profile')}
           disabled={isUploading}
         >
@@ -283,6 +279,11 @@ export default function ProfileEditScreen() {
         {isUploading && (
           <View style={styles.loadingOverlay}>
             <Text style={styles.loadingText}>Uploading...</Text>
+          </View>
+        )}
+        {imageLoading.profile && !imageError.profile && (
+          <View style={styles.loadingOverlay}>
+            <Text style={styles.loadingText}>Loading...</Text>
           </View>
         )}
       </View>
@@ -296,7 +297,31 @@ export default function ProfileEditScreen() {
         <Text style={styles.qrButtonText}>{t('profileedit.change_qr')}</Text>
       </TouchableOpacity>
 
-      {qrImage && <Image source={{ uri: qrImage }} style={styles.qrImage} />}
+      {qrImage && (
+        <Image
+          source={{ uri: qrImage }}
+          style={styles.qrImage}
+          onLoadStart={() => {
+            console.log('Starting to load QR image:', qrImage);
+            setImageLoading((prev: {[key: string]: boolean}) => ({ ...prev, qr: true }));
+          }}
+          onLoadEnd={() => {
+            console.log('Finished loading QR image');
+            setImageLoading((prev: {[key: string]: boolean}) => ({ ...prev, qr: false }));
+          }}
+          onError={(error) => {
+            console.error('QR Image load error:', error.nativeEvent.error);
+            console.error('Failed QR URL:', qrImage);
+            setImageError((prev: {[key: string]: boolean}) => ({ ...prev, qr: true }));
+            setImageLoading((prev: {[key: string]: boolean}) => ({ ...prev, qr: false }));
+          }}
+          onLoad={() => {
+            console.log('QR Image loaded successfully');
+            setImageError((prev: {[key: string]: boolean}) => ({ ...prev, qr: false }));
+          }}
+          key={qrImage} // เพิ่ม key เพื่อ force re-render
+        />
+      )}
 
       <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
         <Text style={styles.saveButtonText}>{t('profileedit.save')}</Text>
@@ -318,12 +343,12 @@ const styles = StyleSheet.create({
   },
   profileSection: { alignItems: 'center', marginBottom: 20 },
   profileImage: { width: 120, height: 120, borderRadius: 60, marginBottom: 10 },
-  cameraIcon: { 
-    position: 'absolute', 
-    bottom: 0, 
-    right: '42%', 
-    backgroundColor: '#007AFF', 
-    borderRadius: 20, 
+  cameraIcon: {
+    position: 'absolute',
+    bottom: 0,
+    right: '42%',
+    backgroundColor: '#007AFF',
+    borderRadius: 20,
     padding: 8,
     elevation: 3,
     shadowColor: '#000',
@@ -372,8 +397,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.22,
     shadowRadius: 2.22,
   },
-  qrButtonText: { 
-    color: '#fff', 
+  qrButtonText: {
+    color: '#fff',
     fontSize: 16,
     fontFamily: 'Prompt-Medium',
     fontWeight: '600',
@@ -411,3 +436,5 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
   },
 });
+
+export default ProfileEditScreen;
