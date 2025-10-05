@@ -54,20 +54,16 @@ function ProfileEditScreen() {
     fetchUser();
   }, []);
 
-  // แก้ไขฟังก์ชัน uploadToStorage ให้ใช้ bucket ที่ถูกต้อง
+  // อัปโหลดภาพแบบเดียวกับหน้า AddTrip (อ่าน base64 -> ArrayBuffer) เชื่อถือได้บน React Native
   const uploadToStorage = async (imageUri: string, bucketName: string): Promise<string | null> => {
     try {
       console.log(`Starting upload to ${bucketName}...`);
 
-      // อ่านไฟล์เป็น Blob ผ่าน fetch (รองรับ file:// และ content:// บน RN)
-      const resp = await fetch(imageUri);
-      const blob = await resp.blob();
+      // อ่านไฟล์เป็น base64 แล้วแปลงเป็น ArrayBuffer (เหมือน AddTrip)
+      const base64 = await FileSystem.readAsStringAsync(imageUri, { encoding: 'base64' as any });
+      const arrayBuffer = decodeBase64(base64);
 
-      if (!blob) {
-        throw new Error('Failed to read image blob');
-      }
-
-      // สร้างชื่อไฟล์จากนามสกุลจริง
+      // กำหนดนามสกุลและ contentType
       const extMatch = imageUri.match(/\.([a-zA-Z0-9]+)$/);
       const ext = (extMatch ? extMatch[1] : 'jpg').toLowerCase();
       const contentType = ext === 'png' ? 'image/png' : 'image/jpeg';
@@ -76,9 +72,10 @@ function ProfileEditScreen() {
       // อัปโหลดไป Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from(bucketName)
-        .upload(fileName, blob, {
+        .upload(fileName, arrayBuffer, {
           contentType,
-          upsert: true
+          cacheControl: '3600',
+          upsert: true,
         });
 
       if (uploadError) {
@@ -110,9 +107,26 @@ function ProfileEditScreen() {
     }
   };
 
+  // แปลงค่า URL ที่เก็บไว้ให้กลายเป็น URL ที่โหลดได้แน่นอนเสมอ
+  const getProfilePublicUrl = (url: string | null | undefined): string | null => {
+    if (!url) return null;
+    // รองรับการพรีวิวไฟล์โลคัลหลังเลือก (file:// หรือ content://)
+    if (url.startsWith('file://') || url.startsWith('content://')) return url;
+    if (url.startsWith('http')) return url;
+    // รองรับกรณีบันทึกเป็น path เช่น "profiles/userId/file.jpg" หรือ "userId/file.jpg"
+    try {
+      const path = url.startsWith('profiles/') ? url.replace('profiles/', '') : url;
+      const { data } = supabase.storage.from('profiles').getPublicUrl(path);
+      return data.publicUrl ?? null;
+    } catch {
+      return null;
+    }
+  };
+
   const handleImagePick = async (type: 'profile' | 'qr') => {
     try {
       console.log('Requesting media library permissions...');
+      Alert.alert('Open Picker', type === 'profile' ? 'Profile image picker' : 'QR image picker');
       // ขอ permission ก่อน
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
@@ -134,6 +148,7 @@ function ProfileEditScreen() {
       if (!result.canceled && result.assets?.length > 0) {
         const imageUri = result.assets[0].uri;
         console.log('Image selected:', imageUri);
+        Alert.alert('Selected', 'Picked image successfully');
 
         // ตรวจสอบ session ก่อนอัปโหลดเสมอ
         const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
@@ -146,6 +161,7 @@ function ProfileEditScreen() {
 
         if (type === 'profile') {
           setIsUploading(true);
+          Alert.alert('Uploading', 'Uploading profile image...');
           console.log('Uploading profile image...');
           // แสดงรูปทันทีเป็นพรวิวแบบ local ก่อน
           setProfileImage(imageUri);
@@ -160,9 +176,11 @@ function ProfileEditScreen() {
               return;
             }
             console.log('Profile image uploaded successfully:', publicUrl);
+            Alert.alert('Uploaded', 'Profile image uploaded');
 
             // แทนที่ URL local ด้วย public URL หลังอัปโหลดสำเร็จ และกันแคช
             const bustUrl = `${publicUrl}${publicUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
+            // เก็บ URL จริงในฐานข้อมูล แต่ในหน้าจอนี้ใช้ bustUrl เพื่อเห็นผลทันที
             setProfileImage(bustUrl);
 
             // บันทึกลงฐานข้อมูล
@@ -187,6 +205,7 @@ function ProfileEditScreen() {
           }
         } else {
           console.log('Uploading QR image...');
+          Alert.alert('Uploading', 'Uploading QR image...');
           // อัปโหลดไปยัง bucket qr-codes
           const publicUrl = await uploadToStorage(imageUri, 'qr-codes');
           if (!publicUrl) {
@@ -195,6 +214,7 @@ function ProfileEditScreen() {
             return;
           }
           console.log('QR image uploaded successfully:', publicUrl);
+          Alert.alert('Uploaded', 'QR image uploaded');
           setQRImage(publicUrl);
 
           // บันทึกลงฐานข้อมูล
@@ -208,10 +228,12 @@ function ProfileEditScreen() {
             Alert.alert('Database Error', 'Failed to save QR image URL to database.');
           } else {
             console.log('QR image URL saved to database');
+            Alert.alert('Success', 'QR code updated successfully!');
           }
         }
       } else {
         console.log('Image picker was canceled');
+        Alert.alert('Canceled', 'Image picker was canceled');
       }
     } catch (error) {
       console.error('Image picker error:', error);
@@ -266,29 +288,31 @@ function ProfileEditScreen() {
       </View>
 
       <View style={styles.profileSection}>
-        <Image
-          source={profileImage ? { uri: profileImage } : require('../assets/images/logo.png')}
-          style={styles.profileImage}
-          onLoadStart={() => {
+        <TouchableOpacity onPress={() => !isUploading && handleImagePick('profile')} activeOpacity={0.8}>
+          <Image
+            source={profileImage ? { uri: getProfilePublicUrl(profileImage) || '' } : require('../assets/images/logo.png')}
+            style={styles.profileImage}
+            onLoadStart={() => {
             console.log('Starting to load image:', profileImage);
             setImageLoading((prev: {[key: string]: boolean}) => ({ ...prev, profile: true }));
-          }}
-          onLoadEnd={() => {
+            }}
+            onLoadEnd={() => {
             console.log('Finished loading image');
             setImageLoading((prev: {[key: string]: boolean}) => ({ ...prev, profile: false }));
-          }}
-          onError={(error) => {
+            }}
+            onError={(error) => {
             console.error('Image load error:', error.nativeEvent.error);
             console.error('Failed image URL:', profileImage);
             setImageError((prev: {[key: string]: boolean}) => ({ ...prev, profile: true }));
             setImageLoading((prev: {[key: string]: boolean}) => ({ ...prev, profile: false }));
-          }}
-          onLoad={() => {
+            }}
+            onLoad={() => {
             console.log('Image loaded successfully');
             setImageError((prev: {[key: string]: boolean}) => ({ ...prev, profile: false }));
-          }}
-          key={profileImage} // เพิ่ม key เพื่อ force re-render
-        />
+            }}
+            key={profileImage} // เพิ่ม key เพื่อ force re-render
+          />
+        </TouchableOpacity>
         <TouchableOpacity
           style={[styles.cameraIcon, isUploading && styles.cameraIconDisabled]}
           onPress={() => !isUploading && handleImagePick('profile')}

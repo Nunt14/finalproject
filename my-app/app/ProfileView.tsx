@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Image, TouchableOpacity, ScrollView } from 'react-native';
 import { Text } from '@/components';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { supabase } from '../constants/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLanguage } from './contexts/LanguageContext';
@@ -14,6 +14,7 @@ import EmptyUserProfile from '../components/EmptyUserProfile';
 export default function ProfileViewScreen() {
   const [user, setUser] = useState<any>(null);
   const { t } = useLanguage();
+  const [cacheBustTs, setCacheBustTs] = useState<number>(Date.now());
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -41,6 +42,25 @@ export default function ProfileViewScreen() {
     fetchUser();
   }, []);
 
+  const getProfilePublicUrl = (url: string | null | undefined): string | null => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    try {
+      const path = url.startsWith('profiles/') ? url.replace('profiles/', '') : url;
+      const { data } = supabase.storage.from('profiles').getPublicUrl(path);
+      return data.publicUrl ?? null;
+    } catch {
+      return null;
+    }
+  };
+
+  // เมื่อหน้าถูก focus ให้เปลี่ยนค่า cacheBustTs เพื่อบังคับรีโหลดรูปจาก CDN
+  useFocusEffect(
+    React.useCallback(() => {
+      setCacheBustTs(Date.now());
+    }, [])
+  );
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.replace('/login');
@@ -62,13 +82,17 @@ export default function ProfileViewScreen() {
       <Text style={styles.header}>{t('profileview.title')}</Text>
       <View style={styles.profileSection}>
         <Image
-          source={user.profile_image_url ? { uri: user.profile_image_url } : require('../assets/images/logo.png')}
+          source={user.profile_image_url ? { uri: (() => {
+            const base = getProfilePublicUrl(user.profile_image_url) || '';
+            if (!base) return '';
+            return `${base}${base.includes('?') ? '&' : '?'}t=${cacheBustTs}`;
+          })() } : require('../assets/images/logo.png')}
           style={styles.profileImage}
           onError={(error) => {
             console.error('Image load error:', error);
           }}
           onLoad={() => {
-            console.log('Image loaded successfully:', user.profile_image_url);
+            console.log('Image loaded successfully:', getProfilePublicUrl(user.profile_image_url));
           }}
         />
         <Text style={styles.userName}>{user.full_name || t('profileview.user_fallback')}</Text>

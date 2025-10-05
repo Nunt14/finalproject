@@ -330,10 +330,10 @@ export default function WelcomeScreen() {
     try {
       console.log('Fetching debts for user:', userId);
       
-      // 1) ดึง bill ทั้งหมดของทริปที่ผู้ใช้เป็นสมาชิก
+      // 1) ดึง bill ทั้งหมดของทริปที่ผู้ใช้เป็นสมาชิก (รวมผู้ที่เป็นเจ้าของบิล)
       const { data: billRows, error: billErr } = await supabase
         .from('bill')
-        .select('bill_id, trip_id')
+        .select('bill_id, trip_id, paid_by_user_id')
         .in('trip_id', tripIds);
       
       if (billErr) {
@@ -343,6 +343,7 @@ export default function WelcomeScreen() {
       }
       
       const allowedBillIds = (billRows || []).map((b: any) => String(b.bill_id));
+      const billIdToCreditor = new Map<string, string>((billRows || []).map((b: any) => [String(b.bill_id), String(b.paid_by_user_id)]));
       
       if (allowedBillIds.length === 0) {
         setPendingDebts(0);
@@ -353,7 +354,7 @@ export default function WelcomeScreen() {
       // ใช้ schema เดียวกับหน้า Debt.tsx -> field คือ user_id และ status = 'unpaid'
       const { data: shareRows, error: shareErr } = await supabase
         .from('bill_share')
-        .select('bill_share_id')
+        .select('bill_share_id, bill_id')
         .in('bill_id', allowedBillIds)
         .eq('user_id', userId)
         .eq('status', 'unpaid');
@@ -364,8 +365,11 @@ export default function WelcomeScreen() {
         return;
       }
       
-      // 3) นับจำนวนแถวหนี้ที่ยังไม่ชำระทั้งหมดของผู้ใช้
-      const debtCount = shareRows?.length || 0;
+      // 3) นับเฉพาะแถวหนี้ที่ยังไม่ชำระ และบิลนั้นต้องไม่ใช่ของเราเอง (เราเป็นเจ้าของไม่ต้องจ่าย)
+      const debtCount = (shareRows || []).filter((s: any) => {
+        const creditorId = billIdToCreditor.get(String((s as any).bill_id));
+        return creditorId && String(creditorId) !== String(userId);
+      }).length;
       console.log('Unpaid bill_share rows count:', debtCount);
       setPendingDebts(debtCount);
       
