@@ -600,7 +600,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginLeft: 10, 
     flex: 1, 
-    textAlign: 'center' 
+    textAlign: 'right' 
   },
   tripSummary: {
     paddingHorizontal: 20,

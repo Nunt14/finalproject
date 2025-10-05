@@ -320,7 +320,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
-  headerTitle: { fontSize: 20, fontFamily: 'Prompt-Medium', fontWeight: 'bold', color: 'black' },
+  headerTitle: { fontSize: 20, fontFamily: 'Prompt-Medium', fontWeight: 'bold', color: 'black', flex: 1, textAlign: 'right' },
+  
   headerSpacer: { width: 24 },
   content: { flexGrow: 1, paddingHorizontal: 20, paddingBottom: 40 },
   section: { marginTop: 20 },

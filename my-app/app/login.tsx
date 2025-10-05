@@ -16,6 +16,10 @@ export default function LoginScreen() {
       Alert.alert(t('login.required_fields'));
       return;
     }
+    if (password.length < 8) {
+      Alert.alert(t('login.error_title'), t('login.min_chars_hint'));
+      return;
+    }
 
     // ล็อกอินด้วย Supabase Auth แบบปกติ (จะไม่ต้องยืนยันอีเมล หากปิดที่ Dashboard)
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -118,7 +122,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Prompt-Medium',
     color: '#666',
     marginBottom: 20,
-    textAlign: 'center',
+    textAlign: 'left',
   },
   link: { 
     color: '#333', 
