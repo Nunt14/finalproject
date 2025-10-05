@@ -5,7 +5,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRoute } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { supabase } from '../constants/supabase';
-// Removed base64 read; using fetch(...).blob() instead
+import * as FileSystem from 'expo-file-system';
+import { decode as decodeBase64 } from 'base64-arraybuffer';
 import { ImageCache } from '../utils/imageCache';
 import { runOcrOnImage } from '../utils/ocr';
 import { useLanguage } from './contexts/LanguageContext';
@@ -140,15 +141,22 @@ export default function PaymentUploadScreen() {
         const ext = (match?.[1] || 'jpg').toLowerCase();
         const contentType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
         
-        // Read image as Blob
-        const resp = await fetch(imageUri);
-        const blob = await resp.blob();
+        // Read and convert image to base64
+        const base64 = await FileSystem.readAsStringAsync(imageUri, { 
+          encoding: 'base64'
+        });
+        
+        if (!base64) {
+          throw new Error('Failed to read image data');
+        }
+        
+        const arrayBuffer = decodeBase64(base64);
         const fileName = `slips/${uid}/${billId}-${Date.now()}.${ext}`;
         
         // Upload to Supabase Storage
         const { error: uploadError } = await supabase.storage
           .from('payment-proofs')
-          .upload(fileName, blob, { contentType, upsert: true });
+          .upload(fileName, arrayBuffer, { contentType, upsert: true });
         
         if (uploadError) {
           throw new Error(`Upload failed: ${uploadError.message}`);

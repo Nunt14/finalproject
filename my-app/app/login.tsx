@@ -21,35 +21,81 @@ export default function LoginScreen() {
       return;
     }
 
-    // ล็อกอินด้วย Supabase Auth แบบปกติ (จะไม่ต้องยืนยันอีเมล หากปิดที่ Dashboard)
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    try {
+      // ล็อกอินด้วย Supabase Auth แบบปกติ (จะไม่ต้องยืนยันอีเมล หากปิดที่ Dashboard)
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-    if (error) {
-      Alert.alert(t('login.error_title'), t('login.invalid_credentials'));
-      return;
-    }
-
-    if (data.session) {
-      const userId = data.session.user.id;
-      await AsyncStorage.setItem('user_id', userId);
-
-      // ไปหน้า welcome ทันทีเพื่อให้ผู้ใช้รู้สึกเร็วขึ้น
-      router.replace('/welcome');
-
-      // ทำ insert แบบ non-blocking (ไม่ขวาง UI และไม่เด้ง error box)
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      (async () => {
-        // ใช้ insertUserWithCheck เพื่อจัดการ duplicate email
-        const { error: userError } = await SafeSupabase.insertUserWithCheck({
-          user_id: userId,
-          email,
-        });
-        if (userError) {
-          console.debug('user insert with check error (ignored):', userError);
+      if (error) {
+        console.log('Login error details:', error);
+        
+        // แสดงข้อผิดพลาดที่เฉพาะเจาะจงมากขึ้น
+        let errorMessage = t('login.invalid_credentials');
+        
+        if (error.message.includes('Invalid login credentials')) {
+          errorMessage = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
+        } else if (error.message.includes('Email not confirmed')) {
+          // ถ้ายังไม่ได้ยืนยันอีเมล ให้ส่งอีเมลยืนยันใหม่
+          Alert.alert(
+            'กรุณายืนยันอีเมล',
+            'ระบบจะส่งลิงก์ยืนยันไปยังอีเมลของคุณ',
+            [
+              { text: 'ยกเลิก', style: 'cancel' },
+              { 
+                text: 'ส่งใหม่', 
+                onPress: async () => {
+                  try {
+                    const { error: resendError } = await supabase.auth.resend({
+                      type: 'signup',
+                      email: email
+                    });
+                    if (resendError) {
+                      Alert.alert('ข้อผิดพลาด', 'ไม่สามารถส่งอีเมลยืนยันได้');
+                    } else {
+                      Alert.alert('สำเร็จ', 'ส่งอีเมลยืนยันแล้ว กรุณาตรวจสอบอีเมล');
+                    }
+                  } catch (err) {
+                    Alert.alert('ข้อผิดพลาด', 'ไม่สามารถส่งอีเมลยืนยันได้');
+                  }
+                }
+              }
+            ]
+          );
+          return;
+        } else if (error.message.includes('Too many requests')) {
+          errorMessage = 'พยายามเข้าสู่ระบบบ่อยเกินไป กรุณารอสักครู่';
+        } else {
+          errorMessage = `เกิดข้อผิดพลาด: ${error.message}`;
         }
-      })();
-    } else {
-      Alert.alert(t('login.error_title'), t('login.no_active_session'));
+        
+        Alert.alert(t('login.error_title'), errorMessage);
+        return;
+      }
+
+      if (data.session) {
+        const userId = data.session.user.id;
+        await AsyncStorage.setItem('user_id', userId);
+
+        // ไปหน้า welcome ทันทีเพื่อให้ผู้ใช้รู้สึกเร็วขึ้น
+        router.replace('/welcome');
+
+        // ทำ insert แบบ non-blocking (ไม่ขวาง UI และไม่เด้ง error box)
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        (async () => {
+          // ใช้ insertUserWithCheck เพื่อจัดการ duplicate email
+          const { error: userError } = await SafeSupabase.insertUserWithCheck({
+            user_id: userId,
+            email,
+          });
+          if (userError) {
+            console.debug('user insert with check error (ignored):', userError);
+          }
+        })();
+      } else {
+        Alert.alert(t('login.error_title'), t('login.no_active_session'));
+      }
+    } catch (err) {
+      console.log('Login catch error:', err);
+      Alert.alert(t('login.error_title'), 'เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่อีกครั้ง');
     }
   };
 

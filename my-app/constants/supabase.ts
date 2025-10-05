@@ -1,8 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
-export const SUPABASE_URL = 'https://teejginbhuiyyyzjqawv.supabase.co';
-export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRlZWpnaW5iaHVpeXl5empxYXd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4NTU2NDksImV4cCI6MjA3NDQzMTY0OX0.R_MT5U_oiveh6h0b9bF0qwIT-Q0VTqc2K1rNEqAhQaM';
+const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, string>;
+export const SUPABASE_URL = extra.SUPABASE_URL;
+export const SUPABASE_ANON_KEY = extra.SUPABASE_ANON_KEY;
 
 // ใช้ storageKey คงที่ ผูกกับ project-ref เพื่อกันชนกับโปรเจกต์อื่น
 const STORAGE_KEY = 'sb-teejginbhuiyyyzjqawv-auth-token';

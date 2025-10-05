@@ -18,49 +18,88 @@ export default function SignUpStep2() {
       return;
     }
 
-    // 1) สมัครสมาชิกกับ Supabase Auth (จะ reject ถ้าอีเมลนี้ถูกใช้ไปแล้ว)
-    const { data, error } = await supabase.auth.signUp({
-      email: String(email),
-      password: String(password),
-      options: {
-        data: {
-          full_name: fullName,
-          phone_number: phone,
+    try {
+      // 1) สมัครสมาชิกกับ Supabase Auth (จะ reject ถ้าอีเมลนี้ถูกใช้ไปแล้ว)
+      const { data, error } = await supabase.auth.signUp({
+        email: String(email),
+        password: String(password),
+        options: {
+          data: {
+            full_name: fullName,
+            phone_number: phone,
+          },
         },
-      },
-    });
-
-    if (error) {
-      const msg = String(error.message || '').toLowerCase();
-      if (msg.includes('already registered') || msg.includes('user already registered')) {
-        Alert.alert('Email already registered', 'Please log in instead.');
-        router.replace('/login');
-        return;
-      }
-      Alert.alert('Sign Up Failed', error.message);
-      return;
-    }
-
-    // 2) บันทึกลงตาราง user ของเราแบบ insertUserWithUpsert
-    if (data && data.user) {
-      const { error: userError } = await SafeSupabase.insertUserWithUpsert({
-        user_id: data.user.id,
-        email: data.user.email,
-        full_name: fullName,
-        phone_number: phone,
-        is_verified: true,
-        created_at: data.user.created_at,
-        updated_at: data.user.created_at,
       });
 
-      if (userError) {
-        console.debug('user insert with upsert error (ignored):', userError);
-        // ไม่แสดง error ให้ผู้ใช้ เพราะอาจเป็น duplicate ที่ไม่เป็นปัญหา
+      if (error) {
+        const msg = String(error.message || '').toLowerCase();
+        if (msg.includes('already registered') || msg.includes('user already registered')) {
+          Alert.alert('Email already registered', 'Please log in instead.');
+          router.replace('/login');
+          return;
+        }
+        Alert.alert('Sign Up Failed', error.message);
+        return;
       }
-    }
 
-    Alert.alert('Success', 'Account created. You can log in now.');
-    router.replace('/login');
+      // 2) บันทึกลงตาราง user ของเราแบบ insertUserWithUpsert
+      if (data && data.user) {
+        const { error: userError } = await SafeSupabase.insertUserWithUpsert({
+          user_id: data.user.id,
+          email: data.user.email,
+          full_name: fullName,
+          phone_number: phone,
+          is_verified: true,
+          created_at: data.user.created_at,
+          updated_at: data.user.created_at,
+        });
+
+        if (userError) {
+          console.debug('user insert with upsert error (ignored):', userError);
+          // ไม่แสดง error ให้ผู้ใช้ เพราะอาจเป็น duplicate ที่ไม่เป็นปัญหา
+        }
+      }
+
+      // 3) ตรวจสอบว่าต้องยืนยันอีเมลหรือไม่
+      if (data.user && data.session) {
+        // มี session แสดงว่าเข้าสู่ระบบได้เลย (ไม่ต้องยืนยันอีเมล)
+        Alert.alert('สำเร็จ', 'สร้างบัญชีสำเร็จ กำลังเข้าสู่ระบบ...');
+        router.replace('/welcome');
+      } else if (data.user && !data.session) {
+        // ไม่มี session แสดงว่าต้องยืนยันอีเมล
+        Alert.alert(
+          'กรุณายืนยันอีเมล', 
+          'ระบบได้ส่งลิงก์ยืนยันไปยังอีเมลของคุณแล้ว กรุณาตรวจสอบอีเมลและคลิกลิงก์ยืนยัน',
+          [
+            {
+              text: 'ส่งอีเมลยืนยันใหม่',
+              onPress: async () => {
+                try {
+                  const { error: resendError } = await supabase.auth.resend({
+                    type: 'signup',
+                    email: String(email)
+                  });
+                  if (resendError) {
+                    Alert.alert('ข้อผิดพลาด', 'ไม่สามารถส่งอีเมลยืนยันได้');
+                  } else {
+                    Alert.alert('สำเร็จ', 'ส่งอีเมลยืนยันแล้ว กรุณาตรวจสอบอีเมล');
+                  }
+                } catch (err) {
+                  Alert.alert('ข้อผิดพลาด', 'ไม่สามารถส่งอีเมลยืนยันได้');
+                }
+              }
+            },
+            { text: 'ไปหน้าเข้าสู่ระบบ', onPress: () => router.replace('/login') }
+          ]
+        );
+      } else {
+        Alert.alert('สำเร็จ', 'สร้างบัญชีสำเร็จ กรุณาเข้าสู่ระบบ');
+        router.replace('/login');
+      }
+    } catch (err) {
+      console.log('Signup catch error:', err);
+      Alert.alert('ข้อผิดพลาด', 'เกิดข้อผิดพลาดในการสร้างบัญชี กรุณาลองใหม่อีกครั้ง');
+    }
   };
 
   return (

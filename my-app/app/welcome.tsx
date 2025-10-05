@@ -24,6 +24,7 @@ export default function WelcomeScreen() {
   const [userAvatar, setUserAvatar] = useState<string>('');
   const [totalTrips, setTotalTrips] = useState<number>(0);
   const [pendingDebts, setPendingDebts] = useState<number>(0);
+  const [notificationCount, setNotificationCount] = useState<number>(0);
   const [greeting, setGreeting] = useState<string>('Good day');
 
   // ฟังก์ชันสำหรับคำทักทายตามเวลา
@@ -279,6 +280,18 @@ export default function WelcomeScreen() {
     // ตั้งค่าคำทักทาย
     setGreeting(getGreeting());
 
+    // นับจำนวนการแจ้งเตือนที่ยังไม่อ่าน
+    try {
+      const { count } = await supabase
+        .from('notification')
+        .select('notification_id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('is_read', false);
+      setNotificationCount(count || 0);
+    } catch (err) {
+      console.log('Error counting notifications:', err);
+    }
+
     const memberRows = (memberRes as any)?.data || [];
     const memberErr = (memberRes as any)?.error;
     if (memberErr) {
@@ -313,17 +326,52 @@ export default function WelcomeScreen() {
       setTotalTrips(data?.length || 0);
     }
 
-    // โหลดข้อมูลหนี้ที่ค้าง
+    // โหลดข้อมูลหนี้ที่ค้าง (ใช้วิธีเดียวกับหน้า Debt.tsx)
     try {
-      const { data: debtData } = await supabase
-        .from('debt_summary')
-        .select('*')
-        .eq('debtor_id', userId)
-        .gt('amount', 0);
+      console.log('Fetching debts for user:', userId);
       
-      setPendingDebts(debtData?.length || 0);
+      // 1) ดึง bill ทั้งหมดของทริปที่ผู้ใช้เป็นสมาชิก
+      const { data: billRows, error: billErr } = await supabase
+        .from('bill')
+        .select('bill_id, trip_id')
+        .in('trip_id', tripIds);
+      
+      if (billErr) {
+        console.log('Error fetching bills:', billErr);
+        setPendingDebts(0);
+        return;
+      }
+      
+      const allowedBillIds = (billRows || []).map((b: any) => String(b.bill_id));
+      
+      if (allowedBillIds.length === 0) {
+        setPendingDebts(0);
+        return;
+      }
+      
+      // 2) ดึงรายการ bill_share ที่ผู้ใช้เป็นลูกหนี้ (unpaid)
+      // ใช้ schema เดียวกับหน้า Debt.tsx -> field คือ user_id และ status = 'unpaid'
+      const { data: shareRows, error: shareErr } = await supabase
+        .from('bill_share')
+        .select('bill_share_id')
+        .in('bill_id', allowedBillIds)
+        .eq('user_id', userId)
+        .eq('status', 'unpaid');
+      
+      if (shareErr) {
+        console.log('Error fetching bill_shares:', shareErr);
+        setPendingDebts(0);
+        return;
+      }
+      
+      // 3) นับจำนวนแถวหนี้ที่ยังไม่ชำระทั้งหมดของผู้ใช้
+      const debtCount = shareRows?.length || 0;
+      console.log('Unpaid bill_share rows count:', debtCount);
+      setPendingDebts(debtCount);
+      
     } catch (error) {
       console.log('Error fetching debts:', error);
+      setPendingDebts(0);
     }
 
     setLoading(false);
@@ -339,6 +387,34 @@ export default function WelcomeScreen() {
       fetchTrips();
     }, [])
   );
+
+  // realtime subscribe สำหรับการแจ้งเตือนใหม่และอัปเดตสถานะอ่าน
+  useEffect(() => {
+    let channel: any;
+    (async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData?.session?.user?.id;
+      if (!userId) return;
+      channel = supabase
+        .channel(`welcome-notifications-${userId}`)
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'notification', filter: `user_id=eq.${userId}` },
+          () => setNotificationCount((c) => c + 1)
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'notification', filter: `user_id=eq.${userId}` },
+          (payload: any) => {
+            const wasRead = (payload.old?.is_read === false) && (payload.new?.is_read === true);
+            const becameUnread = (payload.old?.is_read === true) && (payload.new?.is_read === false);
+            setNotificationCount((c) => c + (becameUnread ? 1 : 0) - (wasRead ? 1 : 0));
+          }
+        )
+        .subscribe();
+    })();
+    return () => { try { if (channel) supabase.removeChannel(channel); } catch {} };
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -392,13 +468,16 @@ export default function WelcomeScreen() {
               
               <View style={styles.statDivider} />
               
-              <View style={styles.statItem}>
+              <TouchableOpacity 
+                style={styles.statItem}
+                onPress={() => navigation.navigate('Debt')}
+              >
                 <View style={styles.statIconContainer}>
                   <Ionicons name="wallet" size={20} color="#fff" />
                 </View>
                 <Text style={styles.statNumber}>{pendingDebts}</Text>
                 <Text style={styles.statLabel}>Pending Debts</Text>
-              </View>
+              </TouchableOpacity>
               
               <View style={styles.statDivider} />
               
@@ -409,7 +488,7 @@ export default function WelcomeScreen() {
                 <View style={styles.statIconContainer}>
                   <Ionicons name="notifications" size={20} color="#fff" />
                 </View>
-                <Text style={styles.statNumber}>0</Text>
+                <Text style={styles.statNumber}>{notificationCount}</Text>
                 <Text style={styles.statLabel}>Notifications</Text>
               </TouchableOpacity>
             </View>

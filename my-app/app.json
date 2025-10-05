@@ -42,7 +42,9 @@
       "typedRoutes": true
     },
     "extra": {
-      "font": "Prompt-Medium"
+      "font": "Prompt-Medium",
+      "SUPABASE_URL": "https://teejginbhuiyyyzjqawv.supabase.co",
+      "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRlZWpnaW5iaHVpeXl5empxYXd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4NTU2NDksImV4cCI6MjA3NDQzMTY0OX0.R_MT5U_oiveh6h0b9bF0qwIT-Q0VTqc2K1rNEqAhQaM"
     }
   }
 }
