@@ -22,12 +22,8 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       'X-Client-Info': 'bill-splitter-app',
     },
   },
-  // Disable real-time subscriptions completely to save bandwidth
-  realtime: {
-    params: {
-      eventsPerSecond: 0, // Disable real-time events
-    },
-  },
+  // Realtime enabled (use defaults). If needed, you can tune params here.
+  // realtime: { params: { eventsPerSecond: 10 } },
   // Disable automatic retries to reduce requests
   db: {
     schema: 'public',

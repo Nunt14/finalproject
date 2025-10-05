@@ -7,8 +7,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
 import { decode as decodeBase64 } from 'base64-arraybuffer';
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from 'uuid';
 import { useLanguage } from './contexts/LanguageContext';
 import CacheDebugger from '../components/CacheDebugger';
 
@@ -57,31 +59,38 @@ function ProfileEditScreen() {
     try {
       console.log(`Starting upload to ${bucketName}...`);
 
-      // อ่านรูปภาพเป็น base64
-      const base64 = await FileSystem.readAsStringAsync(imageUri, {
-        encoding: 'base64'
-      });
+      // อ่านไฟล์เป็น Blob ผ่าน fetch (รองรับ file:// และ content:// บน RN)
+      const resp = await fetch(imageUri);
+      const blob = await resp.blob();
 
-      if (!base64) {
-        throw new Error('Failed to read image data');
+      if (!blob) {
+        throw new Error('Failed to read image blob');
       }
 
-      // แปลงเป็น ArrayBuffer
-      const arrayBuffer = decodeBase64(base64);
-
-      // สร้างชื่อไฟล์
-      const fileName = `${user?.user_id}/${Date.now()}.jpg`;
+      // สร้างชื่อไฟล์จากนามสกุลจริง
+      const extMatch = imageUri.match(/\.([a-zA-Z0-9]+)$/);
+      const ext = (extMatch ? extMatch[1] : 'jpg').toLowerCase();
+      const contentType = ext === 'png' ? 'image/png' : 'image/jpeg';
+      const fileName = `${user?.user_id}/${uuidv4()}.${ext}`;
 
       // อัปโหลดไป Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from(bucketName)
-        .upload(fileName, arrayBuffer, {
-          contentType: 'image/jpeg',
+        .upload(fileName, blob, {
+          contentType,
           upsert: true
         });
 
       if (uploadError) {
         console.error('Upload error:', uploadError);
+        const msg = String(uploadError.message || '').toLowerCase();
+        if (msg.includes('row-level security') || msg.includes('permission')) {
+          Alert.alert('Storage Permission', 'ไม่สามารถอัปโหลดได้: โปรดเพิ่มนโยบาย RLS สำหรับ bucket นี้ (allow insert for authenticated)');
+        } else if (msg.includes('bucket')) {
+          Alert.alert('Storage Bucket', `ไม่พบบัคเก็ต "${bucketName}" โปรดสร้างให้ตรงชื่อและตั้งค่า public/read policy`);
+        } else {
+          Alert.alert('Upload Failed', uploadError.message);
+        }
         return null;
       }
 
@@ -114,7 +123,7 @@ function ProfileEditScreen() {
 
       console.log('Launching image picker...');
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
         quality: 1,
@@ -126,13 +135,24 @@ function ProfileEditScreen() {
         const imageUri = result.assets[0].uri;
         console.log('Image selected:', imageUri);
 
+        // ตรวจสอบ session ก่อนอัปโหลดเสมอ
+        const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
+        if (sessionErr || !sessionData?.session?.user) {
+          console.log('No active session while uploading image');
+          Alert.alert('Session', 'Please log in again.');
+          router.replace('/login');
+          return;
+        }
+
         if (type === 'profile') {
           setIsUploading(true);
           console.log('Uploading profile image...');
+          // แสดงรูปทันทีเป็นพรวิวแบบ local ก่อน
+          setProfileImage(imageUri);
 
           try {
-            // แก้ไขให้ใช้ bucket ที่ถูกต้อง
-            const publicUrl = await uploadToStorage(imageUri, 'profiles');
+          // อัปโหลดไปยัง bucket โปรไฟล์
+          const publicUrl = await uploadToStorage(imageUri, 'profiles');
             if (!publicUrl) {
               console.error('Failed to upload profile image');
               Alert.alert('Upload Failed', 'Failed to upload profile image. Please try again.');
@@ -141,8 +161,9 @@ function ProfileEditScreen() {
             }
             console.log('Profile image uploaded successfully:', publicUrl);
 
-            // อัปเดต state ทันทีเพื่อให้เห็นรูป
-            setProfileImage(publicUrl);
+            // แทนที่ URL local ด้วย public URL หลังอัปโหลดสำเร็จ และกันแคช
+            const bustUrl = `${publicUrl}${publicUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
+            setProfileImage(bustUrl);
 
             // บันทึกลงฐานข้อมูล
             const { error: updateError } = await supabase
@@ -153,8 +174,7 @@ function ProfileEditScreen() {
             if (updateError) {
               console.error('Database update error:', updateError);
               Alert.alert('Database Error', 'Failed to save profile image URL to database.');
-              // ถ้าบันทึกไม่สำเร็จ ให้ revert state
-              setProfileImage(null);
+              // ถ้าบันทึกไม่สำเร็จ ให้คงรูป local ไว้ชั่วคราว
             } else {
               console.log('Profile image URL saved to database');
               Alert.alert('Success', 'Profile image updated successfully!');
@@ -167,7 +187,7 @@ function ProfileEditScreen() {
           }
         } else {
           console.log('Uploading QR image...');
-          // แก้ไขให้ใช้ bucket ที่ถูกต้อง
+          // อัปโหลดไปยัง bucket qr-codes
           const publicUrl = await uploadToStorage(imageUri, 'qr-codes');
           if (!publicUrl) {
             console.error('Failed to upload QR image');

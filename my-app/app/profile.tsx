@@ -9,13 +9,13 @@ import {
   ScrollView,
   Modal,
   SafeAreaView,
+  Text as RNText,
 } from 'react-native';
 import { Text } from '@/components';
 import { supabase } from '../constants/supabase';
 import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system';
-import { decode as decodeBase64 } from 'base64-arraybuffer';
+// Remove base64 read; use fetch(...).blob() when uploading
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from './contexts/LanguageContext';
@@ -100,13 +100,13 @@ export default function ProfileScreen() {
       const ext = (match?.[1] || 'jpg').toLowerCase();
       const contentType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
 
-      // Read the file as Base64 and convert to ArrayBuffer (RN-safe)
-      const base64 = await FileSystem.readAsStringAsync(localUri, { encoding: 'base64' });
-      const arrayBuffer = decodeBase64(base64);
+      // Read the file as Blob (RN-safe)
+      const resp = await fetch(localUri);
+      const blob = await resp.blob();
       const filePath = `${keyPrefix}/${uid}/${Date.now()}.${ext}`;
       const { error: uploadError } = await supabase.storage
         .from('payment-proofs')
-        .upload(filePath, arrayBuffer, { contentType, upsert: true });
+        .upload(filePath, blob, { contentType, upsert: true });
       if (uploadError) {
         Alert.alert('Upload Failed', uploadError.message || 'ไม่สามารถอัปโหลดไฟล์ได้');
         return null;
@@ -385,7 +385,7 @@ export default function ProfileScreen() {
       <Modal transparent visible={showLanguagePicker} animationType="fade" onRequestClose={() => setShowLanguagePicker(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.pickerCard}>
-            <Text style={{ fontWeight: '600', marginBottom: 10 }}>{t('common.select_language')}</Text>
+            <RNText style={{ fontWeight: '600', marginBottom: 10 }}>{t('common.select_language')}</RNText>
             {languageOptions.map((lang) => (
               <TouchableOpacity 
                 key={lang}
@@ -401,7 +401,7 @@ export default function ProfileScreen() {
                   }
                 }}
               >
-                <Text style={{ color: '#333' }}>{languageNames[lang as keyof typeof languageNames]}</Text>
+                <RNText style={{ color: '#333' }}>{languageNames[lang as keyof typeof languageNames]}</RNText>
                 {language === lang && <Ionicons name="checkmark" size={18} color="#1A3C6B" />}
               </TouchableOpacity>
             ))}
@@ -409,7 +409,7 @@ export default function ProfileScreen() {
               style={[styles.pickerRow, { justifyContent: 'center' }]} 
               onPress={() => setShowLanguagePicker(false)}
             >
-              <Text style={{ color: '#1A3C6B', fontWeight: '600' }}>{t('common.close')}</Text>
+              <RNText style={{ color: '#1A3C6B', fontWeight: '600' }}>{t('common.close')}</RNText>
             </TouchableOpacity>
           </View>
         </View>
@@ -419,7 +419,7 @@ export default function ProfileScreen() {
       <Modal transparent visible={showCurrencyPicker} animationType="fade" onRequestClose={() => setShowCurrencyPicker(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.pickerCard}>
-            <Text style={{ fontWeight: '600', marginBottom: 10 }}>{t('common.select_currency')}</Text>
+            <RNText style={{ fontWeight: '600', marginBottom: 10 }}>{t('common.select_currency')}</RNText>
             {currencyOptions.map((c) => (
               <TouchableOpacity key={c} style={styles.pickerRow} onPress={() => handleCurrencyUpdate(c)}>
                 <Text style={{ color: '#333' }}>{c}</Text>
@@ -427,7 +427,7 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             ))}
             <TouchableOpacity style={[styles.pickerRow, { justifyContent: 'center' }]} onPress={() => setShowCurrencyPicker(false)}>
-              <Text style={{ color: '#1A3C6B', fontWeight: '600' }}>{t('common.close')}</Text>
+              <RNText style={{ color: '#1A3C6B', fontWeight: '600' }}>{t('common.close')}</RNText>
             </TouchableOpacity>
           </View>
         </View>

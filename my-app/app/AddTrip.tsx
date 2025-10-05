@@ -4,7 +4,7 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../constants/supabase';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { decode as decodeBase64 } from 'base64-arraybuffer';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
@@ -94,7 +94,7 @@ export default function AddTripScreen() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [4, 3],
       quality: 1,
@@ -111,7 +111,7 @@ export default function AddTripScreen() {
     try {
       // อ่านไฟล์เป็น base64 แล้วแปลงเป็น ArrayBuffer (สำหรับ React Native)
       const base64 = await FileSystem.readAsStringAsync(imageUri, {
-        encoding: FileSystem.EncodingType.Base64,
+        encoding: 'base64',
       });
       const arrayBuffer = decodeBase64(base64);
 
@@ -123,7 +123,7 @@ export default function AddTripScreen() {
 
       const { data, error } = await supabase
         .storage
-        .from('Trip-image')
+        .from('trips')
         .upload(filePath, arrayBuffer, {
           cacheControl: '3600',
           upsert: false,
@@ -134,7 +134,7 @@ export default function AddTripScreen() {
       
       const { data: publicUrl } = supabase
         .storage
-        .from('Trip-image')
+        .from('trips')
         .getPublicUrl(filePath);
 
       return publicUrl.publicUrl;

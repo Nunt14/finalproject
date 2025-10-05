@@ -97,46 +97,56 @@ export async function runOcrOnImage(params: { base64?: string; localUri?: string
   try {
     let base64 = params.base64;
     if (!base64 && params.localUri) {
-      base64 = await FileSystem.readAsStringAsync(params.localUri, { encoding: FileSystem.EncodingType.Base64 });
+      // อ่านเป็น blob แล้วแปลงเป็น base64 สำหรับ OCR.space
+      const resp = await fetch(params.localUri);
+      const blob = await resp.blob();
+      const arrayBuffer = await blob.arrayBuffer();
+      // ใช้ window.btoa กับ binary string เพื่อลดการพึ่งพา Buffer
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      // @ts-ignore RN มี btoa
+      base64 = typeof btoa === 'function' ? btoa(binary) : '';
     }
     if (!base64) return { text: null, amount: null, dateString: null };
 
-    // ใช้คีย์จาก env หรือคีย์ตัวอย่างของ OCR.space สำหรับทดสอบ (มี rate limit สูง)
+    // คีย์ OCR.space
     const apiKey = process.env.EXPO_PUBLIC_OCR_SPACE_KEY || 'helloworld';
-    const body = new FormData();
-    body.append('base64Image', `data:image/jpeg;base64,${base64}`);
-    // OCR.space ไม่รองรับการส่งหลายภาษาแบบคอมมา ใช้ 'eng' เพื่ออ่านตัวเลข/คำอังกฤษบนสลิป
-    body.append('language', 'eng');
-    body.append('isTable', 'true');
-    body.append('scale', 'true');
-    body.append('apikey', apiKey);
 
-    // ตั้ง timeout กันค้าง
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-    let json: any = null;
-    try {
-      const resp = await fetch('https://api.ocr.space/parse/image', {
-        method: 'POST',
-        body,
-        signal: controller.signal as any,
-      });
-      clearTimeout(timeout);
-      try { json = await resp.json(); } catch { json = null; }
-      if (!resp.ok) {
-        console.warn('[OCR] HTTP error', resp.status, json);
-        return { text: null, amount: null, dateString: null, raw: json };
+    async function callOcr(language: 'tha' | 'eng') {
+      const body = new FormData();
+      body.append('base64Image', `data:image/jpeg;base64,${base64}`);
+      body.append('language', language);
+      body.append('isTable', 'true');
+      body.append('scale', 'true');
+      body.append('OCREngine', '3');
+      body.append('apikey', apiKey);
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 20000);
+      try {
+        const resp = await fetch('https://api.ocr.space/parse/image', {
+          method: 'POST',
+          body,
+          signal: controller.signal as any,
+        });
+        clearTimeout(timeout);
+        const json = await resp.json().catch(() => null);
+        if (!resp.ok) return { ok: false, json } as const;
+        return { ok: true, json } as const;
+      } catch (e) {
+        clearTimeout(timeout);
+        return { ok: false, json: null } as const;
       }
-    } catch (e) {
-      clearTimeout(timeout);
-      console.warn('[OCR] network/timeout error', String(e));
-      return { text: null, amount: null, dateString: null };
     }
 
-    // ตรวจผลจาก OCR.space
-    const isError = json?.IsErroredOnProcessing || (typeof json?.OCRExitCode === 'number' && json.OCRExitCode !== 1);
-    if (isError) {
-      console.warn('[OCR] api error', json?.ErrorMessage || json);
+    // ลองภาษาไทยก่อน ถ้าไม่ได้ ค่อย fallback อังกฤษ
+    let res = await callOcr('tha');
+    if (!res.ok || res.json?.IsErroredOnProcessing) {
+      res = await callOcr('eng');
+    }
+    const json: any = res.json;
+    if (!json || res.ok !== true || json?.IsErroredOnProcessing) {
       return { text: null, amount: null, dateString: null, raw: json };
     }
 

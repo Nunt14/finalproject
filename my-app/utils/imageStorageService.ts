@@ -1,6 +1,4 @@
 import { supabase } from '../constants/supabase';
-import * as FileSystem from 'expo-file-system';
-import { decode as decodeBase64 } from 'base64-arraybuffer';
 
 /**
  * Image Storage Service สำหรับจัดการรูปภาพใน Supabase Storage
@@ -89,24 +87,22 @@ export class ImageStorageService {
   ): Promise<string | null> {
     try {
       console.log(`Uploading to bucket: ${bucketName}, file: ${fileName}`);
+      
+      // อ่านไฟล์เป็น Blob ผ่าน fetch
+      const resp = await fetch(imageUri);
+      const blob = await resp.blob();
+      if (!blob) throw new Error('Failed to read image blob');
 
-      // อ่านรูปภาพเป็น base64
-      const base64 = await FileSystem.readAsStringAsync(imageUri, {
-        encoding: 'base64'
-      });
-
-      if (!base64) {
-        throw new Error('Failed to read image data');
-      }
-
-      // แปลงเป็น ArrayBuffer
-      const arrayBuffer = decodeBase64(base64);
+      // เดา contentType จากนามสกุล
+      const m = imageUri.match(/\.([a-zA-Z0-9]+)(?:\?|$)/);
+      const ext = (m?.[1] || 'jpg').toLowerCase();
+      const contentType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
 
       // อัปโหลดไป Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from(bucketName)
-        .upload(fileName, arrayBuffer, {
-          contentType: 'image/jpeg',
+        .upload(fileName, blob, {
+          contentType,
           upsert: true
         });
 
