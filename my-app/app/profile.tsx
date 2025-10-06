@@ -2,224 +2,298 @@ import React, { useEffect, useState } from 'react';
 import {
   View,
   StyleSheet,
-  Image,
   TouchableOpacity,
-  TextInput,
   Alert,
   ScrollView,
-  Modal,
   SafeAreaView,
-  Text as RNText,
 } from 'react-native';
-import { Text } from '@/components';
+import { Text, ProfileImage, QRCodeDisplay, InfoRow, ModalPicker } from '@/components';
 import { supabase } from '../constants/supabase';
 import { router, useFocusEffect } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-// Remove base64 read; use fetch(...).blob() when uploading
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from './contexts/LanguageContext';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as FileSystem from 'expo-file-system/legacy';
 
 export default function ProfileScreen() {
   const [user, setUser] = useState<any>(null);
   const [editMode, setEditMode] = useState(false);
+  const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
   const [currency, setCurrency] = useState('THB');
   const { language, setLanguage, t } = useLanguage();
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
+  const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [qrImage, setQRImage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
   const languageOptions = ['TH', 'EN'];
   const languageNames = {
     'TH': 'ไทย',
     'EN': 'English'
   };
-  const [profileImage, setProfileImage] = useState<string | null>(null);
-  const [qrImage, setQRImage] = useState<string | null>(null);
-  const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
   const currencyOptions = ['THB', 'USD', 'EUR', 'JPY', 'GBP'];
 
   const fetchUser = async () => {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const userId = sessionData?.session?.user?.id;
-    if (!userId) {
-      router.replace('/login');
-      return;
-    }
-    const { data, error } = await supabase
-      .from('user')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-      if (error) {
-        console.log('User data not found, this is normal for new users');
-        // ไม่แสดง error ให้ผู้ใช้ เพราะเป็นเรื่องปกติที่ user ใหม่ยังไม่มีข้อมูล
+    try {
+      setIsLoading(true);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData?.session?.user?.id;
+      
+      if (!userId) {
+        router.replace('/login');
         return;
       }
 
-      if (!data) {
-        console.log('User profile not found, user needs to complete profile setup');
-        // ไม่แสดง error ให้ผู้ใช้ เพราะเป็นเรื่องปกติที่ user ใหม่ยังไม่มีข้อมูล
+      const { data, error } = await supabase
+        .from('user')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (error) {
+        console.log('Error fetching user:', error);
         return;
       }
 
       if (data) {
         setUser(data);
+        setFullName(data.full_name || '');
         setPhone(data.phone_number || '');
+        setEmail(data.email || '');
         setCurrency(data.currency_preference || 'THB');
-        AsyncStorage.setItem('user_currency', data.currency_preference || 'THB');
-        // Sync global language only if different
-        if ((data.language_preference === 'TH' || data.language_preference === 'EN') && data.language_preference !== language) {
-          setLanguage(data.language_preference);
-        }
         setProfileImage(data.profile_image_url || null);
         setQRImage(data.qr_code_img || null);
+        
+        
+        // Sync language
+        if (data.language_preference && data.language_preference !== language) {
+          setLanguage(data.language_preference);
+        }
       }
+    } catch (error) {
+      console.error('Error in fetchUser:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
     fetchUser();
   }, []);
 
-  // เรียก fetchUser ทุกครั้งที่หน้า Profile ถูก focus
   useFocusEffect(
     React.useCallback(() => {
       fetchUser();
     }, [])
   );
 
-  const uploadToStorage = async (localUri: string, keyPrefix: string): Promise<string | null> => {
+  const uploadImage = async (imageUri: string, type: 'profile' | 'qr'): Promise<string | null> => {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
-      const uid = sessionData?.session?.user?.id;
-      if (!uid) return null;
-
-      // Detect extension and contentType
-      const match = localUri.match(/\.([a-zA-Z0-9]+)(?:\?|$)/);
-      const ext = (match?.[1] || 'jpg').toLowerCase();
-      const contentType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
-
-      // Read the file as Blob (RN-safe)
-      const resp = await fetch(localUri);
-      const blob = await resp.blob();
-      const filePath = `${keyPrefix}/${uid}/${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from('payment-proofs')
-        .upload(filePath, blob, { contentType, upsert: true });
-      if (uploadError) {
-        Alert.alert('Upload Failed', uploadError.message || 'ไม่สามารถอัปโหลดไฟล์ได้');
+      const userId = sessionData?.session?.user?.id;
+      if (!userId) {
         return null;
       }
 
-      const { data: pub } = await supabase.storage
-        .from('payment-proofs')
-        .getPublicUrl(filePath);
-      let publicUrl = (pub as any)?.publicUrl ?? null;
-      if (!publicUrl) {
-        // Try signed URL fallback if bucket is private
-        const { data: signed } = await supabase.storage
-          .from('payment-proofs')
-          .createSignedUrl(filePath, 60 * 60 * 24);
-        publicUrl = (signed as any)?.signedUrl ?? null;
+      // Generate unique filename
+      const timestamp = Date.now();
+      const fileExtension = imageUri.split('.').pop() || 'jpg';
+      const fileName = `${userId}/${type}_${timestamp}.${fileExtension}`;
+      
+      // Determine content type
+      const contentType = fileExtension === 'png' ? 'image/png' : 'image/jpeg';
+      
+      // Read file using fetch API (more reliable)
+      const response = await fetch(imageUri);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
       }
-      return publicUrl;
-    } catch {
+      
+      const arrayBuffer = await response.arrayBuffer();
+      
+      // Upload to storage using ArrayBuffer
+      const bucketName = type === 'profile' ? 'profiles' : 'qr-codes';
+      const { error: uploadError } = await supabase.storage
+        .from(bucketName)
+        .upload(fileName, arrayBuffer, { 
+          contentType,
+          upsert: true 
+        });
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        return null;
+      }
+
+      // Get public URL
+      const { data } = await supabase.storage
+        .from(bucketName)
+        .getPublicUrl(fileName);
+
+      return data?.publicUrl || null;
+    } catch (error) {
+      console.error('Upload error:', error);
       return null;
     }
   };
 
   const handleImagePick = async (type: 'profile' | 'qr') => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please grant permission to access your photo library.');
+        return;
+      }
 
-    if (!result.canceled && result.assets?.length > 0) {
-      const imageUri = result.assets[0].uri;
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: type === 'profile' ? [1, 1] : [4, 3],
+        quality: 0.8,
+      });
 
-      if (type === 'profile') {
-        const publicUrl = await uploadToStorage(imageUri, 'user-profile');
-        if (!publicUrl) return;
-        setProfileImage(publicUrl);
-        if (user?.user_id) {
-          await supabase.from('user').update({ profile_image_url: publicUrl }).eq('user_id', user.user_id);
+      if (!result.canceled && result.assets?.length > 0) {
+        const imageUri = result.assets[0].uri;
+        
+        // Show loading
+        if (type === 'profile') {
+          setProfileImage(imageUri); // Show preview immediately
+        } else {
+          setQRImage(imageUri);
         }
-      } else if (type === 'qr') {
-        const publicUrl = await uploadToStorage(imageUri, 'user-qr');
-        if (!publicUrl) return;
-        setQRImage(publicUrl);
-        if (user?.user_id) {
-          await supabase.from('user').update({ qr_code_img: publicUrl }).eq('user_id', user.user_id);
+
+        // Upload image
+        const publicUrl = await uploadImage(imageUri, type);
+        
+        if (publicUrl) {
+          if (type === 'profile') {
+            setProfileImage(publicUrl);
+          } else {
+            setQRImage(publicUrl);
+          }
+          
+          // Update database
+          if (user?.user_id) {
+            const updateData = type === 'profile' 
+              ? { profile_image_url: publicUrl }
+              : { qr_code_img: publicUrl };
+              
+            const { error: updateError } = await supabase
+              .from('user')
+              .update(updateData)
+              .eq('user_id', user.user_id);
+              
+            if (updateError) {
+              console.error('Database update error:', updateError);
+              Alert.alert('Database Error', 'Failed to save image URL to database.');
+            }
+          }
+          
+          Alert.alert('Success', `${type === 'profile' ? 'Profile' : 'QR'} image updated successfully!`);
+        } else {
+          console.error('Upload failed - no public URL returned');
+          Alert.alert('Upload Failed', 'Failed to upload image. Please check your internet connection and try again.');
         }
       }
-    }
-  };
-
-  const handleCurrencyUpdate = async (newCurrency: string) => {
-    setCurrency(newCurrency);
-    setShowCurrencyPicker(false);
-    AsyncStorage.setItem('user_currency', newCurrency);
-
-    if (!user || !user.user_id) return;
-
-    const { error } = await supabase
-      .from('user')
-      .update({ currency_preference: newCurrency })
-      .eq('user_id', user.user_id);
-
-    if (error) {
-      Alert.alert('Currency Update Failed', error.message);
+    } catch (error) {
+      console.error('Image picker error:', error);
+      let errorMessage = 'An error occurred while selecting the image.';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
+      Alert.alert('Error', errorMessage);
     }
   };
 
   const handleSave = async () => {
-    if (!user || !user.user_id) return;
+    if (!user?.user_id) return;
 
-    // อัปเดตข้อมูลในตาราง user
-    const { error } = await supabase
-      .from('user')
-      .update({
-        phone_number: phone,
-        language_preference: language,
-        profile_image_url: profileImage,
-        qr_code_img: qrImage,
-      })
-      .eq('user_id', user.user_id);
-
-    if (error) {
-      Alert.alert('Update Failed', error.message);
-      return;
-    }
-
-    // อัปเดตรหัสผ่าน (ถ้ากรอก) ลงในตาราง user โดยตรง
-    if (password.trim() !== '') {
-      const { error: passUpdateError } = await supabase
+    try {
+      const { error } = await supabase
         .from('user')
-        .update({ password })
+        .update({
+          full_name: fullName,
+          phone_number: phone,
+          currency_preference: currency,
+          language_preference: language,
+        })
         .eq('user_id', user.user_id);
-      if (passUpdateError) {
-        Alert.alert('Password Update Failed', passUpdateError.message);
+
+      if (error) {
+        Alert.alert('Update Failed', error.message);
         return;
       }
-    }
 
-    Alert.alert('Profile Updated');
-    setEditMode(false);
+      Alert.alert('Success', 'Profile updated successfully!');
+      setEditMode(false);
+    } catch (error) {
+      console.error('Save error:', error);
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    }
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.replace('/login');
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            await supabase.auth.signOut();
+            router.replace('/login');
+          }
+        }
+      ]
+    );
   };
 
+  const handleLanguageChange = async (newLanguage: string) => {
+    setLanguage(newLanguage as 'TH' | 'EN');
+    setShowLanguagePicker(false);
+    
+    if (user?.user_id) {
+      await supabase
+        .from('user')
+        .update({ language_preference: newLanguage })
+        .eq('user_id', user.user_id);
+    }
+  };
+
+  const handleCurrencyChange = async (newCurrency: string) => {
+    setCurrency(newCurrency);
+    setShowCurrencyPicker(false);
+    
+    if (user?.user_id) {
+      await supabase
+        .from('user')
+        .update({ currency_preference: newCurrency })
+        .eq('user_id', user.user_id);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.container}>
-      {/* Header with Gradient */}
+    <SafeAreaView style={styles.container}>
+      {/* Header */}
       <LinearGradient
-        colors={['#1A3C6B', '#45647C', '#6B8E9C']}
+        colors={['#1A3C6B', '#45647C']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.headerGradient}
@@ -228,219 +302,151 @@ export default function ProfileScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="chevron-back" size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t('profile.title')}</Text>
-          <View style={{ width: 24 }} />
+          <Text style={styles.headerTitle}>Profile</Text>
+          <TouchableOpacity 
+            onPress={() => setEditMode(!editMode)} 
+            style={styles.editHeaderButton}
+          >
+            <Ionicons name={editMode ? "checkmark" : "create"} size={20} color="#fff" />
+          </TouchableOpacity>
         </View>
       </LinearGradient>
 
-      <ScrollView style={styles.scrollContainer} contentContainerStyle={{ paddingBottom: 80 }}>
-
-
+      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
+        {/* Profile Section */}
         <View style={styles.profileSection}>
-          <View style={styles.profileImageWrapper}>
-            <Image
-              source={
-                profileImage ? { uri: profileImage } : require('../assets/images/icon.png')
-              }
-              style={styles.profileImage}
-            />
-            <TouchableOpacity style={styles.cameraIcon} onPress={() => handleImagePick('profile')}>
-              <Ionicons name="camera" size={18} color="#fff" />
-            </TouchableOpacity>
-          </View>
-
-          {/* แสดงชื่อ ถ้ามี full_name */}
-          {user?.full_name ? (
-            <Text style={styles.name}>{user.full_name}</Text>
-          ) : null}
-
-          {/* แสดงอีเมล ถ้ามี */}
-          {user?.email ? (
-            <Text style={styles.email}>{user.email}</Text>
-          ) : null}
+          <ProfileImage
+            imageUri={profileImage}
+            onPress={() => handleImagePick('profile')}
+            size={120}
+            showEditButton={true}
+          />
+          
+          <Text style={styles.userName}>{fullName || 'No Name'}</Text>
+          <Text style={styles.userEmail}>{email || 'No Email'}</Text>
+          
         </View>
 
+        {/* Info Cards */}
+        <View style={styles.infoCard}>
+          <InfoRow
+            icon="person-outline"
+            label="Full Name"
+            value={fullName}
+            placeholder="Enter your full name"
+            editable={editMode}
+            onValueChange={setFullName}
+          />
 
-      <View style={styles.sectionCard}>
-      <View style={styles.infoSection}>
-        {/* PHONE */}
-        <View style={styles.infoRow}>
-          <View style={styles.iconContainer}>
-            <Ionicons name="call-outline" size={20} color="#1A3C6B" />
-          </View>
-          <View style={styles.infoContent}>
-            <Text style={styles.label}>{t('profile.phone')}</Text>
-            {editMode ? (
-              <TextInput
-                style={styles.inlineInput}
-                value={phone}
-                onChangeText={setPhone}
-                placeholder={t('profile.default_phone_placeholder')}
-                placeholderTextColor="#999"
-              />
-            ) : (
-              <Text style={styles.value}>{phone || t('profile.default_phone_placeholder')}</Text>
-            )}
-          </View>
-          <TouchableOpacity onPress={() => setEditMode(!editMode)} style={styles.editButton}>
-            <Ionicons name="create-outline" size={18} color="#1A3C6B" />
-          </TouchableOpacity>
-        </View>
+          <InfoRow
+            icon="call-outline"
+            label="Phone"
+            value={phone}
+            placeholder="Enter your phone number"
+            editable={editMode}
+            onValueChange={setPhone}
+            keyboardType="phone-pad"
+          />
 
-        {/* PASSWORD */}
-        <View style={styles.infoRow}>
-          <View style={styles.iconContainer}>
-            <Ionicons name="lock-closed-outline" size={20} color="#1A3C6B" />
-          </View>
-          <View style={styles.infoContent}>
-            <Text style={styles.label}>{t('profile.password')}</Text>
-            {editMode ? (
-              <TextInput
-                style={styles.inlineInput}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                placeholder={t('profile.new_password_placeholder')}
-                placeholderTextColor="#999"
-              />
-            ) : (
-              <Text style={styles.value}>**********</Text>
-            )}
-          </View>
-        </View>
+          <InfoRow
+            icon="cash-outline"
+            label="Currency"
+            value={currency}
+            onPress={() => setShowCurrencyPicker(true)}
+            rightComponent={
+              <TouchableOpacity 
+                style={styles.currencyButton}
+                onPress={() => setShowCurrencyPicker(true)}
+              >
+                <Text style={styles.currencyButtonText}>{currency}</Text>
+                <Ionicons name="chevron-down" size={16} color="#fff" />
+              </TouchableOpacity>
+            }
+          />
 
-        {/* PAYMENT */}
-        <View style={styles.infoRow}>
-          <View style={styles.iconContainer}>
-            <Ionicons name="qr-code-outline" size={20} color="#1A3C6B" />
-          </View>
-          <View style={styles.infoContent}>
-            <Text style={styles.label}>{t('profile.payment')}</Text>
-            <Text style={styles.value}>{qrImage ? 'QR Code Set' : 'No QR Code'}</Text>
-          </View>
-          <TouchableOpacity onPress={() => handleImagePick('qr')} style={styles.editButton}>
-            <Ionicons name="create-outline" size={18} color="#1A3C6B" />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.qrBox}>
-          <TouchableOpacity style={styles.qrEditIcon} onPress={() => handleImagePick('qr')}>
-            <Ionicons name="create-outline" size={16} color="#1A3C6B" />
-          </TouchableOpacity>
-          {qrImage ? (
-            <Image source={{ uri: qrImage }} style={styles.qrImage} resizeMode="contain" />
-          ) : (
-            <Ionicons name="qr-code-outline" size={64} color="#1A3C6B" style={{ marginVertical: 24 }} />
-          )}
-          <Text style={styles.qrText}>{t('profile.qr_text')}</Text>
-        </View>
-
-        {/* CURRENCY */}
-        <View style={styles.infoRow}>
-          <View style={styles.iconContainer}>
-            <Ionicons name="cash-outline" size={20} color="#1A3C6B" />
-          </View>
-          <View style={styles.infoContent}>
-            <Text style={styles.label}>{t('profile.currency')}</Text>
-            <Text style={styles.value}>{currency}</Text>
-          </View>
-          <TouchableOpacity style={styles.currencyPill} onPress={() => setShowCurrencyPicker(true)}>
-            <Text style={styles.currencyPillText}>{currency}</Text>
-            <Ionicons name="chevron-down" size={16} color="#fff" />
-          </TouchableOpacity>
-        </View>
-
-        {/* LANGUAGE */}
-        <View style={styles.infoRow}>
-          <View style={styles.iconContainer}>
-            <Ionicons name="language-outline" size={20} color="#1A3C6B" />
-          </View>
-          <View style={styles.infoContent}>
-            <Text style={styles.label}>{t('profile.language')}</Text>
-            <Text style={styles.value}>{languageNames[language as keyof typeof languageNames]}</Text>
-          </View>
-          <TouchableOpacity 
-            style={styles.currencyPill} 
+          <InfoRow
+            icon="language-outline"
+            label="Language"
+            value={languageNames[language as keyof typeof languageNames]}
             onPress={() => setShowLanguagePicker(true)}
-          >
-            <Text style={styles.currencyPillText}>
-              {language}
-            </Text>
-            <Ionicons name="chevron-down" size={16} color="#fff" />
-          </TouchableOpacity>
+            rightComponent={
+              <TouchableOpacity 
+                style={styles.currencyButton}
+                onPress={() => setShowLanguagePicker(true)}
+              >
+                <Text style={styles.currencyButtonText}>
+                  {languageNames[language as keyof typeof languageNames]}
+                </Text>
+                <Ionicons name="chevron-down" size={16} color="#fff" />
+              </TouchableOpacity>
+            }
+          />
         </View>
-      </View>
-      </View>
 
-        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-          <Text style={styles.saveButtonText}>{t('common.save')}</Text>
-        </TouchableOpacity>
+        {/* QR Code Section */}
+        <QRCodeDisplay
+          qrImageUri={qrImage}
+          onEdit={() => handleImagePick('qr')}
+          title="Payment QR Code"
+          placeholder="No QR Code"
+        />
+
+        {/* Action Buttons */}
+        {editMode && (
+          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+            <Text style={styles.saveButtonText}>Save Changes</Text>
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutButtonText}>{t('common.logout')}</Text>
+          <Text style={styles.logoutButtonText}>Logout</Text>
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Language picker modal */}
-      <Modal transparent visible={showLanguagePicker} animationType="fade" onRequestClose={() => setShowLanguagePicker(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.pickerCard}>
-            <RNText style={{ fontWeight: '600', marginBottom: 10 }}>{t('common.select_language')}</RNText>
-            {languageOptions.map((lang) => (
-              <TouchableOpacity 
-                key={lang}
-                style={styles.pickerRow}
-                onPress={() => {
-                  setLanguage(lang as any);
-                  setShowLanguagePicker(false);
-                  if (user?.user_id) {
-                    supabase
-                      .from('user')
-                      .update({ language_preference: lang })
-                      .eq('user_id', user.user_id);
-                  }
-                }}
-              >
-                <RNText style={{ color: '#333' }}>{languageNames[lang as keyof typeof languageNames]}</RNText>
-                {language === lang && <Ionicons name="checkmark" size={18} color="#1A3C6B" />}
-              </TouchableOpacity>
-            ))}
-            <TouchableOpacity 
-              style={[styles.pickerRow, { justifyContent: 'center' }]} 
-              onPress={() => setShowLanguagePicker(false)}
-            >
-              <RNText style={{ color: '#1A3C6B', fontWeight: '600' }}>{t('common.close')}</RNText>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      {/* Language Picker Modal */}
+      <ModalPicker
+        visible={showLanguagePicker}
+        title="Select Language"
+        options={languageOptions.map(lang => ({
+          value: lang,
+          label: languageNames[lang as keyof typeof languageNames]
+        }))}
+        selectedValue={language}
+        onSelect={handleLanguageChange}
+        onClose={() => setShowLanguagePicker(false)}
+      />
 
-      {/* Currency picker modal */}
-      <Modal transparent visible={showCurrencyPicker} animationType="fade" onRequestClose={() => setShowCurrencyPicker(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.pickerCard}>
-            <RNText style={{ fontWeight: '600', marginBottom: 10 }}>{t('common.select_currency')}</RNText>
-            {currencyOptions.map((c) => (
-              <TouchableOpacity key={c} style={styles.pickerRow} onPress={() => handleCurrencyUpdate(c)}>
-                <Text style={{ color: '#333' }}>{c}</Text>
-                {currency === c ? <Ionicons name="checkmark" size={18} color="#1A3C6B" /> : null}
-              </TouchableOpacity>
-            ))}
-            <TouchableOpacity style={[styles.pickerRow, { justifyContent: 'center' }]} onPress={() => setShowCurrencyPicker(false)}>
-              <RNText style={{ color: '#1A3C6B', fontWeight: '600' }}>{t('common.close')}</RNText>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-    </View>
+      {/* Currency Picker Modal */}
+      <ModalPicker
+        visible={showCurrencyPicker}
+        title="Select Currency"
+        options={currencyOptions.map(curr => ({
+          value: curr,
+          label: curr
+        }))}
+        selectedValue={currency}
+        onSelect={handleCurrencyChange}
+        onClose={() => setShowCurrencyPicker(false)}
+      />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#fff',
-    paddingTop: 50,
+  container: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#666',
+    fontFamily: 'Prompt-Medium',
   },
   headerGradient: {
     paddingTop: 0,
@@ -470,184 +476,62 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
   },
+  editHeaderButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
   scrollContainer: {
     flex: 1,
-    paddingHorizontal: 20,
   },
-  profileSection: { 
-    alignItems: 'center', 
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  profileSection: {
+    alignItems: 'center',
     marginTop: 20,
     marginBottom: 30,
     paddingVertical: 20,
   },
-  profileImageWrapper: { 
-    position: 'relative', 
-    marginBottom: 16,
-  },
-  profileImage: { 
-    width: 120, 
-    height: 120, 
-    borderRadius: 60, 
-    backgroundColor: '#f8f9fa', 
-    borderWidth: 4, 
-    borderColor: '#1A3C6B',
-    shadowColor: '#1A3C6B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  cameraIcon: { 
-    position: 'absolute', 
-    bottom: 0, 
-    right: 0, 
-    backgroundColor: '#1A3C6B', 
-    borderRadius: 18, 
-    padding: 6,
-    shadowColor: '#1A3C6B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  userName: { 
-    fontSize: 24, 
+  userName: {
+    fontSize: 24,
     fontFamily: 'Prompt-Medium',
-    fontWeight: '600', 
-    marginTop: 8, 
-    color: '#1A3C6B',
-    textAlign: 'center',
-  },
-  userEmail: { 
-    fontSize: 16, 
-    fontFamily: 'Prompt-Medium',
-    color: '#666', 
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  sectionCard: { 
-    backgroundColor: '#fff', 
-    borderRadius: 20, 
-    padding: 20, 
-    marginBottom: 20, 
-    borderWidth: 1, 
-    borderColor: '#f0f0f0', 
-    shadowColor: '#000', 
-    shadowOpacity: 0.08, 
-    shadowRadius: 4, 
-    shadowOffset: { width: 0, height: 2 }, 
-    elevation: 2 
-  },
-  infoSection: { marginBottom: 8 },
-  infoRow: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    marginBottom: 20,
-    paddingVertical: 8,
-  },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f8f9fa',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 15,
-  },
-  infoContent: {
-    flex: 1,
-  },
-  label: { 
-    fontSize: 14, 
-    color: '#666', 
-    marginBottom: 2,
-    fontWeight: '500',
-    fontFamily: 'Prompt-Medium',
-  },
-  value: { 
-    fontSize: 16, 
-    color: '#1A3C6B',
     fontWeight: '600',
-    fontFamily: 'Prompt-Medium',
+    color: '#1A3C6B',
+    textAlign: 'center',
+    marginBottom: 4,
   },
-  editButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#f8f9fa',
-  },
-  inlineInput: {
+  userEmail: {
     fontSize: 16,
-    borderBottomWidth: 2,
-    borderColor: '#1A3C6B',
-    paddingVertical: 6,
-    color: '#1A3C6B',
-    fontWeight: '600',
     fontFamily: 'Prompt-Medium',
+    color: '#666',
+    textAlign: 'center',
   },
-  currencyPill: {
+  infoCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  currencyButton: {
     backgroundColor: '#1A3C6B',
-    paddingVertical: 10,
+    paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    shadowColor: '#1A3C6B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
   },
-  currencyPillText: { 
-    color: '#fff', 
-    fontWeight: '700',
+  currencyButtonText: {
+    color: '#fff',
+    fontWeight: '600',
     fontSize: 14,
-    fontFamily: 'Prompt-Medium',
-  },
-  qrBox: {
-    position: 'relative',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 20,
-    padding: 20,
-    alignItems: 'center',
-    marginTop: 16,
-    marginBottom: 20,
-    borderWidth: 2,
-    borderColor: '#1A3C6B',
-    borderStyle: 'dashed',
-    shadowColor: '#1A3C6B',
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-  },
-  qrEditIcon: { 
-    position: 'absolute', 
-    top: 12, 
-    right: 12, 
-    padding: 8, 
-    backgroundColor: '#1A3C6B', 
-    borderRadius: 16,
-    shadowColor: '#1A3C6B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  qrImage: { 
-    width: 200, 
-    height: 200, 
-    borderRadius: 16, 
-    marginBottom: 12,
-    backgroundColor: '#fff',
-    padding: 10,
-  },
-  qrText: { 
-    fontSize: 13, 
-    color: '#1A3C6B', 
-    textAlign: 'center', 
-    marginTop: 4, 
-    fontWeight: '500',
     fontFamily: 'Prompt-Medium',
   },
   saveButton: {
@@ -662,66 +546,27 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  saveButtonText: { 
-    color: '#fff', 
-    fontWeight: '600', 
+  saveButtonText: {
+    color: '#fff',
+    fontWeight: '600',
     fontSize: 16,
     fontFamily: 'Prompt-Medium',
   },
   logoutButton: {
-    backgroundColor: '#6c757d',
+    backgroundColor: '#dc3545',
     padding: 16,
     borderRadius: 20,
     alignItems: 'center',
-    shadowColor: '#6c757d',
+    shadowColor: '#dc3545',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 3,
   },
-  logoutButtonText: { 
-    color: '#fff', 
-    fontWeight: 'bold', 
-    fontSize: 16 
-  },
-  modalOverlay: { 
-    flex: 1, 
-    backgroundColor: 'rgba(0,0,0,0.5)', 
-    alignItems: 'center', 
-    justifyContent: 'center' 
-  },
-  pickerCard: { 
-    backgroundColor: '#fff', 
-    width: '80%', 
-    borderRadius: 20, 
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  pickerRow: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'space-between', 
-    paddingVertical: 12, 
-    borderBottomWidth: 1, 
-    borderBottomColor: '#f0f0f0' 
-  },
-  name: {
-    fontSize: 24,
-    fontFamily: 'Prompt-Medium',
+  logoutButtonText: {
+    color: '#fff',
     fontWeight: '600',
-    color: '#1A3C6B',
-    marginTop: 10,
-    textAlign: 'center',
-  },
-  email: {
     fontSize: 16,
     fontFamily: 'Prompt-Medium',
-    color: '#666',
-    marginTop: 4,
-    textAlign: 'center',
   },
 });

@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../constants/supabase';
 import { runOcrOnImage } from '../utils/ocr';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useFocusEffect } from '@react-navigation/native';
 import { useLanguage } from './contexts/LanguageContext';
 import { LinearGradient } from 'expo-linear-gradient';

@@ -5,7 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRoute } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { supabase } from '../constants/supabase';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { decode as decodeBase64 } from 'base64-arraybuffer';
 import { ImageCache } from '../utils/imageCache';
 import { runOcrOnImage } from '../utils/ocr';
@@ -28,6 +28,7 @@ export default function PaymentUploadScreen() {
   const [ocrLoading, setOcrLoading] = useState<boolean>(false);
   const [ocrText, setOcrText] = useState<string | null>(null);
   const [ocrAmount, setOcrAmount] = useState<number | null>(null);
+  const [allowCropping, setAllowCropping] = useState<boolean>(false);
   const expectedAmount = useMemo(() => (amount ? Number(amount) : null), [amount]);
 
   const amountsClose = (a: number, b: number): boolean => {
@@ -49,53 +50,93 @@ export default function PaymentUploadScreen() {
   }, [imageUri, submitting, ocrLoading, expectedAmount, ocrAmount, matchOk]);
 
   const runOcr = async (uri: string) => {
-    try { console.log('[OCR] runOcr called with uri:', uri); } catch {}
+    console.log('[OCR] Starting OCR process for URI:', uri);
     setOcrLoading(true);
     setOcrText(null);
     setOcrAmount(null);
+    
     try {
+      console.log('[OCR] Calling runOcrOnImage...');
       const result = await runOcrOnImage({ localUri: uri });
-      try { console.log('[OCR] result received. amount=', result.amount, 'text.len=', result.text?.length || 0); } catch {}
+      console.log('[OCR] OCR result received:', {
+        hasText: !!result.text,
+        textLength: result.text?.length || 0,
+        amount: result.amount,
+        dateString: result.dateString
+      });
+      
       setOcrText(result.text ?? null);
       setOcrAmount(result.amount ?? null);
+      
+      if (result.text) {
+        console.log('[OCR] Extracted text preview:', result.text.substring(0, 100) + '...');
+      }
+      
       if (expectedAmount != null && result.amount != null && !amountsClose(expectedAmount, result.amount)) {
+        console.log('[OCR] Amount mismatch detected');
         Alert.alert(
           'ยอดเงินไม่ตรง',
           `ยอดในสลิป: ${result.amount.toLocaleString()} ฿\nยอดที่ต้องจ่าย: ${expectedAmount.toLocaleString()} ฿`,
           [{ text: 'ตกลง' }]
         );
+      } else if (result.amount) {
+        console.log('[OCR] Amount matches or no expected amount');
       }
-    } catch {
-      // swallow; UI will just show unknown
+    } catch (error) {
+      console.error('[OCR] Error during OCR processing:', error);
+      Alert.alert('OCR Error', 'เกิดข้อผิดพลาดในการอ่านข้อความจากรูปภาพ');
     } finally {
+      console.log('[OCR] OCR process completed');
       setOcrLoading(false);
     }
   };
 
   const pickImage = async () => {
+    console.log('[OCR] pickImage called, allowCropping:', allowCropping);
     await ImagePicker.requestMediaLibraryPermissionsAsync();
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsEditing: true,
+      allowsEditing: allowCropping,
       quality: 0.8,
     });
+    
+    console.log('[OCR] Image picker result:', {
+      canceled: result.canceled,
+      assetsCount: result.assets?.length || 0
+    });
+    
     if (!result.canceled && result.assets?.length) {
-      try { console.log('[OCR] picked image from library:', result.assets[0].uri); } catch {}
-      setImageUri(result.assets[0].uri);
-      runOcr(result.assets[0].uri);
+      const imageUri = result.assets[0].uri;
+      console.log('[OCR] Image selected:', imageUri);
+      setImageUri(imageUri);
+      console.log('[OCR] Starting OCR for selected image...');
+      runOcr(imageUri);
+    } else {
+      console.log('[OCR] Image selection canceled or no assets');
     }
   };
 
   const takePhoto = async () => {
+    console.log('[OCR] takePhoto called');
     await ImagePicker.requestCameraPermissionsAsync();
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       quality: 0.8,
     });
+    
+    console.log('[OCR] Camera result:', {
+      canceled: result.canceled,
+      assetsCount: result.assets?.length || 0
+    });
+    
     if (!result.canceled && result.assets?.length) {
-      try { console.log('[OCR] captured photo:', result.assets[0].uri); } catch {}
-      setImageUri(result.assets[0].uri);
-      runOcr(result.assets[0].uri);
+      const imageUri = result.assets[0].uri;
+      console.log('[OCR] Photo taken:', imageUri);
+      setImageUri(imageUri);
+      console.log('[OCR] Starting OCR for taken photo...');
+      runOcr(imageUri);
+    } else {
+      console.log('[OCR] Photo taking canceled or no assets');
     }
   };
 
@@ -241,7 +282,17 @@ export default function PaymentUploadScreen() {
       </LinearGradient>
 
       <View style={styles.uploadContainer}>
-        <Text style={styles.sectionTitle}>{t('paymentupload.section.title')}</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>{t('paymentupload.section.title')}</Text>
+          <TouchableOpacity
+            style={[styles.toggleButton, allowCropping && styles.toggleButtonActive]}
+            onPress={() => setAllowCropping(!allowCropping)}
+          >
+            <Text style={[styles.toggleButtonText, allowCropping && styles.toggleButtonTextActive]}>
+              {allowCropping ? 'Crop ON' : 'Crop OFF'}
+            </Text>
+          </TouchableOpacity>
+        </View>
         <Text style={styles.sectionSubtitle}>{t('paymentupload.section.subtitle')}</Text>
         
         <TouchableOpacity
@@ -381,12 +432,37 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
   sectionTitle: {
     fontSize: 18,
     fontFamily: 'Prompt-Medium',
     fontWeight: '600',
     color: '#1A3C6B',
-    marginBottom: 4,
+  },
+  toggleButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#f0f0f0',
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  toggleButtonActive: {
+    backgroundColor: '#1A3C6B',
+    borderColor: '#1A3C6B',
+  },
+  toggleButtonText: {
+    fontSize: 12,
+    fontFamily: 'Prompt-Medium',
+    color: '#666',
+  },
+  toggleButtonTextActive: {
+    color: '#fff',
   },
   sectionSubtitle: {
     fontSize: 14,
