@@ -367,7 +367,7 @@ const LanguageContext = createContext<LanguageContextValue | undefined>(undefine
 const STORAGE_KEY = 'app_language';
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState<Locale>('TH');
+  const [language, setLanguageState] = useState<Locale>('EN');
 
   useEffect(() => {
     (async () => {

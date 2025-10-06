@@ -122,8 +122,8 @@ export default function PaymentScreen() {
           >
             <Ionicons name="chevron-back" size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t('payment.title')}</Text>
           <View style={{ width: 24 }} />
+          <Text style={styles.headerTitle}>{t('payment.title')}</Text>
         </View>
       </LinearGradient>
 
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
     fontWeight: '600', 
     color: '#fff',
     flex: 1, 
-    textAlign: 'center' 
+    textAlign: 'right' 
   },
   creditorSection: {
     flexDirection: 'row',

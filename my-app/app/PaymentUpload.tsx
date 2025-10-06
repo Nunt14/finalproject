@@ -274,10 +274,8 @@ export default function PaymentUploadScreen() {
           >
             <Ionicons name="chevron-back" size={24} color="#fff" />
           </TouchableOpacity>
-          <View style={styles.headerContent}>
-            <Text style={styles.headerTitle}>{t('paymentupload.title')}</Text>
-          </View>
           <View style={{ width: 24 }} />
+          <Text style={styles.headerTitle}>{t('paymentupload.title')}</Text>
         </View>
       </LinearGradient>
 
@@ -426,7 +424,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Prompt-Medium',
     fontWeight: '600',
     color: '#fff',
-    textAlign: 'center',
+    flex: 1,
+    textAlign: 'right',
   },
   uploadContainer: {
     flex: 1,

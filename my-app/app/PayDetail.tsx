@@ -137,8 +137,8 @@ export default function PayDetailScreen() {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="chevron-back" size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t('paydetail.header')}</Text>
           <View style={{ width: 24 }} />
+          <Text style={styles.headerTitle}>{t('paydetail.header')}</Text>
         </View>
       </LinearGradient>
 
@@ -226,13 +226,13 @@ const styles = StyleSheet.create({
     fontWeight: '600', 
     color: '#fff',
     flex: 1, 
-    textAlign: 'center' 
+    textAlign: 'right' 
   },
   creditorSection: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    borderRadius: 20,
+    justifyContent: 'space-between',
     padding: 20,
     marginHorizontal: 20,
     marginTop: 20,

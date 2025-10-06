@@ -162,8 +162,8 @@ export default function TripDebtDetailScreen() {
           <TouchableOpacity onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t('tripdebt.header')}</Text>
           <View style={{ width: 24 }} />
+          <Text style={styles.headerTitle}>{t('tripdebt.header')}</Text>
         </View>
       </LinearGradient>
 
@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     flex: 1,
-    textAlign: 'center',
+    textAlign: 'right',
     color: '#fff',
     fontSize: 18,
     fontFamily: 'Prompt-Medium',
