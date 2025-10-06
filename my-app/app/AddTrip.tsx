@@ -37,7 +37,7 @@ export default function AddTripScreen() {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError || !session?.user) {
-          Alert.alert('Error', 'Please sign in before creating a trip');
+          Alert.alert(t('common.error_title'), t('addtrip.signin_required'));
           router.replace('/login');
           return;
         }
@@ -77,7 +77,7 @@ export default function AddTripScreen() {
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
         console.error('Fetch data error:', err);
-        Alert.alert('Error', 'Failed to load friends: ' + message);
+        Alert.alert(t('common.error_title'), t('addtrip.load_friends_failed') + ' ' + message);
       } finally {
         setLoading(false);
       }
@@ -89,7 +89,7 @@ export default function AddTripScreen() {
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission required', 'Please allow photo library access to pick an image');
+      Alert.alert(t('common.permission_required'), t('addtrip.allow_photo_access'));
       return;
     }
 
@@ -142,7 +142,7 @@ export default function AddTripScreen() {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       console.error('Image upload error:', err);
-      Alert.alert('Error', 'Unable to upload image: ' + message);
+      Alert.alert(t('common.error_title'), t('addtrip.upload_image_failed') + ' ' + message);
       return null;
     }
   };
@@ -172,7 +172,7 @@ export default function AddTripScreen() {
 
   const handleConfirm = async () => {
     if (!tripName.trim()) {
-      Alert.alert('Error', 'Please enter a trip name');
+      Alert.alert(t('common.error_title'), t('addtrip.enter_trip_name'));
       return;
     }
 
@@ -245,13 +245,13 @@ export default function AddTripScreen() {
         console.warn('Notify trip members failed', notifyErr);
       }
       
-      Alert.alert('Success', 'Trip created successfully!');
+      Alert.alert(t('common.success_title'), t('addtrip.created_success'));
       router.replace('/welcome');
 
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       console.error('Confirm error:', err);
-      Alert.alert('Error', 'Failed to create trip: ' + message);
+      Alert.alert(t('common.error_title'), t('addtrip.create_failed') + ' ' + message);
     } finally {
       setLoading(false);
     }
@@ -282,7 +282,7 @@ export default function AddTripScreen() {
       >
         {/* Enhanced Image Upload Section */}
         <View style={styles.imageSection}>
-          <Text style={styles.sectionTitle}>Cover Image</Text>
+          <Text style={styles.sectionTitle}>{t('addtrip.cover_image')}</Text>
           <TouchableOpacity style={styles.imageBox} onPress={pickImage}>
             {selectedImage ? (
               <Image source={{ uri: selectedImage }} style={styles.tripImage} />
@@ -292,14 +292,14 @@ export default function AddTripScreen() {
                   <View style={styles.cameraIconBackground}>
                     <Ionicons name="camera" size={32} color="#fff" />
                   </View>
-                  <Text style={styles.cameraIconText}>Add Photo</Text>
+                  <Text style={styles.cameraIconText}>{t('addtrip.add_photo')}</Text>
                 </View>
               </View>
             )}
           </TouchableOpacity>
           {!selectedImage && (
             <View style={styles.colorPickerContainer}>
-              <Text style={styles.colorPickerLabel}>Choose default color:</Text>
+              <Text style={styles.colorPickerLabel}>{t('addtrip.choose_color')}</Text>
               <View style={styles.colorOptions}>
                 {['#5DADE2', '#F39C12', '#F5B7B1', '#E74C3C', '#58D68D', '#BB8FCE'].map((color) => (
                   <TouchableOpacity

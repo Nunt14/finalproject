@@ -45,6 +45,11 @@ const translations: Dictionary = {
   'common.logout': { TH: 'ออกจากระบบ', EN: 'Log out' },
   'common.select_language': { TH: 'เลือกภาษา', EN: 'Select Language' },
   'common.select_currency': { TH: 'เลือกสกุลเงิน', EN: 'Select currency' },
+  'common.error_title': { TH: 'ข้อผิดพลาด', EN: 'Error' },
+  'common.success_title': { TH: 'สำเร็จ', EN: 'Success' },
+  'common.permission_required': { TH: 'ต้องมีสิทธิ์', EN: 'Permission Required' },
+  'common.cancel': { TH: 'ยกเลิก', EN: 'Cancel' },
+  'common.loading': { TH: 'กำลังโหลด...', EN: 'Loading...' },
 
   // Profile screen
   'profile.title': { TH: 'บัญชีผู้ใช้', EN: 'Account' },
@@ -91,6 +96,16 @@ const translations: Dictionary = {
   'addtrip.confirm': { TH: 'ยืนยัน', EN: 'Confirm' },
   'addtrip.saving': { TH: 'กำลังบันทึก...', EN: 'Saving...' },
   'addtrip.back': { TH: 'ย้อนกลับ', EN: 'Back' },
+  'addtrip.cover_image': { TH: 'รูปหน้าปก', EN: 'Cover Image' },
+  'addtrip.add_photo': { TH: 'เพิ่มรูป', EN: 'Add Photo' },
+  'addtrip.choose_color': { TH: 'เลือกสีเริ่มต้น:', EN: 'Choose default color:' },
+  'addtrip.signin_required': { TH: 'กรุณาเข้าสู่ระบบก่อนสร้างทริป', EN: 'Please sign in before creating a trip' },
+  'addtrip.load_friends_failed': { TH: 'โหลดรายชื่อเพื่อนไม่สำเร็จ: {message}', EN: 'Failed to load friends: {message}' },
+  'addtrip.allow_photo_access': { TH: 'โปรดยินยอมการเข้าถึงคลังรูปภาพเพื่อเลือกรูป', EN: 'Please allow photo library access to pick an image' },
+  'addtrip.upload_image_failed': { TH: 'ไม่สามารถอัปโหลดรูปภาพได้: {message}', EN: 'Unable to upload image: {message}' },
+  'addtrip.enter_trip_name': { TH: 'กรุณากรอกชื่อทริป', EN: 'Please enter a trip name' },
+  'addtrip.created_success': { TH: 'สร้างทริปสำเร็จ!', EN: 'Trip created successfully!' },
+  'addtrip.create_failed': { TH: 'สร้างทริปไม่สำเร็จ: {message}', EN: 'Failed to create trip: {message}' },
 
   // Debt screen
   'debt.title': { TH: 'หนี้', EN: 'Debt' },
@@ -307,6 +322,30 @@ const translations: Dictionary = {
   'profileview.language': { TH: 'ภาษา', EN: 'Language' },
   'profileview.edit': { TH: 'แก้ไข', EN: 'Edit' },
   'profileview.logout': { TH: 'ออกจากระบบ', EN: 'Log out' },
+
+  // Profile screen (current UI)
+  'profile2.header': { TH: 'โปรไฟล์', EN: 'Profile' },
+  'profile2.no_name': { TH: 'ไม่มีชื่อ', EN: 'No Name' },
+  'profile2.no_email': { TH: 'ไม่มีอีเมล', EN: 'No Email' },
+  'profile2.full_name': { TH: 'ชื่อ-นามสกุล', EN: 'Full Name' },
+  'profile2.full_name_placeholder': { TH: 'กรอกชื่อ-นามสกุล', EN: 'Enter your full name' },
+  'profile2.phone': { TH: 'เบอร์โทร', EN: 'Phone' },
+  'profile2.phone_placeholder': { TH: 'กรอกหมายเลขโทรศัพท์', EN: 'Enter your phone number' },
+  'profile2.currency': { TH: 'สกุลเงิน', EN: 'Currency' },
+  'profile2.language': { TH: 'ภาษา', EN: 'Language' },
+  'profile2.qr_title': { TH: 'คิวอาร์โค้ดชำระเงิน', EN: 'Payment QR Code' },
+  'profile2.qr_placeholder': { TH: 'ยังไม่มีคิวอาร์โค้ด', EN: 'No QR Code' },
+  'profile2.save_changes': { TH: 'บันทึกการเปลี่ยนแปลง', EN: 'Save Changes' },
+  'profile2.grant_photo_permission': { TH: 'โปรดอนุญาตการเข้าถึงคลังรูปภาพของคุณ', EN: 'Please grant permission to access your photo library.' },
+  'profile2.image_updated_profile': { TH: 'ปรับปรุงรูปโปรไฟล์เรียบร้อยแล้ว!', EN: 'Profile image updated successfully!' },
+  'profile2.image_updated_qr': { TH: 'ปรับปรุงรูปคิวอาร์เรียบร้อยแล้ว!', EN: 'QR image updated successfully!' },
+  'profile2.upload_failed': { TH: 'อัปโหลดล้มเหลว', EN: 'Upload Failed' },
+  'profile2.upload_failed_msg': { TH: 'อัปโหลดรูปภาพไม่สำเร็จ โปรดตรวจสอบอินเทอร์เน็ตและลองใหม่', EN: 'Failed to upload image. Please check your internet connection and try again.' },
+  'profile2.db_update_failed': { TH: 'บันทึก URL รูปภาพลงฐานข้อมูลไม่สำเร็จ', EN: 'Failed to save image URL to database.' },
+  'profile2.update_failed': { TH: 'อัปเดตไม่สำเร็จ', EN: 'Update Failed' },
+  'profile2.updated_success': { TH: 'อัปเดตโปรไฟล์เรียบร้อย!', EN: 'Profile updated successfully!' },
+  'profile2.update_profile_failed': { TH: 'อัปเดตโปรไฟล์ไม่สำเร็จ โปรดลองอีกครั้ง', EN: 'Failed to update profile. Please try again.' },
+  'profile2.logout_confirm': { TH: 'คุณแน่ใจหรือไม่ว่าต้องการออกจากระบบ?', EN: 'Are you sure you want to logout?' },
 
   // Headers / Buttons that appear in multiple screens can be added over time
 };

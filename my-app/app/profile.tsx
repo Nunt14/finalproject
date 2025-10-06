@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
-  SafeAreaView,
 } from 'react-native';
 import { Text, ProfileImage, QRCodeDisplay, InfoRow, ModalPicker } from '@/components';
 import { supabase } from '../constants/supabase';
@@ -15,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from './contexts/LanguageContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as FileSystem from 'expo-file-system/legacy';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ProfileScreen() {
   const [user, setUser] = useState<any>(null);
@@ -67,12 +67,8 @@ export default function ProfileScreen() {
         setCurrency(data.currency_preference || 'THB');
         setProfileImage(data.profile_image_url || null);
         setQRImage(data.qr_code_img || null);
-        
-        
-        // Sync language
-        if (data.language_preference && data.language_preference !== language) {
-          setLanguage(data.language_preference);
-        }
+        // Do not override the app language from DB here to preserve the
+        // user's last selection saved in AsyncStorage via LanguageProvider.
       }
     } catch (error) {
       console.error('Error in fetchUser:', error);
@@ -146,7 +142,7 @@ export default function ProfileScreen() {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please grant permission to access your photo library.');
+        Alert.alert(t('common.permission_required'), t('profile2.grant_photo_permission'));
         return;
       }
 
@@ -190,14 +186,17 @@ export default function ProfileScreen() {
               
             if (updateError) {
               console.error('Database update error:', updateError);
-              Alert.alert('Database Error', 'Failed to save image URL to database.');
+              Alert.alert(t('profile2.update_failed'), t('profile2.db_update_failed'));
             }
           }
           
-          Alert.alert('Success', `${type === 'profile' ? 'Profile' : 'QR'} image updated successfully!`);
+          Alert.alert(
+            t('common.success_title'),
+            type === 'profile' ? t('profile2.image_updated_profile') : t('profile2.image_updated_qr')
+          );
         } else {
           console.error('Upload failed - no public URL returned');
-          Alert.alert('Upload Failed', 'Failed to upload image. Please check your internet connection and try again.');
+          Alert.alert(t('profile2.upload_failed'), t('profile2.upload_failed_msg'));
         }
       }
     } catch (error) {
@@ -208,7 +207,7 @@ export default function ProfileScreen() {
         errorMessage = error.message;
       }
       
-      Alert.alert('Error', errorMessage);
+      Alert.alert(t('common.error_title'), errorMessage);
     }
   };
 
@@ -227,26 +226,26 @@ export default function ProfileScreen() {
         .eq('user_id', user.user_id);
 
       if (error) {
-        Alert.alert('Update Failed', error.message);
+        Alert.alert(t('profile2.update_failed'), error.message);
         return;
       }
 
-      Alert.alert('Success', 'Profile updated successfully!');
+      Alert.alert(t('common.success_title'), t('profile2.updated_success'));
       setEditMode(false);
     } catch (error) {
       console.error('Save error:', error);
-      Alert.alert('Error', 'Failed to update profile. Please try again.');
+      Alert.alert(t('common.error_title'), t('profile2.update_profile_failed'));
     }
   };
 
   const handleLogout = async () => {
     Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
+      t('common.logout'),
+      t('profile2.logout_confirm'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Logout',
+          text: t('common.logout'),
           style: 'destructive',
           onPress: async () => {
             await supabase.auth.signOut();
@@ -284,13 +283,13 @@ export default function ProfileScreen() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading...</Text>
+        <Text style={styles.loadingText}>{t('common.loading')}</Text>
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <LinearGradient
         colors={['#1A3C6B', '#45647C']}
@@ -302,7 +301,7 @@ export default function ProfileScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="chevron-back" size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Profile</Text>
+          <Text style={styles.headerTitle}>{t('profile2.header')}</Text>
           <TouchableOpacity 
             onPress={() => setEditMode(!editMode)} 
             style={styles.editHeaderButton}
@@ -322,8 +321,8 @@ export default function ProfileScreen() {
             showEditButton={true}
           />
           
-          <Text style={styles.userName}>{fullName || 'No Name'}</Text>
-          <Text style={styles.userEmail}>{email || 'No Email'}</Text>
+          <Text style={styles.userName}>{fullName || t('profile2.no_name')}</Text>
+          <Text style={styles.userEmail}>{email || t('profile2.no_email')}</Text>
           
         </View>
 
@@ -331,18 +330,18 @@ export default function ProfileScreen() {
         <View style={styles.infoCard}>
           <InfoRow
             icon="person-outline"
-            label="Full Name"
+            label={t('profile2.full_name')}
             value={fullName}
-            placeholder="Enter your full name"
+            placeholder={t('profile2.full_name_placeholder')}
             editable={editMode}
             onValueChange={setFullName}
           />
 
           <InfoRow
             icon="call-outline"
-            label="Phone"
+            label={t('profile2.phone')}
             value={phone}
-            placeholder="Enter your phone number"
+            placeholder={t('profile2.phone_placeholder')}
             editable={editMode}
             onValueChange={setPhone}
             keyboardType="phone-pad"
@@ -350,7 +349,7 @@ export default function ProfileScreen() {
 
           <InfoRow
             icon="cash-outline"
-            label="Currency"
+            label={t('profile2.currency')}
             value={currency}
             onPress={() => setShowCurrencyPicker(true)}
             rightComponent={
@@ -366,7 +365,7 @@ export default function ProfileScreen() {
 
           <InfoRow
             icon="language-outline"
-            label="Language"
+            label={t('profile2.language')}
             value={languageNames[language as keyof typeof languageNames]}
             onPress={() => setShowLanguagePicker(true)}
             rightComponent={
@@ -387,26 +386,26 @@ export default function ProfileScreen() {
         <QRCodeDisplay
           qrImageUri={qrImage}
           onEdit={() => handleImagePick('qr')}
-          title="Payment QR Code"
-          placeholder="No QR Code"
+          title={t('profile2.qr_title')}
+          placeholder={t('profile2.qr_placeholder')}
         />
 
         {/* Action Buttons */}
         {editMode && (
           <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-            <Text style={styles.saveButtonText}>Save Changes</Text>
+            <Text style={styles.saveButtonText}>{t('profile2.save_changes')}</Text>
           </TouchableOpacity>
         )}
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutButtonText}>Logout</Text>
+          <Text style={styles.logoutButtonText}>{t('common.logout')}</Text>
         </TouchableOpacity>
       </ScrollView>
 
       {/* Language Picker Modal */}
       <ModalPicker
         visible={showLanguagePicker}
-        title="Select Language"
+        title={t('common.select_language')}
         options={languageOptions.map(lang => ({
           value: lang,
           label: languageNames[lang as keyof typeof languageNames]
@@ -419,7 +418,7 @@ export default function ProfileScreen() {
       {/* Currency Picker Modal */}
       <ModalPicker
         visible={showCurrencyPicker}
-        title="Select Currency"
+        title={t('common.select_currency')}
         options={currencyOptions.map(curr => ({
           value: curr,
           label: curr
@@ -449,7 +448,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Prompt-Medium',
   },
   headerGradient: {
-    paddingTop: 0,
+    paddingTop: 40,
     paddingBottom: 20,
     borderBottomLeftRadius: 25,
     borderBottomRightRadius: 25,
