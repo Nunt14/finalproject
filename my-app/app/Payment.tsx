@@ -5,6 +5,7 @@ import { useRoute } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { supabase } from '../constants/supabase';
 import { useLanguage } from './contexts/LanguageContext';
+import { useCurrency } from './contexts/CurrencyContext';
 import { LinearGradient } from 'expo-linear-gradient';
 
 type RouteParams = {
@@ -19,6 +20,7 @@ export default function PaymentScreen() {
   const [creditor, setCreditor] = useState<{ full_name: string; profile_image_url?: string | null; qr_code_img?: string | null } | null>(null);
   const [debtor, setDebtor] = useState<{ full_name: string; profile_image_url?: string | null } | null>(null);
   const { t } = useLanguage();
+  const { currencySymbol } = useCurrency();
 
   useEffect(() => {
     const fetchCreditor = async () => {
@@ -138,7 +140,7 @@ export default function PaymentScreen() {
           <Text style={styles.unpaidText}>{t('payment.unpaid')}</Text>
         </View>
         {!!amount && (
-          <Text style={styles.totalAmount}>{Number(amount).toLocaleString(undefined, { minimumFractionDigits: 0 })} ฿</Text>
+          <Text style={styles.totalAmount}>{Number(amount).toLocaleString(undefined, { minimumFractionDigits: 0 })} {currencySymbol}</Text>
         )}
       </View>
 

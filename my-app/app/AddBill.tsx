@@ -13,8 +13,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { supabase } from "../constants/supabase";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLanguage } from './contexts/LanguageContext';
+import { useCurrency } from './contexts/CurrencyContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Fonts } from './utils/fonts';
 
@@ -27,20 +27,19 @@ type Friend = {
   profileImageUrl?: string | null;
 };
 
-// fallback mock (unused after Supabase fetch)
 const friendsMock: Friend[] = [];
 
 export default function AddBillScreen() {
   const router = useRouter();
   const { t } = useLanguage();
   const { tripId } = useLocalSearchParams<{ tripId: string }>();
+  const { currencySymbol } = useCurrency();
   const [total, setTotal] = useState(0);
   const [friends, setFriends] = useState<Friend[]>(friendsMock);
   const [selectAll, setSelectAll] = useState(true);
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [saving, setSaving] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [currencySymbol, setCurrencySymbol] = useState("฿");
   const categories = useMemo(
     () => [
       { key: "stay", icon: "bed-outline" as const },
@@ -112,32 +111,6 @@ export default function AddBillScreen() {
 
   const avatarColors = ["#5DADE2", "#F39C12", "#F5B7B1", "#E74C3C"]; // blue, orange, pink, red
 
-  useEffect(() => {
-    const getCurrency = async () => {
-      const currencyCode = await AsyncStorage.getItem("user_currency");
-      switch (currencyCode) {
-        case "USD":
-          setCurrencySymbol("$");
-          break;
-        case "EUR":
-          setCurrencySymbol("€");
-          break;
-        case "JPY":
-          setCurrencySymbol("¥");
-          break;
-        case "GBP":
-          setCurrencySymbol("£");
-          break;
-        case "THB":
-        default:
-          setCurrencySymbol("฿");
-          break;
-      }
-    };
-    getCurrency();
-  }, []);
-
-  // Fetch trip members from Supabase
   useEffect(() => {
     const fetchMembers = async () => {
       if (!tripId) return;

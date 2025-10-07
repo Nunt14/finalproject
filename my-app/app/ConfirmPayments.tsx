@@ -7,6 +7,7 @@ import { runOcrOnImage } from '../utils/ocr';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useFocusEffect } from '@react-navigation/native';
 import { useLanguage } from './contexts/LanguageContext';
+import { useCurrency } from './contexts/CurrencyContext';
 import { LinearGradient } from 'expo-linear-gradient';
 
 type Proof = {
@@ -28,6 +29,7 @@ type UserLite = { user_id: string; full_name: string | null; profile_image_url: 
 export default function ConfirmPaymentsScreen() {
   const { tripId } = useLocalSearchParams<{ tripId?: string }>();
   const { t } = useLanguage();
+  const { currencySymbol } = useCurrency();
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [proofs, setProofs] = useState<Proof[]>([]);
   const [userMap, setUserMap] = useState<Map<string, UserLite>>(new Map());
@@ -620,7 +622,7 @@ export default function ConfirmPaymentsScreen() {
       <View style={styles.totalDebtCard}>
         <Text style={styles.totalDebtLabel}>{t('confirm.total_owed_label')}</Text>
         <Text style={styles.totalDebtAmount}>
-          {Math.max(0, totalDebt).toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿
+          {Math.max(0, totalDebt).toLocaleString(undefined, { minimumFractionDigits: 2 })} {currencySymbol}
         </Text>
         <Text style={styles.totalDebtNote}>{t('confirm.total_note')}</Text>
       </View>
@@ -674,10 +676,10 @@ export default function ConfirmPaymentsScreen() {
                 />
               )}
               <View style={{ flex: 1 }}>
-                <Text style={styles.amountText}>{(p.amount ?? 0).toLocaleString()} ฿</Text>
+                <Text style={styles.amountText}>{(p.amount ?? 0).toLocaleString()} {currencySymbol}</Text>
                 {ocr ? (
                   <Text style={{ marginTop: 2, fontSize: 12, color: ocr.status === 'matched' ? '#2e7d32' : ocr.status === 'mismatch' ? '#c0392b' : '#666' }}>
-                    {ocr.loading ? t('confirm.ocr.loading') : ocr.status === 'matched' ? `${t('confirm.ocr.matched')} (${(ocr.amount ?? 0).toLocaleString()} ฿)` : ocr.status === 'mismatch' ? `${t('confirm.ocr.mismatch')} (${ocr.amount != null ? ocr.amount.toLocaleString() + ' ฿' : '-'})` : t('confirm.ocr.error')}
+                    {ocr.loading ? t('confirm.ocr.loading') : ocr.status === 'matched' ? `${t('confirm.ocr.matched')} (${(ocr.amount ?? 0).toLocaleString()} ${currencySymbol})` : ocr.status === 'mismatch' ? `${t('confirm.ocr.mismatch')} (${ocr.amount != null ? ocr.amount.toLocaleString() + ' ' + currencySymbol : '-'})` : t('confirm.ocr.error')}
                   </Text>
                 ) : null}
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>

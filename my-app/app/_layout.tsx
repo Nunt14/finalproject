@@ -6,6 +6,7 @@ import { View, ActivityIndicator } from 'react-native';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { LanguageProvider } from './contexts/LanguageContext';
+import { CurrencyProvider } from './contexts/CurrencyContext';
 import { loadFonts } from '../config/fonts';
 import { CacheManager } from '../utils/cacheManager';
 import { clearOldCache } from '../utils/clearOldCache';
@@ -45,15 +46,17 @@ export default function RootLayout() {
   return (
     <View style={{ flex: 1 }}>
       <LanguageProvider>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            headerTitleStyle: {
-              fontFamily: 'Prompt-Medium',
-            },
-          }}
-        />
-        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+        <CurrencyProvider>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              headerTitleStyle: {
+                fontFamily: 'Prompt-Medium',
+              },
+            }}
+          />
+          <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+        </CurrencyProvider>
       </LanguageProvider>
     </View>
   );

@@ -12,18 +12,18 @@ import { router, useFocusEffect } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from './contexts/LanguageContext';
+import { useCurrency } from './contexts/CurrencyContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as FileSystem from 'expo-file-system/legacy';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
 export default function ProfileScreen() {
   const [user, setUser] = useState<any>(null);
   const [editMode, setEditMode] = useState(false);
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [currency, setCurrency] = useState('THB');
   const { language, setLanguage, t } = useLanguage();
+  const { currency, setCurrency } = useCurrency();
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(null);
@@ -259,7 +259,7 @@ export default function ProfileScreen() {
   const handleLanguageChange = async (newLanguage: string) => {
     setLanguage(newLanguage as 'TH' | 'EN');
     setShowLanguagePicker(false);
-    
+
     if (user?.user_id) {
       await supabase
         .from('user')
@@ -269,9 +269,9 @@ export default function ProfileScreen() {
   };
 
   const handleCurrencyChange = async (newCurrency: string) => {
-    setCurrency(newCurrency);
+    await setCurrency(newCurrency as any);
     setShowCurrencyPicker(false);
-    
+
     if (user?.user_id) {
       await supabase
         .from('user')
@@ -279,14 +279,6 @@ export default function ProfileScreen() {
         .eq('user_id', user.user_id);
     }
   };
-
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>{t('common.loading')}</Text>
-      </View>
-    );
-  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>

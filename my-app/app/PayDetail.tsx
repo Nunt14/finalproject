@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useState } from 'react';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { supabase } from '../constants/supabase';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLanguage } from './contexts/LanguageContext';
+import { useCurrency } from './contexts/CurrencyContext';
 import { LinearGradient } from 'expo-linear-gradient';
 
 type TripAggregate = {
@@ -20,37 +20,14 @@ export default function PayDetailScreen() {
   const route = useRoute();
   const { creditorId, tripId } = route.params as { creditorId: string; tripId?: string };
   const { t } = useLanguage();
+  const { currencySymbol } = useCurrency();
   const [trips, setTrips] = useState<TripAggregate[]>([]);
   const [creditor, setCreditor] = useState<{ full_name: string; profile_image?: string | null } | null>(null);
   const [total, setTotal] = useState(0);
-  const [currencySymbol, setCurrencySymbol] = useState("฿");
 
   useEffect(() => {
     fetchPayDetail();
-    getCurrency();
   }, []);
-
-  const getCurrency = async () => {
-    const currencyCode = await AsyncStorage.getItem("user_currency");
-    switch (currencyCode) {
-      case "USD":
-        setCurrencySymbol("$");
-        break;
-      case "EUR":
-        setCurrencySymbol("€");
-        break;
-      case "JPY":
-        setCurrencySymbol("¥");
-        break;
-      case "GBP":
-        setCurrencySymbol("£");
-        break;
-      case "THB":
-      default:
-        setCurrencySymbol("฿");
-        break;
-    }
-  };
 
   const fetchPayDetail = async () => {
     const { data: sessionData } = await supabase.auth.getSession();

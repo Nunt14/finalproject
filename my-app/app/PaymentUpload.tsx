@@ -10,6 +10,7 @@ import { decode as decodeBase64 } from 'base64-arraybuffer';
 import { ImageCache } from '../utils/imageCache';
 import { runOcrOnImage } from '../utils/ocr';
 import { useLanguage } from './contexts/LanguageContext';
+import { useCurrency } from './contexts/CurrencyContext';
 import { LinearGradient } from 'expo-linear-gradient';
 
 type RouteParams = {
@@ -22,6 +23,7 @@ export default function PaymentUploadScreen() {
   const route = useRoute();
   const { billId, creditorId, amount } = route.params as unknown as RouteParams;
   const { t } = useLanguage();
+  const { currencySymbol } = useCurrency();
 
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState<boolean>(false);
@@ -76,7 +78,7 @@ export default function PaymentUploadScreen() {
         console.log('[OCR] Amount mismatch detected');
         Alert.alert(
           'ยอดเงินไม่ตรง',
-          `ยอดในสลิป: ${result.amount.toLocaleString()} ฿\nยอดที่ต้องจ่าย: ${expectedAmount.toLocaleString()} ฿`,
+          `ยอดในสลิป: ${result.amount.toLocaleString()} ${currencySymbol}\nยอดที่ต้องจ่าย: ${expectedAmount.toLocaleString()} ${currencySymbol}`,
           [{ text: 'ตกลง' }]
         );
       } else if (result.amount) {
@@ -332,7 +334,7 @@ export default function PaymentUploadScreen() {
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>{t('paymentupload.amount_in_slip')}</Text>
                 <Text style={[styles.detailValue, { color: ocrAmount ? '#2e7d32' : '#666' }]}>
-                  {ocrAmount != null ? `${ocrAmount.toLocaleString()} ฿` : t('paymentupload.scanning')}
+                  {ocrAmount != null ? `${ocrAmount.toLocaleString()} ${currencySymbol}` : t('paymentupload.scanning')}
                 </Text>
               </View>
               
@@ -340,7 +342,7 @@ export default function PaymentUploadScreen() {
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>{t('paymentupload.expected_amount')}</Text>
                   <Text style={[styles.detailValue, { color: matchOk === false ? '#e74c3c' : '#2e7d32' }]}>
-                    {expectedAmount.toLocaleString()} ฿
+                    {expectedAmount.toLocaleString()} {currencySymbol}
                     {matchOk === true && ' ✓'}
                     {matchOk === false && ' ✗'}
                   </Text>

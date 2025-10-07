@@ -4,6 +4,7 @@ import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { supabase } from '../constants/supabase';
 import { useLanguage } from './contexts/LanguageContext';
+import { useCurrency } from './contexts/CurrencyContext';
 import { LinearGradient } from 'expo-linear-gradient';
 
 type DebtItem = {
@@ -26,6 +27,7 @@ type DebtItem = {
 export default function DebttripScreen() {
   const { tripId } = useLocalSearchParams<{ tripId?: string }>();
   const { t } = useLanguage();
+  const { currencySymbol } = useCurrency();
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [unpaidDebts, setUnpaidDebts] = useState<DebtItem[]>([]);
   const [paidDebts, setPaidDebts] = useState<DebtItem[]>([]);
@@ -313,7 +315,7 @@ export default function DebttripScreen() {
       <View style={styles.totalContainer}>
         <Text style={styles.totalLabel}>{t('debttrip.total_to_pay')}</Text>
         <Text style={styles.totalAmount}>
-          -{Math.abs(totalUnpaidDebt).toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿
+          -{Math.abs(totalUnpaidDebt).toLocaleString(undefined, { minimumFractionDigits: 2 })} {currencySymbol}
         </Text>
       </View>
 
@@ -326,7 +328,7 @@ export default function DebttripScreen() {
             <View key={debt.debt_id} style={styles.card}>
               <View style={styles.rowBetween}>
                 <Text style={styles.amount}>
-                  {debt.amount_owed.toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿
+                  {debt.amount_owed.toLocaleString(undefined, { minimumFractionDigits: 2 })} {currencySymbol}
                 </Text>
                 {debt.creditor_info?.profile_image_url ? (
                   <Image 
@@ -365,7 +367,7 @@ export default function DebttripScreen() {
                   <Text style={[styles.amount, { 
                     color: debt.status === 'settled' ? '#2FBF71' : '#F4B400' 
                   }]}>
-                    {debt.amount_owed.toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿
+                    {debt.amount_owed.toLocaleString(undefined, { minimumFractionDigits: 2 })} {currencySymbol}
                   </Text>
                   {debt.creditor_info?.profile_image_url ? (
                     <Image 

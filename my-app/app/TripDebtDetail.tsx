@@ -4,8 +4,8 @@ import { Text } from '@/components';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useLocalSearchParams, router } from 'expo-router';
 import { supabase } from '../constants/supabase';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLanguage } from './contexts/LanguageContext';
+import { useCurrency } from './contexts/CurrencyContext';
 import { LinearGradient } from 'expo-linear-gradient';
 
 // Hardcoded exchange rates (as of the knowledge cutoff date)
@@ -31,38 +31,12 @@ type BillDetail = {
 export default function TripDebtDetailScreen() {
   const { creditorId, tripId } = useLocalSearchParams<{ creditorId: string; tripId: string }>();
   const { t } = useLanguage();
+  const { currency, currencySymbol, convertToTHB } = useCurrency();
   const [bills, setBills] = useState<BillDetail[]>([]);
   const [creditor, setCreditor] = useState<{ full_name: string; profile_image?: string | null } | null>(null);
   const [total, setTotal] = useState(0);
-  const [currencySymbol, setCurrencySymbol] = useState("฿");
-  const [currencyCode, setCurrencyCode] = useState("THB");
 
   useEffect(() => {
-    const getCurrency = async () => {
-      const code = await AsyncStorage.getItem("user_currency") || "THB";
-      setCurrencyCode(code);
-      
-      // Set the currency symbol based on the currency code
-      switch (code) {
-        case "USD":
-          setCurrencySymbol("$");
-          break;
-        case "EUR":
-          setCurrencySymbol("€");
-          break;
-        case "JPY":
-          setCurrencySymbol("¥");
-          break;
-        case "GBP":
-          setCurrencySymbol("£");
-          break;
-        case "THB":
-        default:
-          setCurrencySymbol("฿");
-          break;
-      }
-    };
-    getCurrency();
     fetchPayDetail();
   }, [creditorId, tripId]);
 
@@ -141,12 +115,6 @@ export default function TripDebtDetailScreen() {
     '3': { icon: 'car', color: '#45647C', label: 'ค่าเดินทาง' },
   } as any;
 
-  // Function to convert amount to THB
-  const convertToTHB = (amount: number): number => {
-    const rate = EXCHANGE_RATES[currencyCode] || 1;
-    return amount * rate;
-  };
-
   const tripName = useMemo(() => bills[0]?.trip_name || '-', [bills]);
 
   return (
@@ -181,10 +149,10 @@ export default function TripDebtDetailScreen() {
           <Text style={styles.totalAmount}>
             {Number(total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} {currencySymbol}
           </Text>
-          {currencyCode !== 'THB' && (
+          {currency !== 'THB' && (
             <Text style={styles.thbEquivalent}>
               = {convertToTHB(Number(total || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿
-              {' '}({currencyCode} 1 = ฿{EXCHANGE_RATES[currencyCode]?.toFixed(2) || 'N/A'})
+              {' '}({currency} 1 = ฿{EXCHANGE_RATES[currency]?.toFixed(2) || 'N/A'})
             </Text>
           )}
         </View>
@@ -221,10 +189,10 @@ export default function TripDebtDetailScreen() {
                   <Text style={styles.itemPrice}>
                     {Number(bill.amount_share || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} {currencySymbol}
                   </Text>
-                  {currencyCode !== 'THB' && (
+                  {currency !== 'THB' && (
                     <Text style={styles.thbEquivalent}>
                       = {convertToTHB(Number(bill.amount_share || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿
-                      {' '}({currencyCode} 1 = ฿{EXCHANGE_RATES[currencyCode]?.toFixed(2) || 'N/A'})
+                      {' '}({currency} 1 = ฿{EXCHANGE_RATES[currency]?.toFixed(2) || 'N/A'})
                     </Text>
                   )}
                 </View>
@@ -238,10 +206,10 @@ export default function TripDebtDetailScreen() {
               <Text style={styles.totalValue}>
                 {Number(total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} {currencySymbol}
               </Text>
-              {currencyCode !== 'THB' && (
+              {currency !== 'THB' && (
                 <Text style={styles.thbTotal}>
                   = {convertToTHB(Number(total || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })} ฿
-                  {' '}({currencyCode} 1 = ฿{EXCHANGE_RATES[currencyCode]?.toFixed(2) || 'N/A'})
+                  {' '}({currency} 1 = ฿{EXCHANGE_RATES[currency]?.toFixed(2) || 'N/A'})
                 </Text>
               )}
             </View>

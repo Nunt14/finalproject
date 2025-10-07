@@ -3,8 +3,8 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Ref
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../constants/supabase';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLanguage } from './contexts/LanguageContext';
+import { useCurrency } from './contexts/CurrencyContext';
 import { ImageCache } from '../utils/imageCache';
 import { DataCache, CACHE_KEYS } from '../utils/dataCache';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -45,39 +45,17 @@ const CATEGORY_ICON: Record<string, { icon: string; color: string }> = {
 export default function DebtScreen() {
   const router = useRouter();
   const { t } = useLanguage();
+  const { currencySymbol } = useCurrency();
   const [debts, setDebts] = useState<DebtItem[]>([]);
   const [pendingConfirms, setPendingConfirms] = useState<Array<{ creditor_id: string; creditor_name: string; creditor_profile_image?: string | null; total_amount: number }>>([]);
   const [confirmedPays, setConfirmedPays] = useState<Array<{ creditor_id: string; creditor_name: string; creditor_profile_image?: string | null; total_amount: number }>>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [currencySymbol, setCurrencySymbol] = useState("฿");
   const [activeTab, setActiveTab] = useState<'debt' | 'payment'>('debt');
   const [paymentProofs, setPaymentProofs] = useState<PaymentProof[]>([]);
   const [userMap, setUserMap] = useState<Map<string, { full_name: string | null; profile_image_url: string | null }>>(new Map());
   const [refreshing, setRefreshing] = useState<boolean>(false);
 
   useEffect(() => {
-    const getCurrency = async () => {
-      const currencyCode = await AsyncStorage.getItem("user_currency");
-      switch (currencyCode) {
-        case "USD":
-          setCurrencySymbol("$");
-          break;
-        case "EUR":
-          setCurrencySymbol("€");
-          break;
-        case "JPY":
-          setCurrencySymbol("¥");
-          break;
-        case "GBP":
-          setCurrencySymbol("£");
-          break;
-        case "THB":
-        default:
-          setCurrencySymbol("฿");
-          break;
-      }
-    };
-    getCurrency();
     fetchDebts();
   }, []);
 
