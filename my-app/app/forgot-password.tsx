@@ -14,19 +14,19 @@ export default function ForgotPasswordScreen() {
 
   const handleResetPassword = async () => {
     if (!email) {
-      Alert.alert('ข้อผิดพลาด', 'กรุณากรอกอีเมล');
+      Alert.alert(t('common.error_title'), t('forgot.email_required'));
       return;
     }
     if (!newPassword || !confirmPassword) {
-      Alert.alert('ข้อผิดพลาด', 'กรุณากรอกรหัสผ่านใหม่ทั้งสองช่อง');
+      Alert.alert(t('common.error_title'), t('forgot.password_required'));
       return;
     }
     if (newPassword !== confirmPassword) {
-      Alert.alert('ข้อผิดพลาด', 'รหัสผ่านไม่ตรงกัน');
+      Alert.alert(t('common.error_title'), t('forgot.password_mismatch'));
       return;
     }
     if (newPassword.length < 6) {
-      Alert.alert('ข้อผิดพลาด', 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
+      Alert.alert(t('common.error_title'), t('forgot.password_too_short'));
       return;
     }
 
@@ -35,16 +35,16 @@ export default function ForgotPasswordScreen() {
       // ลองเข้าสู่ระบบด้วยอีเมลและรหัสผ่านเก่า (ถ้ามี) หรือใช้ admin API
       // สำหรับกรณีนี้เราจะใช้วิธีง่ายๆ โดยให้ผู้ใช้เข้าสู่ระบบก่อน
       Alert.alert(
-        'กรุณาเข้าสู่ระบบก่อน', 
-        'เพื่อความปลอดภัย กรุณาเข้าสู่ระบบด้วยรหัสผ่านเก่าก่อน แล้วไปที่หน้าโปรไฟล์เพื่อเปลี่ยนรหัสผ่าน',
+        t('forgot.please_login_first'),
+        t('forgot.login_first_message'),
         [
-          { text: 'ยกเลิก', style: 'cancel' },
-          { text: 'ไปหน้าเข้าสู่ระบบ', onPress: () => router.replace('/login') }
+          { text: t('common.cancel'), style: 'cancel' },
+          { text: t('login.title'), onPress: () => router.replace('/login') }
         ]
       );
     } catch (error: any) {
       console.log('Reset password error:', error);
-      Alert.alert('ข้อผิดพลาด', 'ไม่สามารถรีเซ็ตรหัสผ่านได้ กรุณาติดต่อผู้ดูแลระบบ');
+      Alert.alert(t('common.error_title'), t('forgot.reset_error'));
     } finally {
       setIsLoading(false);
     }
@@ -103,7 +103,7 @@ export default function ForgotPasswordScreen() {
             disabled={isLoading}
           >
             <Text style={styles.buttonText}>
-              {isLoading ? 'กำลังดำเนินการ...' : 'รีเซ็ตรหัสผ่าน'}
+              {isLoading ? t('forgot.processing') : t('forgot.reset')}
             </Text>
           </TouchableOpacity>
 
