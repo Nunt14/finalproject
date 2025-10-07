@@ -148,3 +148,4 @@ const styles = StyleSheet.create({
     fontFamily: 'Prompt-Medium',
   },
 });
+

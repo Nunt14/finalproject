@@ -531,6 +531,12 @@ export default function AddFriendsScreen() {
           </TouchableOpacity>
           <View style={{ flex: 1 }} />
           <Text style={styles.headerTitle}>{t('friends.title')}</Text>
+          <TouchableOpacity
+            onPress={() => router.push('/Notifications')}
+            style={styles.notificationButton}
+          >
+            <Ionicons name="notifications-outline" size={24} color="#fff" />
+          </TouchableOpacity>
         </View>
       </LinearGradient>
 
@@ -703,6 +709,10 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.medium,
     fontWeight: 'bold',
     color: '#fff',
+    marginLeft: 10,
+  },
+  notificationButton: {
+    padding: 8,
     marginLeft: 10,
   },
   tabs: {
