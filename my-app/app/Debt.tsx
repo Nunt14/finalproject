@@ -645,7 +645,7 @@ export default function DebtScreen() {
             <FontAwesome5 name="globe" size={16} color="#1A3C6B" />
           </View>
           <Text style={styles.totalList}>
-            {t('debt.total_list')} : {debt.trip_count} {t('debt.list')}
+            {t('debt.total_list')} : {debt.trip_count} {t('Bill')}
           </Text>
         </View>
         <TouchableOpacity 

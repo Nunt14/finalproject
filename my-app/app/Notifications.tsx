@@ -254,9 +254,9 @@ export default function NotificationsScreen() {
             <TouchableOpacity onPress={() => router.back()}>
               <Ionicons name="chevron-back" size={24} color="#fff" />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>{t('notifications.title') || 'การแจ้งเตือน'}</Text>
+            <Text style={styles.headerTitle}>{t('Notifications') || 'การแจ้งเตือน'}</Text>
             <TouchableOpacity onPress={markAllAsRead} style={styles.markAllButton}>
-              <Text style={styles.markAllText}>{t('notifications.mark_all_read') || 'อ่านทั้งหมด'}</Text>
+              <Text style={styles.markAllText}>{t('') || ''}</Text>
             </TouchableOpacity>
           </View>
         </LinearGradient>
@@ -279,10 +279,10 @@ export default function NotificationsScreen() {
           <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 10 }}>
             <Ionicons name="chevron-back" size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t('notifications.title') || 'การแจ้งเตือน'}</Text>
+          <Text style={styles.headerTitle}>{t('Notifications') || 'การแจ้งเตือน'}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Text style={{ fontSize: 16, color: '#fff', marginRight: 10 }}>
-              {t('notifications.mark_all_read') || 'อ่านทั้งหมด'}
+              {t('') || ''}
             </Text>
             <TouchableOpacity onPress={markAllAsRead} style={styles.markAllButton}>
               <Ionicons name="checkmark-circle" size={24} color="#fff" />
