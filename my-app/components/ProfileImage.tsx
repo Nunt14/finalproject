@@ -72,14 +72,14 @@ export default function ProfileImage({
             onLoadEnd={handleImageLoadEnd}
             onError={handleImageError}
             defaultSource={require('../assets/images/icon.png')}
-            resizeMode="cover"
+            resizeMode="contain"
           />
         ) : (
           <View style={[styles.placeholder, { width: size, height: size, borderRadius: size / 2 }]}>
             <Image
               source={require('../assets/images/icon.png')}
               style={[styles.image, { width: size, height: size, borderRadius: size / 2 }]}
-              resizeMode="cover"
+              resizeMode="contain"
             />
             {imageUri && (
               <Text style={{ fontSize: 10, color: '#999', marginTop: 5, textAlign: 'center' }}>
@@ -120,9 +120,8 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     position: 'relative',
-    backgroundColor: '#f8f9fa',
-    borderWidth: 5,
-    borderColor: '#1A3C6B',
+    backgroundColor: 'transparent',
+    borderWidth: 0,
     shadowColor: '#1A3C6B',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.25,
@@ -130,10 +129,12 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   image: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: 'transparent',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   placeholder: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
   },
