@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, Image, ScrollView, ViewStyle, TextStyle, ImageStyle } from 'react-native';
+import * as Linking from 'expo-linking';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../constants/supabase';
 import { router } from 'expo-router';
@@ -8,8 +9,6 @@ import { useLanguage } from './contexts/LanguageContext';
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const { t } = useLanguage();
 
   const handleResetPassword = async () => {
@@ -17,34 +16,37 @@ export default function ForgotPasswordScreen() {
       Alert.alert(t('common.error_title'), t('forgot.email_required'));
       return;
     }
-    if (!newPassword || !confirmPassword) {
-      Alert.alert(t('common.error_title'), t('forgot.password_required'));
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      Alert.alert(t('common.error_title'), t('forgot.password_mismatch'));
-      return;
-    }
-    if (newPassword.length < 6) {
-      Alert.alert(t('common.error_title'), t('forgot.password_too_short'));
-      return;
-    }
 
     setIsLoading(true);
     try {
-      // ลองเข้าสู่ระบบด้วยอีเมลและรหัสผ่านเก่า (ถ้ามี) หรือใช้ admin API
-      // สำหรับกรณีนี้เราจะใช้วิธีง่ายๆ โดยให้ผู้ใช้เข้าสู่ระบบก่อน
+      // Use app linking to build a reliable redirect URL for deep link flows
+      const redirectTo = Linking.createURL('reset-password');
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      const template = t('forgot.reset_link_sent_message');
+      const message = template.replace('{email}', email);
       Alert.alert(
-        t('forgot.please_login_first'),
-        t('forgot.login_first_message'),
+        t('forgot.reset_link_sent_title'),
+        message,
         [
-          { text: t('common.cancel'), style: 'cancel' },
-          { text: t('login.title'), onPress: () => router.replace('/login') }
+          { text: t('forgot.open_mail') ?? 'Open Mail', onPress: () => Linking.openURL(`mailto:${email}`) },
+          { text: t('common.ok'), onPress: () => router.replace('/login') }
         ]
       );
     } catch (error: any) {
-      console.log('Reset password error:', error);
-      Alert.alert(t('common.error_title'), t('forgot.reset_error'));
+      console.error('Detailed reset password error:', JSON.stringify(error, null, 2));
+      Alert.alert(
+        t('common.error_title'), 
+        error.message 
+          ? `${t('forgot.reset_error_prefix')}: ${error.message}`
+          : t('forgot.reset_error')
+      );
     } finally {
       setIsLoading(false);
     }
@@ -68,32 +70,6 @@ export default function ForgotPasswordScreen() {
               onChangeText={setEmail}
               value={email}
               autoFocus
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed-outline" size={20} color="#888" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder={t('forgot.new_password')}
-              placeholderTextColor="#888"
-              autoCapitalize="none"
-              secureTextEntry
-              onChangeText={setNewPassword}
-              value={newPassword}
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed-outline" size={20} color="#888" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder={t('forgot.confirm_password')}
-              placeholderTextColor="#888"
-              autoCapitalize="none"
-              secureTextEntry
-              onChangeText={setConfirmPassword}
-              value={confirmPassword}
             />
           </View>
 

@@ -1,3 +1,7 @@
+// Ensure polyfills load as early as possible for networking/URL/crypto needs
+// required by @supabase/supabase-js in React Native environments.
+import 'react-native-url-polyfill/auto';
+import 'react-native-get-random-values';
 import React from 'react';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';

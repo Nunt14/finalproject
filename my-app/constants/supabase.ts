@@ -1,3 +1,8 @@
+// Polyfills required for Supabase client to work correctly in React Native / Expo
+// - react-native-url-polyfill provides URL and URLSearchParams
+// - react-native-get-random-values provides crypto-safe random values used by some libs
+import 'react-native-url-polyfill/auto';
+import 'react-native-get-random-values';
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
